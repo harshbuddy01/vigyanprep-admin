@@ -41,7 +41,7 @@ export function Results() {
         <div className="bg-neutral-800/50 border border-white/10 rounded-xl p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Top Performers</h2>
           <div className="space-y-4">
-            {MOCK_RESULTS.slice(0,3).map((r, i) => (
+            {MOCK_RESULTS.slice(0,3).map((r) => (
               <div key={r.id} className="flex items-center justify-between p-3 bg-neutral-900 rounded-lg border border-white/5">
                 <div>
                   <div className="font-medium text-white">{r.student}</div>

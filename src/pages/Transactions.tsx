@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Receipt } from 'lucide-react';
 import { StatCard } from '../components/StatCard';
 
