@@ -2,40 +2,31 @@ import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { Sidebar } from './Sidebar';
-import { supabase } from '../lib/supabase';
-import { api } from '../lib/api';
 
 export function ProtectedRoute() {
-  const { isAuthenticated, logout } = useAuthStore();
+  const { isAuthenticated, token, logout } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [isValid, setIsValid] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          throw new Error('No session');
-        }
-        await api.getDashboardStats();
-        setIsValid(true);
-      } catch (err) {
-        logout();
-        setIsValid(false);
-      }
-      setLoading(false);
-    };
+    // Check if token exists in store or localStorage
+    const storedToken = token || localStorage.getItem('admin_token') || localStorage.getItem('token');
     
-    if (isAuthenticated) {
-      checkAuth();
+    if (isAuthenticated || storedToken) {
+      setIsValid(true);
     } else {
-      setLoading(false);
+      logout();
       setIsValid(false);
     }
-  }, [isAuthenticated, logout]);
+    setLoading(false);
+  }, [isAuthenticated, token, logout]);
 
   if (loading) {
-    return <div className="flex h-screen bg-neutral-900 text-white items-center justify-center">Loading...</div>;
+    return (
+      <div className="flex h-screen bg-neutral-900 text-amber-400 items-center justify-center font-mono">
+        Loading Admin Dashboard...
+      </div>
+    );
   }
 
   if (!isValid) {
