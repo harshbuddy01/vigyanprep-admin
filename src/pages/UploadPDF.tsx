@@ -74,6 +74,12 @@ export function UploadPDF() {
     );
   };
 
+  const handleSectionChange = (tempId: string, section: string) => {
+    setParsedQuestions(prev =>
+      prev.map(q => (q.tempId === tempId ? { ...q, section } : q))
+    );
+  };
+
   const handlePublish = async () => {
     setIsPublishing(true);
     setErrorMsg(null);
@@ -250,9 +256,21 @@ export function UploadPDF() {
             {filteredQuestions.map((q) => (
               <div key={q.tempId} className="bg-neutral-800/50 border border-white/10 rounded-xl p-6 space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                    Question {q.questionNumber} • {q.section}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
+                      Question {q.questionNumber}
+                    </span>
+                    <select
+                      value={q.section}
+                      onChange={(e) => handleSectionChange(q.tempId, e.target.value)}
+                      className="bg-neutral-900 border border-amber-500/30 text-amber-300 text-xs rounded-md px-2 py-1 focus:outline-none"
+                    >
+                      <option value="Physics">Physics</option>
+                      <option value="Chemistry">Chemistry</option>
+                      <option value="Mathematics">Mathematics</option>
+                      <option value="Biology">Biology</option>
+                    </select>
+                  </div>
                   <span className="text-xs text-neutral-400 bg-neutral-900 px-3 py-1 rounded-full border border-white/5">
                     Select Correct Answer Key:
                   </span>
