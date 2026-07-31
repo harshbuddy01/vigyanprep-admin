@@ -99,9 +99,21 @@ export function UploadPDF() {
     );
   };
 
+function formatImageUrl(url: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  // Auto-convert Google Drive share links to direct raw image URLs
+  const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (driveMatch && driveMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+  }
+  return trimmed;
+}
+
   const handleImageChange = (tempId: string, imageUrl: string) => {
+    const directUrl = formatImageUrl(imageUrl);
     setParsedQuestions(prev =>
-      prev.map(q => (q.tempId === tempId ? { ...q, imageUrl } : q))
+      prev.map(q => (q.tempId === tempId ? { ...q, imageUrl: directUrl } : q))
     );
   };
 
