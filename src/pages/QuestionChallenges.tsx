@@ -32,7 +32,7 @@ export function QuestionChallenges() {
       setLoading(true);
       try {
         const data = await api.getChallenges(selectedTestId);
-        setChallenges(data);
+        setChallenges(data.data || []);
       } catch (err) {
         console.error(err);
       }

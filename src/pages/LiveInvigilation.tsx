@@ -2,6 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { AlertTriangle, Clock, CheckCircle } from 'lucide-react';
 
+function formatTime(secs: number) {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
 export function LiveInvigilation() {
   const [activeStudents, setActiveStudents] = useState<any[]>([]);
   
@@ -12,7 +19,7 @@ export function LiveInvigilation() {
         id: d.id,
         name: d.students?.name,
         roll: d.students?.roll,
-        timeRemaining: '45:00', // Mock calculation for now
+        timeRemaining: formatTime(Math.max(0, d.time_remaining || 0)),
         answersCount: d.answers_count || 0,
         warningCount: d.warning_count || 0,
         status: d.warning_count > 2 ? '🔴 Auto-submitted' : d.warning_count > 0 ? '🟡 1-2 Warnings' : '🟢 Active'
