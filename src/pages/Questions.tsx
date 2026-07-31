@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Edit3, Trash2, CheckCircle, Image, Sparkles, AlertCircle, Save } from 'lucide-react';
+import { Search, Edit3, Trash2, CheckCircle, Image, Sparkles, AlertCircle, Save, Settings, X } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
@@ -41,6 +41,13 @@ export function Questions() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Edit & Delete Test Modal States
+  const [showEditTestModal, setShowEditTestModal] = useState(false);
+  const [editTestTitle, setEditTestTitle] = useState('');
+  const [editExamType, setEditExamType] = useState('IAT');
+  const [editDuration, setEditDuration] = useState(180);
+  const [deletingTest, setDeletingTest] = useState(false);
+
   // Fetch all published tests
   const fetchTests = async () => {
     setLoadingTests(true);
@@ -51,7 +58,13 @@ export function Questions() {
       const data = await response.json();
       if (data.tests && data.tests.length > 0) {
         setTests(data.tests);
-        setSelectedTestId(data.tests[0].id);
+        if (!selectedTestId || !data.tests.find((t: any) => t.id === selectedTestId)) {
+          setSelectedTestId(data.tests[0].id);
+        }
+      } else {
+        setTests([]);
+        setSelectedTestId('');
+        setQuestions([]);
       }
     } catch (err: any) {
       console.error('Failed to load tests:', err);
@@ -84,8 +97,14 @@ export function Questions() {
   useEffect(() => {
     if (selectedTestId) {
       fetchQuestions(selectedTestId);
+      const currentTest = tests.find(t => t.id === selectedTestId);
+      if (currentTest) {
+        setEditTestTitle(currentTest.title);
+        setEditExamType(currentTest.exam_type || currentTest.test_type || 'IAT');
+        setEditDuration(currentTest.duration_minutes || 180);
+      }
     }
-  }, [selectedTestId]);
+  }, [selectedTestId, tests]);
 
   const handleFieldChange = (id: string, field: string, value: any) => {
     setQuestions(prev =>
@@ -99,12 +118,12 @@ export function Questions() {
     );
   };
 
-  const handleOptionChange = (id: string, idx: number, val: string) => {
+  const handleOptionChange = (id: string, optIdx: number, value: string) => {
     setQuestions(prev =>
       prev.map(q => {
         if (q.id !== id) return q;
-        const newOpts = [...(q.options || ['', '', '', ''])];
-        newOpts[idx] = val;
+        const newOpts = [...q.options];
+        newOpts[optIdx] = value;
         return { ...q, options: newOpts };
       })
     );
@@ -122,185 +141,244 @@ export function Questions() {
         },
         body: JSON.stringify({
           question_text: q.question_text,
-          section: q.section,
           options: q.options,
           correct_answer: q.correct_answer,
+          section: q.section,
           image_url: q.image_url
         })
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.details || data.error || 'Failed to save question');
-
-      setMessage({ type: 'success', text: `Question ${q.question_number} updated successfully!` });
+      if (!response.ok) throw new Error('Failed to update question');
+      setMessage({ type: 'success', text: `Question ${q.question_number} updated successfully` });
       setEditingQId(null);
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Failed to save' });
+      setMessage({ type: 'error', text: err.message || 'Error saving question' });
     } finally {
       setSavingId(null);
     }
   };
 
-  const handleDeleteQuestion = async (qId: string, qNum: number) => {
-    if (!confirm(`Are you sure you want to delete Question ${qNum}?`)) return;
+  const handleDeleteQuestion = async (id: string, qNum: number) => {
+    if (!window.confirm(`Are you sure you want to delete Question ${qNum}?`)) return;
     try {
-      const response = await fetch(`${API_BASE}/api/admin/pyq/question/${qId}`, {
+      const response = await fetch(`${API_BASE}/api/admin/pyq/question/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': token ? `Bearer ${token}` : '' }
       });
       if (!response.ok) throw new Error('Failed to delete question');
-
-      setQuestions(prev => prev.filter(q => q.id !== qId));
-      setMessage({ type: 'success', text: `Question ${qNum} deleted.` });
+      setQuestions(prev => prev.filter(q => q.id !== id));
+      setMessage({ type: 'success', text: `Question ${qNum} deleted successfully` });
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Failed to delete' });
+      setMessage({ type: 'error', text: err.message || 'Error deleting question' });
+    }
+  };
+
+  // Update Test Details
+  const handleUpdateTest = async () => {
+    if (!selectedTestId || !editTestTitle.trim()) return;
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/pyq/test/${selectedTestId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          title: editTestTitle,
+          examType: editExamType,
+          durationMinutes: editDuration
+        })
+      });
+      if (!response.ok) throw new Error('Failed to update test details');
+      setMessage({ type: 'success', text: 'Test paper details updated successfully!' });
+      setShowEditTestModal(false);
+      fetchTests();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Error updating test' });
+    }
+  };
+
+  // Delete Entire Test Paper
+  const handleDeleteTest = async () => {
+    const currentTest = tests.find(t => t.id === selectedTestId);
+    if (!currentTest) return;
+    if (!window.confirm(`⚠️ Are you sure you want to DELETE "${currentTest.title}"?\n\nThis will remove the test paper and all its questions from both the Admin Panel and the Student Website permanently.`)) {
+      return;
+    }
+    setDeletingTest(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/pyq/test/${selectedTestId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+      });
+      if (!response.ok) throw new Error('Failed to delete test paper');
+      setMessage({ type: 'success', text: 'Test paper deleted from database and website.' });
+      setSelectedTestId('');
+      fetchTests();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Error deleting test' });
+    } finally {
+      setDeletingTest(false);
     }
   };
 
   const sections = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
+
   const filteredQuestions = questions.filter(q => {
     const matchesSection = q.section === activeTab || (!sections.includes(q.section) && activeTab === 'Physics');
-    const matchesSearch = !searchTerm || (q.question_text || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = q.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          q.options.some(opt => opt.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesSection && matchesSearch;
   });
 
+  const selectedTestObj = tests.find(t => t.id === selectedTestId);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Edit3 className="text-amber-400" /> Published Question Bank & Editor
-          </h1>
-          <p className="text-sm text-neutral-400 mt-1">
-            Select a test paper to view, edit question text, modify answer keys, or add diagram images.
-          </p>
-        </div>
-      </div>
+      {/* Top Banner & Selector */}
+      <div className="bg-[#121212] border border-gold-500/20 rounded-2xl p-6 shadow-xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800 pb-6 mb-6">
+          <div>
+            <h1 className="text-2xl font-serif font-bold text-gold-400 flex items-center gap-2">
+              <Edit3 size={24} /> Published Question Bank & Test Manager
+            </h1>
+            <p className="text-xs text-gray-400 mt-1">Select a test paper to edit question content, rename paper, or delete duplicate papers.</p>
+          </div>
 
-      {message && (
-        <div className={`p-4 rounded-xl text-sm flex items-center gap-2 ${
-          message.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border border-red-500/30 text-red-400'
-        }`}>
-          {message.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
-          {message.text}
-        </div>
-      )}
+          {/* Test Selector Dropdown */}
+          <div className="flex items-center gap-3">
+            <select
+              value={selectedTestId}
+              onChange={(e) => setSelectedTestId(e.target.value)}
+              className="bg-black border border-gold-500/30 text-gold-100 rounded-xl px-4 py-2.5 text-sm font-semibold focus:outline-none focus:border-gold-400 min-w-[280px]"
+            >
+              {loadingTests ? (
+                <option>Loading Test Papers...</option>
+              ) : tests.length === 0 ? (
+                <option>No Published Tests Found</option>
+              ) : (
+                tests.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.title} ({t.exam_type || t.test_type || 'IAT'})
+                  </option>
+                ))
+              )}
+            </select>
 
-      {/* Test Selector & Search */}
-      <div className="bg-neutral-800/50 border border-white/10 rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="w-full md:w-1/2">
-          <label className="block text-xs font-semibold text-neutral-400 mb-1">Select Test Paper</label>
-          <select
-            value={selectedTestId}
-            onChange={(e) => setSelectedTestId(e.target.value)}
-            disabled={loadingTests}
-            className="w-full bg-neutral-900 border border-white/10 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-400"
-          >
-            {loadingTests ? (
-              <option>Loading tests...</option>
-            ) : tests.length === 0 ? (
-              <option value="">No tests found</option>
-            ) : (
-              tests.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.title} ({t.exam_type || t.test_type || 'IAT'})
-                </option>
-              ))
-            )}
-          </select>
+            {/* Edit Test Details Button */}
+            <button
+              onClick={() => setShowEditTestModal(true)}
+              disabled={!selectedTestId}
+              className="px-3.5 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition"
+              title="Edit Test Paper Name & Category"
+            >
+              <Settings size={16} /> Edit Title
+            </button>
+
+            {/* Delete Test Paper Button */}
+            <button
+              onClick={handleDeleteTest}
+              disabled={!selectedTestId || deletingTest}
+              className="px-3.5 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition"
+              title="Delete Entire Test Paper"
+            >
+              <Trash2 size={16} /> Delete Test
+            </button>
+          </div>
         </div>
 
-        <div className="w-full md:w-1/2 relative">
-          <label className="block text-xs font-semibold text-neutral-400 mb-1">Search Questions</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
+        {/* Global Feedback Banner */}
+        {message && (
+          <div className={`p-4 rounded-xl text-sm flex items-center justify-between gap-2 mb-6 ${
+            message.type === 'success' ? 'bg-emerald-950/80 border border-emerald-500/30 text-emerald-300' : 'bg-red-950/80 border border-red-500/30 text-red-300'
+          }`}>
+            <div className="flex items-center gap-2">
+              {message.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+              <span>{message.text}</span>
+            </div>
+            <button onClick={() => setMessage(null)} className="text-gray-400 hover:text-white"><X size={16} /></button>
+          </div>
+        )}
+
+        {/* Section Tabs & Search Filter */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex gap-2">
+            {sections.map((sec) => {
+              const count = questions.filter(q => q.section === sec || (!sections.includes(q.section) && sec === 'Physics')).length;
+              return (
+                <button
+                  key={sec}
+                  onClick={() => setActiveTab(sec)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                    activeTab === sec
+                      ? 'bg-gold-500 text-black shadow-lg shadow-gold-500/20'
+                      : 'bg-black/50 text-gray-400 border border-gray-800 hover:border-gold-500/40'
+                  }`}
+                >
+                  {sec} ({count})
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
               type="text"
               placeholder="Search by question keywords..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-neutral-900 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-white text-sm focus:outline-none focus:border-amber-400"
+              className="w-full pl-10 pr-4 py-2 rounded-xl bg-black border border-gray-800 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-gold-500/50"
             />
           </div>
         </div>
       </div>
 
-      {/* Section Tabs */}
-      <div className="flex gap-2 border-b border-white/10 pb-2">
-        {sections.map(sec => {
-          const count = questions.filter(q => q.section === sec || (!sections.includes(q.section) && sec === 'Physics')).length;
-          return (
-            <button
-              key={sec}
-              onClick={() => setActiveTab(sec)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-                activeTab === sec
-                  ? 'bg-amber-400 text-neutral-950'
-                  : 'bg-neutral-800 text-neutral-400 hover:text-white'
-              }`}
-            >
-              {sec} ({count})
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Questions List */}
-      {loadingQuestions ? (
-        <div className="text-center py-12 text-neutral-400 animate-pulse flex items-center justify-center gap-2">
-          <Sparkles className="animate-spin text-amber-400" /> Loading Questions...
-        </div>
-      ) : filteredQuestions.length === 0 ? (
-        <div className="text-center py-12 text-neutral-400 bg-neutral-800/30 rounded-xl border border-white/5">
-          No questions found in {activeTab} for this test paper.
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {filteredQuestions.map((q) => {
+      {/* Questions List Editor */}
+      <div className="space-y-6">
+        {loadingQuestions ? (
+          <div className="text-center py-16 bg-[#121212] border border-gray-800 rounded-2xl">
+            <div className="w-8 h-8 border-4 border-gold-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+            <p className="text-xs text-gray-400">Loading Question Paper...</p>
+          </div>
+        ) : filteredQuestions.length === 0 ? (
+          <div className="text-center py-16 bg-[#121212] border border-gray-800 rounded-2xl text-gray-500 text-sm">
+            No questions found in {activeTab} for this test paper.
+          </div>
+        ) : (
+          filteredQuestions.map((q) => {
             const isEditing = editingQId === q.id;
             return (
-              <div key={q.id} className="bg-neutral-800/50 border border-white/10 rounded-xl p-6 space-y-4 hover:border-amber-500/30 transition">
-                {/* Header Bar */}
-                <div className="flex items-center justify-between">
+              <div
+                key={q.id}
+                className={`bg-[#121212] border rounded-2xl p-6 transition-all ${
+                  isEditing ? 'border-gold-500/60 shadow-xl shadow-gold-500/10' : 'border-gray-800/80 hover:border-gray-700'
+                }`}
+              >
+                {/* Question Header */}
+                <div className="flex items-center justify-between border-b border-gray-800/60 pb-4 mb-4">
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                      Question {q.question_number}
+                    <span className="w-8 h-8 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-400 font-bold text-xs flex items-center justify-center">
+                      Q{q.question_number}
                     </span>
-                    {isEditing ? (
-                      <select
-                        value={q.section}
-                        onChange={(e) => handleFieldChange(q.id, 'section', e.target.value)}
-                        className="bg-neutral-900 border border-amber-500/30 text-amber-300 text-xs rounded px-2 py-1 focus:outline-none"
-                      >
-                        <option value="Physics">Physics</option>
-                        <option value="Chemistry">Chemistry</option>
-                        <option value="Mathematics">Mathematics</option>
-                        <option value="Biology">Biology</option>
-                      </select>
-                    ) : (
-                      <span className="text-xs bg-neutral-900 text-amber-300 px-2 py-1 rounded border border-amber-500/20">
-                        {q.section}
-                      </span>
-                    )}
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      {q.section} • {q.type || 'MCQ'}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-neutral-400 bg-neutral-900 px-3 py-1 rounded-full border border-white/5">
-                      Key: <strong className="text-amber-400 ml-1">{q.correct_answer}</strong>
-                    </span>
-
                     {isEditing ? (
                       <button
                         onClick={() => handleSaveQuestion(q)}
                         disabled={savingId === q.id}
-                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-lg flex items-center gap-1 transition"
+                        className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs rounded-lg flex items-center gap-1.5 shadow transition"
                       >
-                        <Save size={14} /> {savingId === q.id ? 'Saving...' : 'Save'}
+                        <Save size={14} /> {savingId === q.id ? 'Saving...' : 'Save Changes'}
                       </button>
                     ) : (
                       <button
                         onClick={() => setEditingQId(q.id)}
-                        className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-700 text-amber-300 border border-white/10 text-xs rounded-lg flex items-center gap-1 transition"
+                        className="px-3.5 py-1.5 bg-gold-500/10 hover:bg-gold-500/20 text-gold-300 font-medium text-xs rounded-lg flex items-center gap-1.5 border border-gold-500/30 transition"
                       >
                         <Edit3 size={14} /> Edit
                       </button>
@@ -308,7 +386,7 @@ export function Questions() {
 
                     <button
                       onClick={() => handleDeleteQuestion(q.id, q.question_number)}
-                      className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg transition"
+                      className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-medium text-xs rounded-lg flex items-center gap-1 border border-red-500/30 transition"
                       title="Delete Question"
                     >
                       <Trash2 size={14} />
@@ -316,89 +394,148 @@ export function Questions() {
                   </div>
                 </div>
 
-                {/* Question Text */}
-                {isEditing ? (
-                  <textarea
-                    value={q.question_text}
-                    onChange={(e) => handleFieldChange(q.id, 'question_text', e.target.value)}
-                    className="w-full bg-neutral-900 border border-amber-400/50 rounded-lg p-3 text-white text-sm focus:outline-none"
-                    rows={3}
-                  />
-                ) : (
-                  <div className="bg-neutral-900/60 p-4 rounded-lg border border-white/5 text-sm text-neutral-200 leading-relaxed">
-                    {q.question_text}
+                {/* Question Text Editor */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Question Content</label>
+                    <textarea
+                      value={q.question_text}
+                      onChange={(e) => handleFieldChange(q.id, 'question_text', e.target.value)}
+                      rows={3}
+                      className="w-full bg-black/80 border border-gray-800 rounded-xl p-3.5 text-sm text-white focus:outline-none focus:border-gold-500/50 leading-relaxed font-sans"
+                    />
                   </div>
-                )}
 
-                {/* Diagram / Figure Image URL */}
-                {isEditing ? (
-                  <div className="bg-neutral-900/60 p-3 rounded-lg border border-white/5 space-y-2">
-                    <div className="flex items-center gap-2 text-xs text-neutral-300 font-semibold">
-                      <Image size={14} className="text-amber-400" /> Diagram / Figure Image URL (Optional)
-                    </div>
+                  {/* Image URL & Diagram Preview */}
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5 flex items-center gap-1.5">
+                      <Image size={14} className="text-gold-400" /> Diagram / Image URL (Google Drive Links Auto-Convert)
+                    </label>
                     <input
-                      type="url"
+                      type="text"
+                      placeholder="https://drive.google.com/file/d/1ABC.../view"
                       value={q.image_url || ''}
                       onChange={(e) => handleFieldChange(q.id, 'image_url', e.target.value)}
-                      className="w-full bg-neutral-950 border border-white/10 rounded px-3 py-1.5 text-white text-xs focus:outline-none focus:border-amber-400"
-                      placeholder="Paste image URL (Google Drive links auto-converted)"
+                      className="w-full bg-black/80 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-amber-200 placeholder-gray-600 focus:outline-none focus:border-gold-500/50 font-mono"
                     />
+
                     {q.image_url && (
-                      <div className="mt-2 p-2 bg-neutral-950 rounded border border-white/10 text-center">
-                        <img src={q.image_url} alt="Diagram Preview" className="max-h-40 mx-auto object-contain rounded" />
+                      <div className="mt-3 p-3 bg-black border border-gray-800 rounded-xl text-center">
+                        <img
+                          src={q.image_url}
+                          alt="Diagram Preview"
+                          className="max-h-48 mx-auto object-contain rounded-lg"
+                        />
                       </div>
                     )}
                   </div>
-                ) : q.image_url ? (
-                  <div className="p-3 bg-neutral-950 rounded-lg border border-white/10 text-center">
-                    <img src={q.image_url} alt="Diagram" className="max-h-48 mx-auto object-contain rounded" />
+
+                  {/* Options A, B, C, D Grid */}
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Options & Answer Key</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {['A', 'B', 'C', 'D'].map((letter, optIdx) => {
+                        const isCorrectKey = q.correct_answer === letter;
+                        return (
+                          <div
+                            key={letter}
+                            className={`flex items-center gap-2 p-2.5 rounded-xl border transition ${
+                              isCorrectKey ? 'bg-emerald-950/30 border-emerald-500/40' : 'bg-black/60 border-gray-800'
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleFieldChange(q.id, 'correct_answer', letter)}
+                              className={`w-7 h-7 rounded-lg font-bold text-xs shrink-0 flex items-center justify-center transition ${
+                                isCorrectKey ? 'bg-emerald-500 text-black shadow-md' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                              }`}
+                              title={`Set Option ${letter} as Correct Key`}
+                            >
+                              {letter}
+                            </button>
+                            <input
+                              type="text"
+                              value={q.options[optIdx] || ''}
+                              onChange={(e) => handleOptionChange(q.id, optIdx, e.target.value)}
+                              className="flex-1 bg-transparent border-none text-xs text-white focus:outline-none"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                ) : null}
 
-                {/* Options & Answer Key */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {['A', 'B', 'C', 'D'].map((optKey, idx) => {
-                    const isCorrect = q.correct_answer === optKey;
-                    const optText = (q.options && q.options[idx]) || '';
-                    return (
-                      <div
-                        key={optKey}
-                        className={`p-3 rounded-lg border flex items-center gap-3 transition ${
-                          isCorrect ? 'bg-amber-400/10 border-amber-400' : 'bg-neutral-900 border-white/10'
-                        }`}
-                      >
-                        <button
-                          disabled={!isEditing}
-                          onClick={() => handleFieldChange(q.id, 'correct_answer', optKey)}
-                          className={`w-7 h-7 rounded-full font-bold text-xs shrink-0 flex items-center justify-center transition ${
-                            isCorrect ? 'bg-amber-400 text-neutral-950' : 'bg-neutral-800 text-neutral-400'
-                          }`}
-                        >
-                          {optKey}
-                        </button>
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={optText}
-                            onChange={(e) => handleOptionChange(q.id, idx, e.target.value)}
-                            className="flex-1 bg-transparent text-white text-xs focus:outline-none"
-                            placeholder={`Option ${optKey}...`}
-                          />
-                        ) : (
-                          <span className={`text-xs ${isCorrect ? 'text-amber-200 font-semibold' : 'text-neutral-300'}`}>
-                            {optText || `Option ${optKey}`}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
                 </div>
-
               </div>
             );
-          })}
+          })
+        )}
+      </div>
+
+      {/* Edit Test Details Modal */}
+      {showEditTestModal && selectedTestObj && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#121212] border border-gold-500/30 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <h3 className="text-lg font-serif font-bold text-gold-400 flex items-center gap-2">
+                <Settings size={20} /> Edit Test Paper Details
+              </h3>
+              <button onClick={() => setShowEditTestModal(false)} className="text-gray-400 hover:text-white"><X size={18} /></button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="block text-gray-400 font-bold uppercase mb-1">Test Title</label>
+                <input
+                  type="text"
+                  value={editTestTitle}
+                  onChange={(e) => setEditTestTitle(e.target.value)}
+                  className="w-full bg-black border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-gold-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-400 font-bold uppercase mb-1">Exam Category</label>
+                <select
+                  value={editExamType}
+                  onChange={(e) => setEditExamType(e.target.value)}
+                  className="w-full bg-black border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-gold-500/50"
+                >
+                  <option value="IAT">IISER IAT</option>
+                  <option value="NEST">NISER NEST</option>
+                  <option value="CMI">CMI / ISI</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-400 font-bold uppercase mb-1">Duration (Minutes)</label>
+                <input
+                  type="number"
+                  value={editDuration}
+                  onChange={(e) => setEditDuration(parseInt(e.target.value) || 180)}
+                  className="w-full bg-black border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-gold-500/50"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={() => setShowEditTestModal(false)}
+                className="py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-xs rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateTest}
+                className="py-2.5 bg-gold-500 hover:bg-gold-400 text-black font-bold text-xs uppercase tracking-wider rounded-xl shadow"
+              >
+                Save Details
+              </button>
+            </div>
+          </div>
         </div>
       )}
+
     </div>
   );
 }
