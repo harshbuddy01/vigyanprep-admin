@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileUp, CheckCircle, AlertCircle, Send, Sparkles, BookOpen } from 'lucide-react';
+import { FileUp, CheckCircle, AlertCircle, Send, Sparkles, BookOpen, Trash2, Image, Plus } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
@@ -10,6 +10,7 @@ type ParsedQuestion = {
   section: string;
   type: 'MCQ' | 'MSQ' | 'Numerical';
   text: string;
+  imageUrl?: string;
   options: string[];
   correctAnswer: string;
   status: string;
@@ -54,7 +55,14 @@ export function UploadPDF() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.details || data.error || data.message || 'Failed to parse PDF');
 
-      setParsedQuestions(data.questions || []);
+      // Ensure options are an array of 4 items for each question
+      const processed: ParsedQuestion[] = (data.questions || []).map((q: any) => ({
+        ...q,
+        options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D'],
+        imageUrl: q.imageUrl || q.image_url || ''
+      }));
+
+      setParsedQuestions(processed);
     } catch (err: any) {
       setErrorMsg(err.message || 'PDF Parsing failed');
     } finally {
@@ -78,6 +86,42 @@ export function UploadPDF() {
     setParsedQuestions(prev =>
       prev.map(q => (q.tempId === tempId ? { ...q, section } : q))
     );
+  };
+
+  const handleOptionChange = (tempId: string, optionIndex: number, newText: string) => {
+    setParsedQuestions(prev =>
+      prev.map(q => {
+        if (q.tempId !== tempId) return q;
+        const newOpts = [...q.options];
+        newOpts[optionIndex] = newText;
+        return { ...q, options: newOpts };
+      })
+    );
+  };
+
+  const handleImageChange = (tempId: string, imageUrl: string) => {
+    setParsedQuestions(prev =>
+      prev.map(q => (q.tempId === tempId ? { ...q, imageUrl } : q))
+    );
+  };
+
+  const handleDeleteQuestion = (tempId: string) => {
+    setParsedQuestions(prev => prev.filter(q => q.tempId !== tempId));
+  };
+
+  const handleAddQuestion = () => {
+    const newQ: ParsedQuestion = {
+      tempId: `q_custom_${Date.now()}`,
+      questionNumber: parsedQuestions.length + 1,
+      section: activeTab,
+      type: 'MCQ',
+      text: 'New Question Text...',
+      imageUrl: '',
+      options: ['Option A', 'Option B', 'Option C', 'Option D'],
+      correctAnswer: 'A',
+      status: 'draft_review'
+    };
+    setParsedQuestions(prev => [...prev, newQ]);
   };
 
   const handlePublish = async () => {
@@ -120,7 +164,7 @@ export function UploadPDF() {
             <FileUp className="text-amber-400" /> PDF PYQ Auto-Parser & Publisher
           </h1>
           <p className="text-sm text-neutral-400 mt-1">
-            Upload question paper PDFs. The system auto-extracts questions & sections so you can assign answer keys and publish to the live site.
+            Upload question paper PDFs. Auto-extract, edit questions, options & add diagram images before publishing live.
           </p>
         </div>
       </div>
@@ -210,7 +254,7 @@ export function UploadPDF() {
         </div>
       )}
 
-      {/* Step 2: Parsed Questions Review & Answer Key Selection */}
+      {/* Step 2: Parsed Questions Review, Full Editor & Answer Key Selection */}
       {parsedQuestions.length > 0 && !publishSuccess && (
         <div className="space-y-6">
           <div className="flex items-center justify-between bg-neutral-800/50 border border-white/10 p-4 rounded-xl">
@@ -221,14 +265,22 @@ export function UploadPDF() {
                 <p className="text-xs text-neutral-400">Extracted {parsedQuestions.length} Questions across 4 sections</p>
               </div>
             </div>
-            <button
-              onClick={handlePublish}
-              disabled={isPublishing}
-              className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-sm flex items-center gap-2 transition disabled:opacity-50"
-            >
-              <Send size={16} />
-              {isPublishing ? 'Publishing...' : 'Approve & Publish to Main Website'}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleAddQuestion}
+                className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-amber-300 border border-amber-500/30 rounded-xl text-sm font-semibold flex items-center gap-1 transition"
+              >
+                <Plus size={16} /> Add Question
+              </button>
+              <button
+                onClick={handlePublish}
+                disabled={isPublishing}
+                className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-sm flex items-center gap-2 transition disabled:opacity-50"
+              >
+                <Send size={16} />
+                {isPublishing ? 'Publishing...' : 'Approve & Publish to Main Website'}
+              </button>
+            </div>
           </div>
 
           {/* Section Tabs */}
@@ -252,9 +304,11 @@ export function UploadPDF() {
           </div>
 
           {/* Questions List */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             {filteredQuestions.map((q) => (
-              <div key={q.tempId} className="bg-neutral-800/50 border border-white/10 rounded-xl p-6 space-y-4">
+              <div key={q.tempId} className="bg-neutral-800/50 border border-white/10 rounded-xl p-6 space-y-4 hover:border-amber-500/30 transition">
+
+                {/* Question Header & Controls */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
@@ -271,35 +325,96 @@ export function UploadPDF() {
                       <option value="Biology">Biology</option>
                     </select>
                   </div>
-                  <span className="text-xs text-neutral-400 bg-neutral-900 px-3 py-1 rounded-full border border-white/5">
-                    Select Correct Answer Key:
-                  </span>
-                </div>
 
-                <textarea
-                  value={q.text}
-                  onChange={(e) => handleTextChange(q.tempId, e.target.value)}
-                  className="w-full bg-neutral-900 border border-white/10 rounded-lg p-3 text-white text-sm focus:outline-none focus:border-amber-400"
-                  rows={3}
-                />
-
-                {/* Option Buttons for Answer Key */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {['A', 'B', 'C', 'D'].map((optKey, idx) => (
+                  {/* Actions: Delete Question */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-neutral-400 bg-neutral-900 px-3 py-1 rounded-full border border-white/5">
+                      Correct Key: <strong className="text-amber-400 ml-1">{q.correctAnswer}</strong>
+                    </span>
                     <button
-                      key={optKey}
-                      onClick={() => handleAnswerChange(q.tempId, optKey)}
-                      className={`p-3 rounded-lg border text-left text-xs font-semibold transition ${
-                        q.correctAnswer === optKey
-                          ? 'bg-amber-400/20 border-amber-400 text-amber-300'
-                          : 'bg-neutral-900 border-white/10 text-neutral-400 hover:border-white/30'
-                      }`}
+                      onClick={() => handleDeleteQuestion(q.tempId)}
+                      className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg transition"
+                      title="Delete Question"
                     >
-                      <div className="font-bold text-white mb-1">Option ({optKey})</div>
-                      <div className="truncate">{q.options[idx] || `Option ${optKey}`}</div>
+                      <Trash2 size={16} />
                     </button>
-                  ))}
+                  </div>
                 </div>
+
+                {/* Edit Question Text */}
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">Question Text</label>
+                  <textarea
+                    value={q.text}
+                    onChange={(e) => handleTextChange(q.tempId, e.target.value)}
+                    className="w-full bg-neutral-900 border border-white/10 rounded-lg p-3 text-white text-sm focus:outline-none focus:border-amber-400"
+                    rows={3}
+                    placeholder="Enter question text..."
+                  />
+                </div>
+
+                {/* Diagram / Figure Image URL Input */}
+                <div className="bg-neutral-900/60 p-3 rounded-lg border border-white/5 space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-neutral-300 font-semibold">
+                    <Image size={14} className="text-amber-400" /> Diagram / Figure Image URL (Optional)
+                  </div>
+                  <input
+                    type="url"
+                    value={q.imageUrl || ''}
+                    onChange={(e) => handleImageChange(q.tempId, e.target.value)}
+                    className="w-full bg-neutral-950 border border-white/10 rounded-md px-3 py-1.5 text-white text-xs focus:outline-none focus:border-amber-400"
+                    placeholder="Paste image URL (e.g. https://domain.com/diagram.png or upload image link)"
+                  />
+                  {q.imageUrl && (
+                    <div className="mt-2 p-2 bg-neutral-950 rounded border border-white/10 text-center">
+                      <p className="text-[10px] text-neutral-500 mb-1">Image Preview:</p>
+                      <img
+                        src={q.imageUrl}
+                        alt="Question Diagram"
+                        className="max-h-40 mx-auto object-contain rounded"
+                        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Editable Options & Correct Answer Selector */}
+                <div className="space-y-2">
+                  <label className="block text-xs text-neutral-400 font-semibold">
+                    Edit Options & Toggle Correct Answer:
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {['A', 'B', 'C', 'D'].map((optKey, idx) => {
+                      const isCorrect = q.correctAnswer === optKey;
+                      return (
+                        <div
+                          key={optKey}
+                          className={`p-3 rounded-lg border flex items-center gap-3 transition ${
+                            isCorrect ? 'bg-amber-400/10 border-amber-400' : 'bg-neutral-900 border-white/10'
+                          }`}
+                        >
+                          <button
+                            onClick={() => handleAnswerChange(q.tempId, optKey)}
+                            className={`w-7 h-7 rounded-full font-bold text-xs shrink-0 flex items-center justify-center transition ${
+                              isCorrect ? 'bg-amber-400 text-neutral-950' : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700'
+                            }`}
+                            title="Set as correct answer key"
+                          >
+                            {optKey}
+                          </button>
+                          <input
+                            type="text"
+                            value={q.options[idx] || ''}
+                            onChange={(e) => handleOptionChange(q.tempId, idx, e.target.value)}
+                            className="flex-1 bg-transparent text-white text-xs focus:outline-none"
+                            placeholder={`Option ${optKey} text...`}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
               </div>
             ))}
           </div>
