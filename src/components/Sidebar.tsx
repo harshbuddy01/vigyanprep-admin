@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, FileQuestion, BookOpen, Users, Receipt,
-  Trophy, LogOut, FileUp, Calendar, Eye, BarChart2, Shield, Settings
+  Trophy, LogOut, FileUp, Calendar, BarChart2, Shield, Settings, Activity, AlertCircle
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { cn } from '../lib/utils';
@@ -18,7 +18,7 @@ const navGroups = [
     links: [
       { to: '/tests', icon: BookOpen, label: 'Test Series' },
       { to: '/calendar', icon: Calendar, label: 'Test Calendar' },
-      { to: '/live-preview', icon: Eye, label: 'Live Preview' },
+      { to: '/live-invigilation', icon: Activity, label: 'Live Invigilation' },
     ]
   },
   {
@@ -26,6 +26,7 @@ const navGroups = [
     links: [
       { to: '/questions', icon: FileQuestion, label: 'Questions' },
       { to: '/upload-pdf', icon: FileUp, label: 'Upload PYQ PDF' },
+      { to: '/question-challenges', icon: AlertCircle, label: 'Challenges' },
     ]
   },
   {

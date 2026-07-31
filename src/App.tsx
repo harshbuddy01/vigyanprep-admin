@@ -11,6 +11,8 @@ import { Members } from './pages/Members';
 import { Settings } from './pages/Settings';
 import { Performance } from './pages/Performance';
 import { Calendar } from './pages/Calendar';
+import { QuestionChallenges } from './pages/QuestionChallenges';
+import { LiveInvigilation } from './pages/LiveInvigilation';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
@@ -25,7 +27,8 @@ function App() {
           <Route path="/upload-pdf" element={<UploadPDF />} />
           <Route path="/tests" element={<Tests />} />
           <Route path="/calendar" element={<Calendar />} />
-          <Route path="/live-preview" element={<Tests />} />
+          <Route path="/live-invigilation" element={<LiveInvigilation />} />
+          <Route path="/question-challenges" element={<QuestionChallenges />} />
           <Route path="/students" element={<Students />} />
           <Route path="/students/add" element={<Students />} />
           <Route path="/performance" element={<Performance />} />

@@ -1,86 +1,110 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-const MOCK_RESULTS = [
-  { id: 'R1', student: 'Rahul Kumar', test: 'JEE Main Mock 1', score: 210, percentage: 70, submittedAt: '2023-10-25 14:30' },
-  { id: 'R2', student: 'Priya Singh', test: 'NEET Mock 1', score: 620, percentage: 86, submittedAt: '2023-10-26 10:15' },
-];
-
-const distributionData = [
-  { range: '0-20%', count: 5 },
-  { range: '21-40%', count: 15 },
-  { range: '41-60%', count: 45 },
-  { range: '61-80%', count: 25 },
-  { range: '81-100%', count: 10 },
-];
+import { useState, useEffect } from 'react';
+import { api } from '../lib/api';
+import { supabase } from '../lib/supabase';
 
 export function Results() {
+  const [tests, setTests] = useState<any[]>([]);
+  const [selectedTestId, setSelectedTestId] = useState('');
+  const [meritList, setMeritList] = useState<any[]>([]);
+  const [isResponsesReleased, setIsResponsesReleased] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  useEffect(() => {
+    supabase.from('tests').select('id, title').then(({ data }) => {
+      if (data) {
+        setTests(data);
+        if (data.length > 0) setSelectedTestId(data[0].id);
+      }
+    });
+  }, []);
+
+  const handleReleaseResponses = async () => {
+    try {
+      await api.releaseResponses(selectedTestId);
+      setIsResponsesReleased(true);
+      setCountdown(24 * 60 * 60); // 24 hours in seconds
+      alert('Response sheets released successfully! Countdown started.');
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handlePublishMeritList = async () => {
+    try {
+      await api.publishMeritList(selectedTestId);
+      alert('Merit list published successfully!');
+      // mock fetch merit list
+      setMeritList([
+        { rank: 1, name: 'Rahul Kumar', roll: 'VP24001', score: 210, percentile: 99.9 },
+        { rank: 2, name: 'Priya Singh', roll: 'VP24002', score: 195, percentile: 98.5 },
+      ]);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-white mb-6">Exam Results</h1>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-neutral-800/50 border border-white/10 rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Score Distribution</h2>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={distributionData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis dataKey="range" stroke="#888" />
-                <YAxis stroke="#888" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#171717', border: '1px solid #333' }}
-                  itemStyle={{ color: '#fbbf24' }}
-                  cursor={{ fill: '#ffffff10' }}
-                />
-                <Bar dataKey="count" fill="#fbbf24" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        
-        <div className="bg-neutral-800/50 border border-white/10 rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Top Performers</h2>
-          <div className="space-y-4">
-            {MOCK_RESULTS.slice(0,3).map((r) => (
-              <div key={r.id} className="flex items-center justify-between p-3 bg-neutral-900 rounded-lg border border-white/5">
-                <div>
-                  <div className="font-medium text-white">{r.student}</div>
-                  <div className="text-xs text-neutral-400">{r.test}</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold text-amber-400">{r.score}</div>
-                  <div className="text-xs text-neutral-400">{r.percentage}%</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-white mb-6">Exam Results & Merit List</h1>
+        <select
+          value={selectedTestId}
+          onChange={(e) => setSelectedTestId(e.target.value)}
+          className="bg-neutral-900 border border-white/10 rounded-lg px-4 py-2 text-white"
+        >
+          <option value="" disabled>Select Test</option>
+          {tests.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+        </select>
       </div>
 
-      <div className="bg-neutral-800/50 border border-white/10 rounded-xl overflow-hidden mt-6">
-        <table className="w-full text-left text-sm text-neutral-300">
-          <thead className="bg-neutral-900/50 text-xs uppercase">
-            <tr>
-              <th className="px-6 py-4">Student</th>
-              <th className="px-6 py-4">Test</th>
-              <th className="px-6 py-4">Score</th>
-              <th className="px-6 py-4">Percentage</th>
-              <th className="px-6 py-4">Submitted At</th>
-            </tr>
-          </thead>
-          <tbody>
-            {MOCK_RESULTS.map((r) => (
-              <tr key={r.id} className="border-b border-white/5 hover:bg-white/5">
-                <td className="px-6 py-4 font-medium text-white">{r.student}</td>
-                <td className="px-6 py-4">{r.test}</td>
-                <td className="px-6 py-4">{r.score}</td>
-                <td className="px-6 py-4">{r.percentage}%</td>
-                <td className="px-6 py-4">{r.submittedAt}</td>
+      <div className="flex gap-4 mb-6">
+        <button 
+          onClick={handleReleaseResponses}
+          disabled={isResponsesReleased}
+          className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+        >
+          {isResponsesReleased ? 'Responses Released' : 'Publish Response Sheets'}
+        </button>
+        <button 
+          onClick={handlePublishMeritList}
+          disabled={!isResponsesReleased || (countdown !== null && countdown > 0)}
+          className="bg-amber-400 hover:bg-amber-500 disabled:opacity-50 text-neutral-950 px-4 py-2 rounded-lg font-semibold transition-colors"
+        >
+          Release Final Merit List
+        </button>
+        {countdown !== null && countdown > 0 && (
+          <div className="flex items-center text-amber-400 font-mono">
+            {Math.floor(countdown / 3600)}h {Math.floor((countdown % 3600) / 60)}m remaining
+          </div>
+        )}
+      </div>
+
+      {meritList.length > 0 && (
+        <div className="bg-neutral-800/50 border border-white/10 rounded-xl overflow-hidden mt-6">
+          <table className="w-full text-left text-sm text-neutral-300">
+            <thead className="bg-neutral-900/50 text-xs uppercase">
+              <tr>
+                <th className="px-6 py-4">Rank</th>
+                <th className="px-6 py-4">Name</th>
+                <th className="px-6 py-4">Roll No</th>
+                <th className="px-6 py-4">Score</th>
+                <th className="px-6 py-4">Percentile</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {meritList.map((m) => (
+                <tr key={m.rank} className="border-b border-white/5 hover:bg-white/5">
+                  <td className="px-6 py-4 font-bold text-amber-400">#{m.rank}</td>
+                  <td className="px-6 py-4 font-medium text-white">{m.name}</td>
+                  <td className="px-6 py-4">{m.roll}</td>
+                  <td className="px-6 py-4 font-semibold text-white">{m.score}</td>
+                  <td className="px-6 py-4">{m.percentile}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

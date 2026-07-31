@@ -1,37 +1,51 @@
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
 export const api = {
-  async get(endpoint: string) {
-    const token = localStorage.getItem('adminToken');
-    const res = await fetch(`${API_URL}${endpoint}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (!res.ok) throw new Error('API Error');
+  getDashboardStats: async () => {
+    const res = await fetch(`${API_URL}/dashboard/stats`);
+    if (!res.ok) throw new Error('Failed to fetch dashboard stats');
     return res.json();
   },
-  async post(endpoint: string, data: any) {
-    const token = localStorage.getItem('adminToken');
-    const res = await fetch(`${API_URL}${endpoint}`, {
+  getStudents: async () => {
+    const res = await fetch(`${API_URL}/students`);
+    if (!res.ok) throw new Error('Failed to fetch students');
+    return res.json();
+  },
+  getChallenges: async (testId: string) => {
+    const res = await fetch(`${API_URL}/challenges?test_id=${testId}`);
+    if (!res.ok) throw new Error('Failed to fetch challenges');
+    return res.json();
+  },
+  acceptChallenge: async (id: string, newAnswer: string) => {
+    const res = await fetch(`${API_URL}/challenges/${id}/accept`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newAnswer }),
     });
-    if (!res.ok) throw new Error('API Error');
+    if (!res.ok) throw new Error('Failed to accept challenge');
     return res.json();
   },
-  // endpoints
-  login: (data: any) => api.post('/api/admin/auth/login', data),
-  getDashboardStats: () => api.get('/api/admin/dashboard'),
-  getStudents: () => api.get('/api/admin/students'),
-  getTests: () => api.get('/api/admin/tests'),
-  createTest: (data: any) => api.post('/api/admin/tests', data),
-  getQuestions: () => api.get('/api/admin/questions'),
-  createQuestion: (data: any) => api.post('/api/admin/questions', data),
-  getTransactions: () => api.get('/api/admin/transactions'),
-  getResults: () => api.get('/api/admin/results'),
+  rejectChallenge: async (id: string, reply: string, proofUrl: string) => {
+    const res = await fetch(`${API_URL}/challenges/${id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reply, proofUrl }),
+    });
+    if (!res.ok) throw new Error('Failed to reject challenge');
+    return res.json();
+  },
+  releaseResponses: async (testId: string) => {
+    const res = await fetch(`${API_URL}/tests/${testId}/release-responses`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to release responses');
+    return res.json();
+  },
+  publishMeritList: async (testId: string) => {
+    const res = await fetch(`${API_URL}/tests/${testId}/publish-merit-list`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to publish merit list');
+    return res.json();
+  },
 };
