@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FileUp, CheckCircle, AlertCircle, Send, Sparkles, BookOpen } from 'lucide-react';
+import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
@@ -15,6 +16,7 @@ type ParsedQuestion = {
 };
 
 export function UploadPDF() {
+  const token = useAuthStore((state) => state.token);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [examTitle, setExamTitle] = useState('IISER IAT 2024 Official Paper');
@@ -43,11 +45,14 @@ export function UploadPDF() {
 
       const response = await fetch(`${API_BASE}/api/admin/pyq/upload-pdf`, {
         method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
         body: formData
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to parse PDF');
+      if (!response.ok) throw new Error(data.details || data.error || data.message || 'Failed to parse PDF');
 
       setParsedQuestions(data.questions || []);
     } catch (err: any) {
@@ -75,7 +80,10 @@ export function UploadPDF() {
     try {
       const response = await fetch(`${API_BASE}/api/admin/pyq/approve-publish`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify({
           title: examTitle,
           examType,
@@ -85,7 +93,7 @@ export function UploadPDF() {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Publishing failed');
+      if (!response.ok) throw new Error(data.details || data.error || data.message || 'Publishing failed');
 
       setPublishSuccess(true);
     } catch (err: any) {
