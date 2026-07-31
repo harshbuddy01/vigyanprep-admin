@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit3, Trash2, CheckCircle, Image, Sparkles, AlertCircle, Save } from 'lucide-react';
+import { Search, Edit3, Trash2, CheckCircle, Image, Sparkles, AlertCircle, Save } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
