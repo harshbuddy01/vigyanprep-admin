@@ -79,29 +79,34 @@ export function Tests() {
               <tr>
                 <th className="px-6 py-4">Test Title</th>
                 <th className="px-6 py-4">Exam Type</th>
-                <th className="px-6 py-4">Start Date</th>
-                <th className="px-6 py-4">End Date</th>
                 <th className="px-6 py-4">Duration</th>
                 <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Actions</th>
               </tr>
             </thead>
             <tbody>
               {tests.map((t) => (
                 <tr key={t.id} className="border-b border-white/5 hover:bg-white/5">
                   <td className="px-6 py-4 font-medium text-white">{t.title}</td>
-                  <td className="px-6 py-4">{t.exam_type}</td>
-                  <td className="px-6 py-4">{new Date(t.start_date).toLocaleString()}</td>
-                  <td className="px-6 py-4">{new Date(t.end_date).toLocaleString()}</td>
-                  <td className="px-6 py-4">{t.duration} mins</td>
+                  <td className="px-6 py-4">{t.exam_type || t.test_type || 'IAT'}</td>
+                  <td className="px-6 py-4">{t.duration_minutes || t.duration || 180} mins</td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs ${t.status === 'Published' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-neutral-500/10 text-neutral-400'}`}>
-                      {t.status}
+                    <span className={`px-2 py-1 rounded-full text-xs ${t.is_published || t.status === 'Published' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                      {t.is_published || t.status === 'Published' ? 'Published' : 'Active'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 space-x-3">
+                    <a
+                      href="/questions"
+                      className="px-3 py-1.5 bg-amber-400/10 text-amber-300 border border-amber-400/30 rounded-lg text-xs font-semibold hover:bg-amber-400 hover:text-neutral-950 transition inline-block"
+                    >
+                      ✏️ Edit Questions
+                    </a>
                   </td>
                 </tr>
               ))}
               {tests.length === 0 && (
-                <tr><td colSpan={6} className="p-4 text-center">No tests found.</td></tr>
+                <tr><td colSpan={5} className="p-4 text-center">No tests found.</td></tr>
               )}
             </tbody>
           </table>
