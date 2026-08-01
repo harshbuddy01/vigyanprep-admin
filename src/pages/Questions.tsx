@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Search, Edit3, Trash2, CheckCircle, Image, AlertCircle, Save, Settings, X, Plus } from 'lucide-react';
+import { Search, Edit3, Trash2, CheckCircle, Image, AlertCircle, Save, Settings, X, Plus, Eye } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import { MathRenderer } from '../components/MathRenderer';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
@@ -136,7 +137,7 @@ export function Questions() {
     setQuestions(prev =>
       prev.map(q => {
         if (q.id !== id) return q;
-        const newOpts = [...q.options];
+        const newOpts = [...(q.options || [])];
         newOpts[optIdx] = value;
         return { ...q, options: newOpts };
       })
@@ -155,7 +156,7 @@ export function Questions() {
         test_id: selectedTestId,
         section: activeTab,
         question_number: nextNum,
-        question_text: `New ${activeTab} Question ${nextNum}...`,
+        question_text: `New ${activeTab} Question ${nextNum}... (e.g. $E=mc^2$)`,
         type: 'MCQ',
         options: ['Option A', 'Option B', 'Option C', 'Option D'],
         correct_answer: 'A',
@@ -180,7 +181,7 @@ export function Questions() {
           test_id: selectedTestId,
           section: activeTab,
           question_number: nextNum,
-          question_text: `New ${activeTab} Question ${nextNum}...`,
+          question_text: `New ${activeTab} Question ${nextNum}... (e.g. $E=mc^2$)`,
           options: ['Option A', 'Option B', 'Option C', 'Option D'],
           correct_answer: 'A'
         };
@@ -315,7 +316,7 @@ export function Questions() {
             <h1 className="text-2xl font-serif font-bold text-amber-600 dark:text-amber-400 flex items-center gap-2">
               <Edit3 size={24} /> Test Paper Question Builder & Bank Manager
             </h1>
-            <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">Select a paper from the Free PYQ Section or Paid Test Series Section to manage its questions.</p>
+            <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">LaTeX Math & Science rendering enabled ($...$ or \frac, \sqrt, \int). Add, edit, or upload diagram images.</p>
           </div>
 
           {/* Test Selector Dropdown with Grouping */}
@@ -494,13 +495,21 @@ export function Questions() {
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-1.5">Question Content</label>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-1.5">Question Text & Formula Input</label>
                     <textarea
                       value={q.question_text}
                       onChange={(e) => handleFieldChange(q.id, 'question_text', e.target.value)}
                       rows={3}
                       className="w-full bg-slate-50 dark:bg-black/80 border border-slate-200 dark:border-gray-800 rounded-xl p-3.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-400 leading-relaxed font-sans"
                     />
+
+                    {/* LIVE KATEX FORMULA PREVIEW */}
+                    <div className="mt-2.5 p-3.5 bg-slate-100 dark:bg-black/60 border border-amber-500/30 rounded-xl text-xs text-slate-900 dark:text-amber-100">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
+                        <Eye size={13} /> Live Rendered Math Preview:
+                      </div>
+                      <MathRenderer text={q.question_text} />
+                    </div>
                   </div>
 
                   <div>
@@ -531,31 +540,39 @@ export function Questions() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {['A', 'B', 'C', 'D'].map((letter, optIdx) => {
                         const isCorrectKey = q.correct_answer === letter;
+                        const optVal = q.options ? q.options[optIdx] : '';
                         return (
                           <div
                             key={letter}
-                            className={`flex items-center gap-2 p-2.5 rounded-xl border transition ${
+                            className={`flex flex-col gap-1.5 p-3 rounded-xl border transition ${
                               isCorrectKey
                                 ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-950 dark:text-white'
                                 : 'bg-slate-50 dark:bg-black/60 border-slate-200 dark:border-gray-800'
                             }`}
                           >
-                            <button
-                              type="button"
-                              onClick={() => handleFieldChange(q.id, 'correct_answer', letter)}
-                              className={`w-7 h-7 rounded-lg font-bold text-xs shrink-0 flex items-center justify-center transition ${
-                                isCorrectKey ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-200 dark:bg-gray-800 text-slate-700 dark:text-gray-400 hover:bg-slate-300 dark:hover:bg-gray-700'
-                              }`}
-                              title={`Set Option ${letter} as Correct Key`}
-                            >
-                              {letter}
-                            </button>
-                            <input
-                              type="text"
-                              value={q.options[optIdx] || ''}
-                              onChange={(e) => handleOptionChange(q.id, optIdx, e.target.value)}
-                              className="flex-1 bg-transparent border-none text-xs text-slate-900 dark:text-white focus:outline-none"
-                            />
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleFieldChange(q.id, 'correct_answer', letter)}
+                                className={`w-7 h-7 rounded-lg font-bold text-xs shrink-0 flex items-center justify-center transition ${
+                                  isCorrectKey ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-200 dark:bg-gray-800 text-slate-700 dark:text-gray-400 hover:bg-slate-300 dark:hover:bg-gray-700'
+                                }`}
+                                title={`Set Option ${letter} as Correct Key`}
+                              >
+                                {letter}
+                              </button>
+                              <input
+                                type="text"
+                                value={optVal || ''}
+                                onChange={(e) => handleOptionChange(q.id, optIdx, e.target.value)}
+                                className="flex-1 bg-transparent border-none text-xs text-slate-900 dark:text-white focus:outline-none"
+                              />
+                            </div>
+                            {optVal && (
+                              <div className="text-[11px] text-slate-700 dark:text-amber-200 pl-9 font-medium">
+                                <MathRenderer text={optVal} />
+                              </div>
+                            )}
                           </div>
                         );
                       })}
