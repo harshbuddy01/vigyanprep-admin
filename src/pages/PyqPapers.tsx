@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileUp, Trash2 } from 'lucide-react';
+import { FileUp, Trash2, Edit3 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
@@ -49,12 +49,12 @@ export function PyqPapers() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">PYQ Papers (Free Product)</h1>
-          <p className="text-sm text-neutral-400">Past Year Papers — Unlimited Free Practice</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">PYQ Papers (Free Product)</h1>
+          <p className="text-sm text-slate-500 dark:text-neutral-400">Past Year Papers — Unlimited Free Practice</p>
         </div>
         <a
           href="/pyq/upload"
-          className="flex items-center gap-2 bg-amber-400 text-neutral-950 px-4 py-2 rounded-lg font-semibold hover:bg-amber-500 transition-colors"
+          className="flex items-center gap-2 bg-amber-400 text-neutral-950 px-4 py-2 rounded-lg font-bold hover:bg-amber-500 transition-colors shadow"
         >
           <FileUp size={20} />
           Upload PYQ PDF
@@ -62,42 +62,42 @@ export function PyqPapers() {
       </div>
 
       {loading ? (
-        <div className="text-white">Loading PYQ papers...</div>
+        <div className="text-slate-600 dark:text-white">Loading PYQ papers...</div>
       ) : (
-        <div className="bg-neutral-800/50 border border-white/10 rounded-xl overflow-hidden">
-          <table className="w-full text-left text-sm text-neutral-300">
-            <thead className="bg-neutral-900/50 text-xs uppercase">
+        <div className="bg-white dark:bg-neutral-800/50 border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
+          <table className="w-full text-left text-sm text-slate-700 dark:text-neutral-300">
+            <thead className="bg-slate-50 dark:bg-neutral-900/50 text-xs uppercase text-slate-500 dark:text-neutral-400 border-b border-slate-200 dark:border-white/10">
               <tr>
-                <th className="px-6 py-4">Title</th>
-                <th className="px-6 py-4">Exam Type</th>
-                <th className="px-6 py-4">Year</th>
-                <th className="px-6 py-4">Duration</th>
-                <th className="px-6 py-4">Published</th>
-                <th className="px-6 py-4">Actions</th>
+                <th className="px-6 py-4 font-semibold">Title</th>
+                <th className="px-6 py-4 font-semibold">Exam Type</th>
+                <th className="px-6 py-4 font-semibold">Year</th>
+                <th className="px-6 py-4 font-semibold">Duration</th>
+                <th className="px-6 py-4 font-semibold">Published</th>
+                <th className="px-6 py-4 font-semibold">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100 dark:divide-white/5">
               {papers.map((p) => (
-                <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
-                  <td className="px-6 py-4 font-medium text-white">{p.title}</td>
-                  <td className="px-6 py-4">{p.exam_type || 'IAT'}</td>
-                  <td className="px-6 py-4">{p.pyq_year || new Date(p.created_at).getFullYear()}</td>
-                  <td className="px-6 py-4">{p.duration_minutes || 180} mins</td>
+                <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition">
+                  <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{p.title}</td>
+                  <td className="px-6 py-4 font-semibold text-slate-700 dark:text-neutral-300">{p.exam_type || 'IAT'}</td>
+                  <td className="px-6 py-4 text-slate-600 dark:text-neutral-400">{p.pyq_year || new Date(p.created_at).getFullYear()}</td>
+                  <td className="px-6 py-4 text-slate-600 dark:text-neutral-400">{p.duration_minutes || 180} mins</td>
                   <td className="px-6 py-4">
-                    <span className="px-2 py-1 rounded-full text-xs bg-emerald-500/10 text-emerald-400 font-semibold">
+                    <span className="px-2.5 py-1 rounded-full text-xs bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-semibold border border-emerald-500/30">
                       Published
                     </span>
                   </td>
                   <td className="px-6 py-4 space-x-3">
                     <a
                       href={`/questions?testId=${p.id}`}
-                      className="px-3 py-1.5 bg-amber-400/10 text-amber-300 border border-amber-400/30 rounded-lg text-xs font-semibold hover:bg-amber-400 hover:text-neutral-950 transition inline-block"
+                      className="px-3 py-1.5 bg-amber-400/20 text-amber-900 dark:text-amber-300 border border-amber-400/40 rounded-lg text-xs font-bold hover:bg-amber-400 hover:text-neutral-950 transition inline-flex items-center gap-1 shadow-sm"
                     >
-                      ✏️ Edit Questions
+                      <Edit3 size={13} /> Edit Questions
                     </a>
                     <button
                       onClick={() => handleDelete(p.id)}
-                      className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-xs font-semibold hover:bg-red-500 hover:text-white transition inline-flex items-center gap-1"
+                      className="px-3 py-1.5 bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30 rounded-lg text-xs font-bold hover:bg-red-500 hover:text-white transition inline-flex items-center gap-1 shadow-sm"
                     >
                       <Trash2 size={13} /> Delete
                     </button>
@@ -105,7 +105,7 @@ export function PyqPapers() {
                 </tr>
               ))}
               {papers.length === 0 && (
-                <tr><td colSpan={6} className="p-4 text-center">No PYQ papers found. Upload a PDF to get started!</td></tr>
+                <tr><td colSpan={6} className="p-4 text-center text-slate-500 dark:text-neutral-400">No PYQ papers found. Upload a PDF to get started!</td></tr>
               )}
             </tbody>
           </table>

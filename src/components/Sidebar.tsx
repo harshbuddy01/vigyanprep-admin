@@ -1,10 +1,12 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, FileQuestion, BookOpen, Users, Receipt,
-  Trophy, LogOut, FileUp, Calendar, BarChart2, Shield, Settings, Activity, AlertCircle, FileText, Tag
+  Trophy, LogOut, FileUp, Calendar, BarChart2, Shield, Settings, Activity, AlertCircle, FileText, Tag, Sun, Moon
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import { useThemeStore } from '../stores/themeStore';
 import { cn } from '../lib/utils';
+import { useEffect } from 'react';
 
 const navGroups = [
   {
@@ -61,12 +63,18 @@ const navGroups = [
 
 export function Sidebar() {
   const logout = useAuthStore((state) => state.logout);
+  const { theme, toggleTheme, setTheme } = useThemeStore();
+
+  useEffect(() => {
+    setTheme(theme);
+  }, []);
 
   return (
-    <div className="w-64 bg-neutral-950 border-r border-white/10 h-screen flex flex-col overflow-y-auto shrink-0">
-      <div className="p-6 border-b border-white/10">
+    <div className="w-64 bg-slate-900 dark:bg-neutral-950 border-r border-slate-700/50 dark:border-white/10 h-screen flex flex-col overflow-y-auto shrink-0 transition-colors">
+      {/* Header */}
+      <div className="p-5 border-b border-slate-700/50 dark:border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow">
             <span className="text-neutral-950 font-black text-sm">V</span>
           </div>
           <div>
@@ -74,12 +82,22 @@ export function Sidebar() {
             <span className="text-[10px] text-amber-400 font-medium tracking-widest uppercase">Admin Portal</span>
           </div>
         </div>
+
+        {/* Theme Toggle Button */}
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-lg bg-slate-800 dark:bg-neutral-900 border border-slate-700 dark:border-white/10 text-amber-400 hover:text-amber-300 transition shadow"
+          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+        >
+          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
       </div>
 
+      {/* Nav Links */}
       <nav className="flex-1 px-3 py-4 space-y-5">
         {navGroups.map((group) => (
           <div key={group.label}>
-            <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-widest px-3 mb-1.5">
+            <p className="text-[10px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-widest px-3 mb-1.5">
               {group.label}
             </p>
             <div className="space-y-0.5">
@@ -94,8 +112,8 @@ export function Sidebar() {
                       cn(
                         'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all',
                         isActive
-                          ? 'bg-amber-400/15 text-amber-300 font-semibold border border-amber-400/20'
-                          : 'text-neutral-400 hover:bg-neutral-900 hover:text-white'
+                          ? 'bg-amber-400/20 text-amber-300 font-bold border border-amber-400/30'
+                          : 'text-slate-300 dark:text-neutral-400 hover:bg-slate-800 dark:hover:bg-neutral-900 hover:text-white'
                       )
                     }
                   >
@@ -109,10 +127,11 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-white/10">
+      {/* Logout */}
+      <div className="p-4 border-t border-slate-700/50 dark:border-white/10">
         <button
           onClick={logout}
-          className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-neutral-400 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+          className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-slate-300 dark:text-neutral-400 hover:bg-red-500/15 hover:text-red-400 transition-colors"
         >
           <LogOut size={16} />
           <span>Logout</span>
