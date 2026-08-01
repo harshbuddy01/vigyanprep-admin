@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Eye, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
@@ -80,10 +80,36 @@ export function Tests() {
     }
   };
 
+  const handleFreezeTest = async (test: any) => {
+    if (test.preview_status !== 'valid') {
+      alert('🔒 PREVIEW QUALITY GATE: You must complete at least one admin Preview run before freezing this test paper!');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/tests/${test.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ status: 'frozen' })
+      });
+      if (res.ok) {
+        alert('✅ Test paper frozen successfully. No further edits allowed.');
+        fetchTests();
+      }
+    } catch (err: any) {
+      alert('Error freezing test: ' + err.message);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Tests Management</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-white">Tests & Scheduling Management</h1>
+          <p className="text-sm text-neutral-400">Manage 24h Allen Model Test Pipeline & Preview Gates</p>
+        </div>
         <button
           onClick={() => setShowModal(true)}
           className="flex items-center gap-2 bg-amber-400 text-neutral-950 px-4 py-2 rounded-lg font-semibold hover:bg-amber-500 transition-colors"
@@ -102,8 +128,8 @@ export function Tests() {
               <tr>
                 <th className="px-6 py-4">Test Title</th>
                 <th className="px-6 py-4">Exam Type</th>
-                <th className="px-6 py-4">Duration</th>
-                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Preview Gate</th>
+                <th className="px-6 py-4">Pipeline Status</th>
                 <th className="px-6 py-4">Actions</th>
               </tr>
             </thead>
@@ -112,19 +138,37 @@ export function Tests() {
                 <tr key={t.id} className="border-b border-white/5 hover:bg-white/5">
                   <td className="px-6 py-4 font-medium text-white">{t.title || t.name}</td>
                   <td className="px-6 py-4">{t.exam_type || t.test_type || 'IAT'}</td>
-                  <td className="px-6 py-4">{t.duration_minutes || t.duration || 180} mins</td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs ${t.is_published || t.status === 'Published' || t.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                      {t.is_published || t.status === 'Published' || t.is_active ? 'Active / Published' : 'Draft'}
+                    {t.preview_status === 'valid' ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <CheckCircle2 size={13} /> Validated
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        <AlertCircle size={13} /> Preview Needed
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-mono uppercase bg-neutral-700 text-neutral-200">
+                      {t.status || 'draft'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 space-x-3">
+                  <td className="px-6 py-4 space-x-2">
                     <a
-                      href="/questions"
-                      className="px-3 py-1.5 bg-amber-400/10 text-amber-300 border border-amber-400/30 rounded-lg text-xs font-semibold hover:bg-amber-400 hover:text-neutral-950 transition inline-block"
+                      href={`/preview/${t.id}`}
+                      className="px-3 py-1.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-semibold hover:bg-blue-500 hover:text-white transition inline-flex items-center gap-1"
                     >
-                      ✏️ Edit Questions
+                      <Eye size={13} /> Preview
                     </a>
+                    {t.status !== 'frozen' && (
+                      <button
+                        onClick={() => handleFreezeTest(t)}
+                        className="px-3 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-semibold hover:bg-amber-400 hover:text-neutral-950 transition inline-flex items-center gap-1"
+                      >
+                        <Lock size={13} /> Freeze
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
