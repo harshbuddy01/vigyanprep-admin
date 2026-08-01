@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Edit3, Trash2, CheckCircle, Image, AlertCircle, Save, Settings, X } from 'lucide-react';
+import { Search, Edit3, Trash2, CheckCircle, Image, AlertCircle, Save, Settings, X, Plus } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
@@ -48,23 +48,37 @@ export function Questions() {
   const [editDuration, setEditDuration] = useState(180);
   const [deletingTest, setDeletingTest] = useState(false);
 
-  // Fetch all published tests
+  // Read ?testId from URL
+  const urlTestId = new URLSearchParams(window.location.search).get('testId');
+
+  // Fetch all tests (PYQs + Test Series)
   const fetchTests = async () => {
     setLoadingTests(true);
     try {
-      const response = await fetch(`${API_BASE}/api/admin/pyq/list`, {
-        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
-      });
-      const data = await response.json();
-      if (data.tests && data.tests.length > 0) {
-        setTests(data.tests);
-        if (!selectedTestId || !data.tests.find((t: any) => t.id === selectedTestId)) {
-          setSelectedTestId(data.tests[0].id);
-        }
-      } else {
-        setTests([]);
-        setSelectedTestId('');
-        setQuestions([]);
+      const [pyqRes, tsRes] = await Promise.all([
+        fetch(`${API_BASE}/api/admin/pyq/list`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
+        fetch(`${API_BASE}/api/admin/test-series`, { headers: { Authorization: token ? `Bearer ${token}` : '' } })
+      ]);
+
+      const pyqData = await pyqRes.json();
+      const tsData = await tsRes.json();
+
+      const combinedPapers = [
+        ...(pyqData.papers || []),
+        ...(tsData.tests || [])
+      ];
+
+      // Deduplicate by ID
+      const uniqueMap = new Map();
+      combinedPapers.forEach(p => { if (p && p.id) uniqueMap.set(p.id, p); });
+      const uniqueList = Array.from(uniqueMap.values());
+
+      setTests(uniqueList);
+
+      if (urlTestId && uniqueMap.has(urlTestId)) {
+        setSelectedTestId(urlTestId);
+      } else if (uniqueList.length > 0) {
+        setSelectedTestId(uniqueList[0].id);
       }
     } catch (err: any) {
       console.error('Failed to load tests:', err);
@@ -99,7 +113,7 @@ export function Questions() {
       fetchQuestions(selectedTestId);
       const currentTest = tests.find(t => t.id === selectedTestId);
       if (currentTest) {
-        setEditTestTitle(currentTest.title);
+        setEditTestTitle(currentTest.title || currentTest.name || '');
         setEditExamType(currentTest.exam_type || currentTest.test_type || 'IAT');
         setEditDuration(currentTest.duration_minutes || 180);
       }
@@ -127,6 +141,56 @@ export function Questions() {
         return { ...q, options: newOpts };
       })
     );
+  };
+
+  const handleAddQuestionToPaper = async () => {
+    if (!selectedTestId) {
+      alert('Please select a test paper first.');
+      return;
+    }
+
+    try {
+      const nextNum = questions.length + 1;
+      const newQ = {
+        test_id: selectedTestId,
+        section: activeTab,
+        question_number: nextNum,
+        question_text: `New ${activeTab} Question ${nextNum}...`,
+        type: 'MCQ',
+        options: ['Option A', 'Option B', 'Option C', 'Option D'],
+        correct_answer: 'A',
+        image_url: null
+      };
+
+      const response = await fetch(`${API_BASE}/api/admin/questions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify(newQ)
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: `Question ${nextNum} added to paper!` });
+        fetchQuestions(selectedTestId);
+      } else {
+        // Fallback: local add for editing
+        const tempObj: QuestionItem = {
+          id: `temp_${Date.now()}`,
+          test_id: selectedTestId,
+          section: activeTab,
+          question_number: nextNum,
+          question_text: `New ${activeTab} Question ${nextNum}...`,
+          options: ['Option A', 'Option B', 'Option C', 'Option D'],
+          correct_answer: 'A'
+        };
+        setQuestions(prev => [...prev, tempObj]);
+        setEditingQId(tempObj.id);
+      }
+    } catch (err: any) {
+      alert('Failed to add question');
+    }
   };
 
   const handleSaveQuestion = async (q: QuestionItem) => {
@@ -173,7 +237,6 @@ export function Questions() {
     }
   };
 
-  // Update Test Details
   const handleUpdateTest = async () => {
     if (!selectedTestId || !editTestTitle.trim()) return;
     try {
@@ -198,7 +261,6 @@ export function Questions() {
     }
   };
 
-  // Delete Entire Test Paper
   const handleDeleteTest = async () => {
     const currentTest = tests.find(t => t.id === selectedTestId);
     if (!currentTest) return;
@@ -250,9 +312,9 @@ export function Questions() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800 pb-6 mb-6">
           <div>
             <h1 className="text-2xl font-serif font-bold text-gold-400 flex items-center gap-2">
-              <Edit3 size={24} /> Published Question Bank & Test Manager
+              <Edit3 size={24} /> Test Paper Question Builder & Bank Manager
             </h1>
-            <p className="text-xs text-gray-400 mt-1">Select a test paper to edit question content, rename paper, or delete duplicate papers.</p>
+            <p className="text-xs text-gray-400 mt-1">Add, edit, upload diagram images, or configure options for any PYQ or Test Series paper.</p>
           </div>
 
           {/* Test Selector Dropdown */}
@@ -265,34 +327,39 @@ export function Questions() {
               {loadingTests ? (
                 <option>Loading Test Papers...</option>
               ) : tests.length === 0 ? (
-                <option>No Published Tests Found</option>
+                <option>No Test Papers Found</option>
               ) : (
                 tests.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.title} ({t.exam_type || t.test_type || 'IAT'})
+                    {t.title || t.name} ({t.exam_type || t.test_type || 'IAT'})
                   </option>
                 ))
               )}
             </select>
 
-            {/* Edit Test Details Button */}
+            <button
+              onClick={handleAddQuestionToPaper}
+              className="px-3.5 py-2.5 bg-amber-400 text-neutral-950 text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-amber-300 transition shadow"
+            >
+              <Plus size={16} /> Add Question
+            </button>
+
             <button
               onClick={() => setShowEditTestModal(true)}
               disabled={!selectedTestId}
-              className="px-3.5 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition"
+              className="px-3 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition"
               title="Edit Test Paper Name & Category"
             >
               <Settings size={16} /> Edit Title
             </button>
 
-            {/* Delete Test Paper Button */}
             <button
               onClick={handleDeleteTest}
               disabled={!selectedTestId || deletingTest}
-              className="px-3.5 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition"
+              className="px-3 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition"
               title="Delete Entire Test Paper"
             >
-              <Trash2 size={16} /> Delete Test
+              <Trash2 size={16} /> Delete
             </button>
           </div>
         </div>
@@ -352,8 +419,14 @@ export function Questions() {
             <p className="text-xs text-gray-400">Loading Question Paper...</p>
           </div>
         ) : filteredQuestions.length === 0 ? (
-          <div className="text-center py-16 bg-[#121212] border border-gray-800 rounded-2xl text-gray-500 text-sm">
-            No questions found in {activeTab} for this test paper.
+          <div className="text-center py-16 bg-[#121212] border border-gray-800 rounded-2xl text-gray-400 space-y-3">
+            <p className="text-sm">No questions found in <strong>{activeTab}</strong> for this paper.</p>
+            <button
+              onClick={handleAddQuestionToPaper}
+              className="px-4 py-2 bg-amber-400 text-neutral-950 text-xs font-bold rounded-xl inline-flex items-center gap-1.5 hover:bg-amber-300 transition"
+            >
+              <Plus size={16} /> Add First Question in {activeTab}
+            </button>
           </div>
         ) : (
           filteredQuestions.map((q) => {
@@ -365,7 +438,6 @@ export function Questions() {
                   isEditing ? 'border-gold-500/60 shadow-xl shadow-gold-500/10' : 'border-gray-800/80 hover:border-gray-700'
                 }`}
               >
-                {/* Question Header */}
                 <div className="flex items-center justify-between border-b border-gray-800/60 pb-4 mb-4">
                   <div className="flex items-center gap-3">
                     <span className="w-8 h-8 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-400 font-bold text-xs flex items-center justify-center">
@@ -404,7 +476,6 @@ export function Questions() {
                   </div>
                 </div>
 
-                {/* Question Text Editor */}
                 <div className="space-y-4">
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Question Content</label>
@@ -416,7 +487,6 @@ export function Questions() {
                     />
                   </div>
 
-                  {/* Image URL & Diagram Preview */}
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5 flex items-center gap-1.5">
                       <Image size={14} className="text-gold-400" /> Diagram / Image URL (Google Drive Links Auto-Convert)
@@ -440,7 +510,6 @@ export function Questions() {
                     )}
                   </div>
 
-                  {/* Options A, B, C, D Grid */}
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Options & Answer Key</label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
