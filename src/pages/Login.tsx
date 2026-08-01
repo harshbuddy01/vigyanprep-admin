@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 
 export function Login() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('harshbuddy01@gmail.com');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -17,19 +16,6 @@ export function Login() {
     setLoading(true);
 
     try {
-      // 1. Try Supabase Auth first
-      const { data, error: supaError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (!supaError && data.session) {
-        login(data.session.access_token);
-        navigate('/');
-        return;
-      }
-
-      // 2. Fallback to API Admin Auth endpoint if Supabase Auth email confirmation is pending
       const apiUrl = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
       const apiRes = await fetch(`${apiUrl}/api/admin/auth/login`, {
         method: 'POST',
@@ -37,24 +23,15 @@ export function Login() {
         body: JSON.stringify({ username: email, password })
       });
 
-      if (apiRes.ok) {
-        const apiData = await apiRes.json();
-        if (apiData.token) {
-          login(apiData.token);
-          navigate('/');
-          return;
-        }
-      }
+      const apiData = await apiRes.json();
 
-      // 3. Fallback for master admin session setup
-      if (email === 'harshbuddy01@gmail.com' || email === 'admin@vigyanprep.com') {
-        // Issue an admin session token
-        login('admin_session_active');
+      if (apiRes.ok && apiData.token) {
+        login(apiData.token);
         navigate('/');
         return;
+      } else {
+        throw new Error(apiData.message || apiData.error || 'Invalid username or password');
       }
-
-      throw new Error(supaError?.message || 'Invalid admin credentials');
     } catch (err: any) {
       setError(err.message || 'Login failed');
     } finally {
@@ -64,37 +41,43 @@ export function Login() {
 
   return (
     <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
-      <div className="bg-neutral-900 border border-white/10 p-8 rounded-xl w-full max-w-md">
-        <h1 className="text-2xl font-bold text-white mb-6 text-center">Admin Login</h1>
-        {error && <div className="mb-4 text-sm text-red-400 bg-red-400/10 p-3 rounded">{error}</div>}
+      <div className="bg-neutral-900 border border-white/10 p-8 rounded-xl w-full max-w-md shadow-2xl">
+        <h1 className="text-2xl font-bold text-white mb-2 text-center">Admin Portal Login</h1>
+        <p className="text-xs text-neutral-400 text-center mb-6">Vigyan.prep Management & Question Builder</p>
+
+        {error && <div className="mb-4 text-xs text-red-400 bg-red-400/10 border border-red-400/20 p-3 rounded-lg">{error}</div>}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm text-neutral-400 mb-1">Email</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-1">Username / Email</label>
             <input
               type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-neutral-800 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-400"
-              placeholder="harshbuddy01@gmail.com"
+              className="w-full bg-neutral-800 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400"
+              placeholder="admin or harshbuddy01@gmail.com"
               required
             />
           </div>
+
           <div>
-            <label className="block text-sm text-neutral-400 mb-1">Password</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400 mb-1">Admin Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-neutral-800 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-400"
+              className="w-full bg-neutral-800 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400"
+              placeholder="••••••••"
               required
             />
           </div>
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-amber-400 text-neutral-950 font-semibold py-2 rounded-lg hover:bg-amber-500 transition-colors disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-amber-400 to-orange-500 text-neutral-950 font-bold py-3 rounded-lg hover:opacity-95 transition-opacity disabled:opacity-50 text-sm uppercase tracking-wider shadow-lg shadow-amber-500/20"
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'Authenticating...' : 'Sign In to Admin Portal →'}
           </button>
         </form>
       </div>
