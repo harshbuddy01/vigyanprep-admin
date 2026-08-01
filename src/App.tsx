@@ -3,6 +3,7 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Questions } from './pages/Questions';
 import { TestSeries } from './pages/TestSeries';
+import { PricingPlans } from './pages/PricingPlans';
 import { PyqPapers } from './pages/PyqPapers';
 import { PyqUpload } from './pages/PyqUpload';
 import { Students } from './pages/Students';
@@ -43,6 +44,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/test-series" element={<TestSeries />} />
+          <Route path="/pricing" element={<PricingPlans />} />
           <Route path="/test-series/calendar" element={<Calendar />} />
           <Route path="/tests" element={<Navigate to="/test-series" replace />} />
           <Route path="/preview/:testId" element={<PreviewExamPlaceholder />} />
