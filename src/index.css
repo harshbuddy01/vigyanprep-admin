@@ -4,29 +4,29 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --bg-primary: #f8fafc;
-  --bg-secondary: #ffffff;
+  --bg-page: #f8fafc;
   --bg-card: #ffffff;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --border-color: #e2e8f0;
+  --bg-input: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --border-main: #cbd5e1;
   --font-display: 'Cormorant Garamond', Georgia, serif;
   --font-body: 'DM Sans', -apple-system, sans-serif;
 }
 
 html.dark {
-  --bg-primary: #0a0a0a;
-  --bg-secondary: #121212;
-  --bg-card: #171717;
-  --text-primary: #f8fafc;
-  --text-secondary: #a3a3a3;
-  --border-color: rgba(255, 255, 255, 0.1);
+  --bg-page: #09090b;
+  --bg-card: #14100c;
+  --bg-input: #1c1917;
+  --text-main: #f8fafc;
+  --text-muted: #a1a1aa;
+  --border-main: rgba(255, 255, 255, 0.12);
 }
 
 body {
   font-family: var(--font-body);
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--bg-page);
+  color: var(--text-main);
   min-height: 100vh;
   margin: 0;
   -webkit-font-smoothing: antialiased;
@@ -37,18 +37,55 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
 }
 
-/* Light mode overrides for card containers & backgrounds */
-html:not(.dark) .bg-neutral-900,
-html:not(.dark) .bg-neutral-950,
-html:not(.dark) .bg-[#0d0b08],
-html:not(.dark) .bg-[#120e08],
-html:not(.dark) .bg-neutral-800\/50,
-html:not(.dark) .bg-neutral-900\/50 {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-  border-color: #e2e8f0 !important;
+/* ==========================================
+   LIGHT MODE OVERRIDES FOR CARDS, INPUTS & TEXT
+   ========================================== */
+
+/* Main Containers & Cards */
+html:not(.dark) main {
+  background-color: #f8fafc !important;
 }
 
+html:not(.dark) .bg-neutral-950,
+html:not(.dark) .bg-neutral-900,
+html:not(.dark) .bg-neutral-800,
+html:not(.dark) .bg-neutral-800\/50,
+html:not(.dark) .bg-neutral-900\/50,
+html:not(.dark) .bg-neutral-900\/60,
+html:not(.dark) .bg-[#0d0b08],
+html:not(.dark) .bg-[#120e08],
+html:not(.dark) .bg-[#1b150c],
+html:not(.dark) .bg-[#16120b] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Input, Select, & Textarea Fields in Light Mode */
+html:not(.dark) input[type="text"],
+html:not(.dark) input[type="password"],
+html:not(.dark) input[type="email"],
+html:not(.dark) input[type="number"],
+html:not(.dark) input[type="url"],
+html:not(.dark) select,
+html:not(.dark) textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+html:not(.dark) select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Text Colors in Light Mode */
 html:not(.dark) .text-white,
 html:not(.dark) .text-neutral-100,
 html:not(.dark) .text-neutral-200,
@@ -61,7 +98,32 @@ html:not(.dark) .text-neutral-500 {
   color: #475569 !important;
 }
 
+html:not(.dark) label {
+  color: #334155 !important;
+}
+
+/* Border Overrides in Light Mode */
+html:not(.dark) .border-white\/5,
 html:not(.dark) .border-white\/10,
-html:not(.dark) .border-white\/20 {
+html:not(.dark) .border-white\/15,
+html:not(.dark) .border-white\/20,
+html:not(.dark) .border-white\/30 {
   border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) .border-dashed {
+  border-color: #94a3b8 !important;
+  background-color: #f1f5f9 !important;
+}
+
+/* Buttons in Light Mode */
+html:not(.dark) .bg-neutral-800 {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) .bg-amber-400\/10 {
+  background-color: #fef3c7 !important;
+  border-color: #f59e0b !important;
 }
