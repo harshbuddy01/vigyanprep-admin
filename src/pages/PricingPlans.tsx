@@ -23,7 +23,7 @@ export function PricingPlans() {
 
   // Form State
   const [examType, setExamType] = useState('IAT');
-  const [name, setName] = useState('Full Test Series Pass');
+  const [name, setName] = useState('IISER IAT 90-Day Series Pass');
   const [durationDays, setDurationDays] = useState('90');
   const [price, setPrice] = useState('999');
   const [discountPrice, setDiscountPrice] = useState('499');
