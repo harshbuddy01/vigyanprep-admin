@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, FileQuestion, BookOpen, Users, Receipt,
-  Trophy, LogOut, FileUp, Calendar, BarChart2, Shield, Settings, Activity, AlertCircle
+  Trophy, LogOut, FileUp, Calendar, BarChart2, Shield, Settings, Activity, AlertCircle, FileText
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { cn } from '../lib/utils';
@@ -14,19 +14,25 @@ const navGroups = [
     ]
   },
   {
-    label: 'Test Management',
+    label: 'TEST SERIES (paid)',
     links: [
-      { to: '/tests', icon: BookOpen, label: 'Test Series' },
-      { to: '/calendar', icon: Calendar, label: 'Test Calendar' },
+      { to: '/test-series', icon: BookOpen, label: 'Test Series' },
+      { to: '/test-series/calendar', icon: Calendar, label: 'Schedule Calendar' },
       { to: '/live-invigilation', icon: Activity, label: 'Live Invigilation' },
+      { to: '/question-reports', icon: AlertCircle, label: 'Question Reports' },
     ]
   },
   {
-    label: 'Question Bank',
+    label: 'PYQ SECTION (free)',
     links: [
-      { to: '/questions', icon: FileQuestion, label: 'Questions' },
-      { to: '/upload-pdf', icon: FileUp, label: 'Upload PYQ PDF' },
-      { to: '/question-challenges', icon: AlertCircle, label: 'Challenges' },
+      { to: '/pyq', icon: FileText, label: 'PYQ Papers' },
+      { to: '/pyq/upload', icon: FileUp, label: 'Upload PYQ PDF' },
+    ]
+  },
+  {
+    label: 'QUESTION BANK',
+    links: [
+      { to: '/questions', icon: FileQuestion, label: 'All Questions' },
     ]
   },
   {
