@@ -6,6 +6,7 @@ import { TestSeries } from './pages/TestSeries';
 import { PricingPlans } from './pages/PricingPlans';
 import { PyqPapers } from './pages/PyqPapers';
 import { PyqUpload } from './pages/PyqUpload';
+import { PreviewExam } from './pages/PreviewExam';
 import { Students } from './pages/Students';
 import { Transactions } from './pages/Transactions';
 import { Results } from './pages/Results';
@@ -16,15 +17,6 @@ import { Calendar } from './pages/Calendar';
 import { QuestionChallenges } from './pages/QuestionChallenges';
 import { LiveInvigilation } from './pages/LiveInvigilation';
 import { ProtectedRoute } from './components/ProtectedRoute';
-
-export function PreviewExamPlaceholder() {
-  return (
-    <div className="p-8 text-white">
-      <h1 className="text-2xl font-bold mb-2">Admin Preview Mode Quality Gate</h1>
-      <p className="text-sm text-neutral-400">Attempting exam as student to validate answer keys before freeze.</p>
-    </div>
-  );
-}
 
 export function HallTicketsPlaceholder() {
   return (
@@ -47,7 +39,7 @@ function App() {
           <Route path="/pricing" element={<PricingPlans />} />
           <Route path="/test-series/calendar" element={<Calendar />} />
           <Route path="/tests" element={<Navigate to="/test-series" replace />} />
-          <Route path="/preview/:testId" element={<PreviewExamPlaceholder />} />
+          <Route path="/preview/:testId" element={<PreviewExam />} />
 
           <Route path="/pyq" element={<PyqPapers />} />
           <Route path="/pyq/upload" element={<PyqUpload />} />

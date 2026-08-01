@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Eye, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Plus, X, Eye, Lock, CheckCircle2, AlertCircle, Edit3 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
@@ -170,6 +170,12 @@ export function TestSeries() {
                     </span>
                   </td>
                   <td className="px-6 py-4 space-x-2">
+                    <a
+                      href={`/questions?testId=${t.id}`}
+                      className="px-3 py-1.5 bg-amber-400/10 text-amber-300 border border-amber-400/30 rounded-lg text-xs font-semibold hover:bg-amber-400 hover:text-neutral-950 transition inline-flex items-center gap-1"
+                    >
+                      <Edit3 size={13} /> Questions
+                    </a>
                     <a
                       href={`/preview/${t.id}`}
                       className="px-3 py-1.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-semibold hover:bg-blue-500 hover:text-white transition inline-flex items-center gap-1"
