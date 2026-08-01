@@ -309,13 +309,13 @@ export function Questions() {
   return (
     <div className="space-y-6">
       {/* Top Banner & Selector */}
-      <div className="bg-[#121212] border border-gold-500/20 rounded-2xl p-6 shadow-xl">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800 pb-6 mb-6">
+      <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-amber-500/20 rounded-2xl p-6 shadow-sm dark:shadow-xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-gray-800 pb-6 mb-6">
           <div>
-            <h1 className="text-2xl font-serif font-bold text-gold-400 flex items-center gap-2">
+            <h1 className="text-2xl font-serif font-bold text-amber-600 dark:text-amber-400 flex items-center gap-2">
               <Edit3 size={24} /> Test Paper Question Builder & Bank Manager
             </h1>
-            <p className="text-xs text-gray-400 mt-1">Select a paper from the Free PYQ Section or Paid Test Series Section to manage its questions.</p>
+            <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">Select a paper from the Free PYQ Section or Paid Test Series Section to manage its questions.</p>
           </div>
 
           {/* Test Selector Dropdown with Grouping */}
@@ -323,7 +323,7 @@ export function Questions() {
             <select
               value={selectedTestId}
               onChange={(e) => setSelectedTestId(e.target.value)}
-              className="bg-black border border-gold-500/30 text-gold-100 rounded-xl px-4 py-2.5 text-sm font-semibold focus:outline-none focus:border-gold-400 min-w-[280px]"
+              className="bg-slate-50 dark:bg-black border border-slate-200 dark:border-amber-500/30 text-slate-900 dark:text-amber-100 rounded-xl px-4 py-2.5 text-sm font-semibold focus:outline-none focus:border-amber-500 min-w-[280px]"
             >
               {loadingTests ? (
                 <option>Loading Test Papers...</option>
@@ -363,7 +363,7 @@ export function Questions() {
             <button
               onClick={() => setShowEditTestModal(true)}
               disabled={!selectedTestId}
-              className="px-3 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition"
+              className="px-3 py-2.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
               title="Edit Test Paper Name & Category"
             >
               <Settings size={16} /> Edit Title
@@ -372,7 +372,7 @@ export function Questions() {
             <button
               onClick={handleDeleteTest}
               disabled={!selectedTestId || deletingTest}
-              className="px-3 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition"
+              className="px-3 py-2.5 bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-700 dark:text-red-400 text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
               title="Delete Entire Test Paper"
             >
               <Trash2 size={16} /> Delete
@@ -383,13 +383,13 @@ export function Questions() {
         {/* Global Feedback Banner */}
         {message && (
           <div className={`p-4 rounded-xl text-sm flex items-center justify-between gap-2 mb-6 ${
-            message.type === 'success' ? 'bg-emerald-950/80 border border-emerald-500/30 text-emerald-300' : 'bg-red-950/80 border border-red-500/30 text-red-300'
+            message.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300' : 'bg-red-500/10 border border-red-500/30 text-red-800 dark:text-red-300'
           }`}>
             <div className="flex items-center gap-2">
               {message.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
               <span>{message.text}</span>
             </div>
-            <button onClick={() => setMessage(null)} className="text-gray-400 hover:text-white"><X size={16} /></button>
+            <button onClick={() => setMessage(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white"><X size={16} /></button>
           </div>
         )}
 
@@ -404,8 +404,8 @@ export function Questions() {
                   onClick={() => setActiveTab(sec)}
                   className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
                     activeTab === sec
-                      ? 'bg-gold-500 text-black shadow-lg shadow-gold-500/20'
-                      : 'bg-black/50 text-gray-400 border border-gray-800 hover:border-gold-500/40'
+                      ? 'bg-amber-400 text-neutral-950 shadow-md'
+                      : 'bg-slate-100 dark:bg-black/50 text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-gray-800 hover:border-amber-400/40'
                   }`}
                 >
                   {sec} ({count})
@@ -415,13 +415,13 @@ export function Questions() {
           </div>
 
           <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-gray-500" />
             <input
               type="text"
               placeholder="Search by question keywords..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl bg-black border border-gray-800 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-gold-500/50"
+              className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-black border border-slate-200 dark:border-gray-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-amber-400"
             />
           </div>
         </div>
@@ -430,16 +430,16 @@ export function Questions() {
       {/* Questions List Editor */}
       <div className="space-y-6">
         {loadingQuestions ? (
-          <div className="text-center py-16 bg-[#121212] border border-gray-800 rounded-2xl">
-            <div className="w-8 h-8 border-4 border-gold-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-xs text-gray-400">Loading Question Paper...</p>
+          <div className="text-center py-16 bg-white dark:bg-[#121212] border border-slate-200 dark:border-gray-800 rounded-2xl">
+            <div className="w-8 h-8 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+            <p className="text-xs text-slate-500 dark:text-gray-400">Loading Question Paper...</p>
           </div>
         ) : filteredQuestions.length === 0 ? (
-          <div className="text-center py-16 bg-[#121212] border border-gray-800 rounded-2xl text-gray-400 space-y-3">
+          <div className="text-center py-16 bg-white dark:bg-[#121212] border border-slate-200 dark:border-gray-800 rounded-2xl text-slate-600 dark:text-gray-400 space-y-3 shadow-sm">
             <p className="text-sm">No questions found in <strong>{activeTab}</strong> for this paper.</p>
             <button
               onClick={handleAddQuestionToPaper}
-              className="px-4 py-2 bg-amber-400 text-neutral-950 text-xs font-bold rounded-xl inline-flex items-center gap-1.5 hover:bg-amber-300 transition"
+              className="px-4 py-2 bg-amber-400 text-neutral-950 text-xs font-bold rounded-xl inline-flex items-center gap-1.5 hover:bg-amber-300 transition shadow"
             >
               <Plus size={16} /> Add First Question in {activeTab}
             </button>
@@ -450,16 +450,16 @@ export function Questions() {
             return (
               <div
                 key={q.id}
-                className={`bg-[#121212] border rounded-2xl p-6 transition-all ${
-                  isEditing ? 'border-gold-500/60 shadow-xl shadow-gold-500/10' : 'border-gray-800/80 hover:border-gray-700'
+                className={`bg-white dark:bg-[#121212] border rounded-2xl p-6 transition-all shadow-sm ${
+                  isEditing ? 'border-amber-400/80 shadow-md' : 'border-slate-200 dark:border-gray-800/80 hover:border-slate-300 dark:hover:border-gray-700'
                 }`}
               >
-                <div className="flex items-center justify-between border-b border-gray-800/60 pb-4 mb-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-800/60 pb-4 mb-4">
                   <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-400 font-bold text-xs flex items-center justify-center">
+                    <span className="w-8 h-8 rounded-lg bg-amber-400/20 border border-amber-400/40 text-amber-900 dark:text-amber-400 font-bold text-xs flex items-center justify-center">
                       Q{q.question_number}
                     </span>
-                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <span className="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">
                       {q.section} • {q.type || 'MCQ'}
                     </span>
                   </div>
@@ -469,14 +469,14 @@ export function Questions() {
                       <button
                         onClick={() => handleSaveQuestion(q)}
                         disabled={savingId === q.id}
-                        className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs rounded-lg flex items-center gap-1.5 shadow transition"
+                        className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow transition"
                       >
                         <Save size={14} /> {savingId === q.id ? 'Saving...' : 'Save Changes'}
                       </button>
                     ) : (
                       <button
                         onClick={() => setEditingQId(q.id)}
-                        className="px-3.5 py-1.5 bg-gold-500/10 hover:bg-gold-500/20 text-gold-300 font-medium text-xs rounded-lg flex items-center gap-1.5 border border-gold-500/30 transition"
+                        className="px-3.5 py-1.5 bg-amber-400/15 hover:bg-amber-400/25 text-amber-900 dark:text-amber-300 font-bold text-xs rounded-lg flex items-center gap-1.5 border border-amber-400/30 transition"
                       >
                         <Edit3 size={14} /> Edit
                       </button>
@@ -484,7 +484,7 @@ export function Questions() {
 
                     <button
                       onClick={() => handleDeleteQuestion(q.id, q.question_number)}
-                      className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-medium text-xs rounded-lg flex items-center gap-1 border border-red-500/30 transition"
+                      className="px-3 py-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-700 dark:text-red-400 font-bold text-xs rounded-lg flex items-center gap-1 border border-red-500/30 transition"
                       title="Delete Question"
                     >
                       <Trash2 size={14} />
@@ -494,29 +494,29 @@ export function Questions() {
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Question Content</label>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-1.5">Question Content</label>
                     <textarea
                       value={q.question_text}
                       onChange={(e) => handleFieldChange(q.id, 'question_text', e.target.value)}
                       rows={3}
-                      className="w-full bg-black/80 border border-gray-800 rounded-xl p-3.5 text-sm text-white focus:outline-none focus:border-gold-500/50 leading-relaxed font-sans"
+                      className="w-full bg-slate-50 dark:bg-black/80 border border-slate-200 dark:border-gray-800 rounded-xl p-3.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-400 leading-relaxed font-sans"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5 flex items-center gap-1.5">
-                      <Image size={14} className="text-gold-400" /> Diagram / Image URL (Google Drive Links Auto-Convert)
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-1.5 flex items-center gap-1.5">
+                      <Image size={14} className="text-amber-500 dark:text-amber-400" /> Diagram / Image URL (Google Drive Links Auto-Convert)
                     </label>
                     <input
                       type="text"
                       placeholder="https://drive.google.com/file/d/1ABC.../view"
                       value={q.image_url || ''}
                       onChange={(e) => handleFieldChange(q.id, 'image_url', e.target.value)}
-                      className="w-full bg-black/80 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-amber-200 placeholder-gray-600 focus:outline-none focus:border-gold-500/50 font-mono"
+                      className="w-full bg-slate-50 dark:bg-black/80 border border-slate-200 dark:border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-amber-200 placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-amber-400 font-mono"
                     />
 
                     {q.image_url && (
-                      <div className="mt-3 p-3 bg-black border border-gray-800 rounded-xl text-center">
+                      <div className="mt-3 p-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-gray-800 rounded-xl text-center">
                         <img
                           src={q.image_url}
                           alt="Diagram Preview"
@@ -527,7 +527,7 @@ export function Questions() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Options & Answer Key</label>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-2">Options & Answer Key</label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {['A', 'B', 'C', 'D'].map((letter, optIdx) => {
                         const isCorrectKey = q.correct_answer === letter;
@@ -535,14 +535,16 @@ export function Questions() {
                           <div
                             key={letter}
                             className={`flex items-center gap-2 p-2.5 rounded-xl border transition ${
-                              isCorrectKey ? 'bg-emerald-950/30 border-emerald-500/40' : 'bg-black/60 border-gray-800'
+                              isCorrectKey
+                                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-950 dark:text-white'
+                                : 'bg-slate-50 dark:bg-black/60 border-slate-200 dark:border-gray-800'
                             }`}
                           >
                             <button
                               type="button"
                               onClick={() => handleFieldChange(q.id, 'correct_answer', letter)}
                               className={`w-7 h-7 rounded-lg font-bold text-xs shrink-0 flex items-center justify-center transition ${
-                                isCorrectKey ? 'bg-emerald-500 text-black shadow-md' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                                isCorrectKey ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-200 dark:bg-gray-800 text-slate-700 dark:text-gray-400 hover:bg-slate-300 dark:hover:bg-gray-700'
                               }`}
                               title={`Set Option ${letter} as Correct Key`}
                             >
@@ -552,7 +554,7 @@ export function Questions() {
                               type="text"
                               value={q.options[optIdx] || ''}
                               onChange={(e) => handleOptionChange(q.id, optIdx, e.target.value)}
-                              className="flex-1 bg-transparent border-none text-xs text-white focus:outline-none"
+                              className="flex-1 bg-transparent border-none text-xs text-slate-900 dark:text-white focus:outline-none"
                             />
                           </div>
                         );
@@ -569,32 +571,32 @@ export function Questions() {
 
       {/* Edit Test Details Modal */}
       {showEditTestModal && selectedTestObj && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[#121212] border border-gold-500/30 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <h3 className="text-lg font-serif font-bold text-gold-400 flex items-center gap-2">
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-amber-500/30 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-gray-800 pb-3">
+              <h3 className="text-lg font-serif font-bold text-slate-900 dark:text-gold-400 flex items-center gap-2">
                 <Settings size={20} /> Edit Test Paper Details
               </h3>
-              <button onClick={() => setShowEditTestModal(false)} className="text-gray-400 hover:text-white"><X size={18} /></button>
+              <button onClick={() => setShowEditTestModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white"><X size={18} /></button>
             </div>
 
             <div className="space-y-4 text-xs">
               <div>
-                <label className="block text-gray-400 font-bold uppercase mb-1">Test Title</label>
+                <label className="block text-slate-500 dark:text-gray-400 font-bold uppercase mb-1">Test Title</label>
                 <input
                   type="text"
                   value={editTestTitle}
                   onChange={(e) => setEditTestTitle(e.target.value)}
-                  className="w-full bg-black border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-gold-500/50"
+                  className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-400"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-400 font-bold uppercase mb-1">Exam Category</label>
+                <label className="block text-slate-500 dark:text-gray-400 font-bold uppercase mb-1">Exam Category</label>
                 <select
                   value={editExamType}
                   onChange={(e) => setEditExamType(e.target.value)}
-                  className="w-full bg-black border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-gold-500/50"
+                  className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-400"
                 >
                   <option value="IAT">IISER IAT</option>
                   <option value="NEST">NISER NEST</option>
@@ -603,12 +605,12 @@ export function Questions() {
               </div>
 
               <div>
-                <label className="block text-gray-400 font-bold uppercase mb-1">Duration (Minutes)</label>
+                <label className="block text-slate-500 dark:text-gray-400 font-bold uppercase mb-1">Duration (Minutes)</label>
                 <input
                   type="number"
                   value={editDuration}
                   onChange={(e) => setEditDuration(parseInt(e.target.value) || 180)}
-                  className="w-full bg-black border border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-gold-500/50"
+                  className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-400"
                 />
               </div>
             </div>
@@ -616,13 +618,13 @@ export function Questions() {
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button
                 onClick={() => setShowEditTestModal(false)}
-                className="py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-xs rounded-xl"
+                className="py-2.5 bg-slate-200 dark:bg-gray-800 hover:bg-slate-300 dark:hover:bg-gray-700 text-slate-800 dark:text-gray-300 font-bold text-xs rounded-xl"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUpdateTest}
-                className="py-2.5 bg-gold-500 hover:bg-gold-400 text-black font-bold text-xs uppercase tracking-wider rounded-xl shadow"
+                className="py-2.5 bg-amber-400 text-neutral-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow"
               >
                 Save Details
               </button>
