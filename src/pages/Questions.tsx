@@ -30,7 +30,8 @@ type QuestionItem = {
 
 export function Questions() {
   const token = useAuthStore((state) => state.token);
-  const [tests, setTests] = useState<any[]>([]);
+  const [pyqPapers, setPyqPapers] = useState<any[]>([]);
+  const [testSeriesPapers, setTestSeriesPapers] = useState<any[]>([]);
   const [selectedTestId, setSelectedTestId] = useState<string>('');
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [loadingTests, setLoadingTests] = useState(true);
@@ -51,7 +52,7 @@ export function Questions() {
   // Read ?testId from URL
   const urlTestId = new URLSearchParams(window.location.search).get('testId');
 
-  // Fetch all tests (PYQs + Test Series)
+  // Fetch tests separated by PYQ vs Test Series
   const fetchTests = async () => {
     setLoadingTests(true);
     try {
@@ -63,22 +64,20 @@ export function Questions() {
       const pyqData = await pyqRes.json();
       const tsData = await tsRes.json();
 
-      const combinedPapers = [
-        ...(pyqData.papers || []),
-        ...(tsData.tests || [])
-      ];
+      const pyqs = pyqData.papers || [];
+      const testSeries = tsData.tests || [];
 
-      // Deduplicate by ID
+      setPyqPapers(pyqs);
+      setTestSeriesPapers(testSeries);
+
+      const allPapers = [...pyqs, ...testSeries];
       const uniqueMap = new Map();
-      combinedPapers.forEach(p => { if (p && p.id) uniqueMap.set(p.id, p); });
-      const uniqueList = Array.from(uniqueMap.values());
-
-      setTests(uniqueList);
+      allPapers.forEach(p => { if (p && p.id) uniqueMap.set(p.id, p); });
 
       if (urlTestId && uniqueMap.has(urlTestId)) {
         setSelectedTestId(urlTestId);
-      } else if (uniqueList.length > 0) {
-        setSelectedTestId(uniqueList[0].id);
+      } else if (allPapers.length > 0) {
+        setSelectedTestId(allPapers[0].id);
       }
     } catch (err: any) {
       console.error('Failed to load tests:', err);
@@ -111,14 +110,15 @@ export function Questions() {
   useEffect(() => {
     if (selectedTestId) {
       fetchQuestions(selectedTestId);
-      const currentTest = tests.find(t => t.id === selectedTestId);
+      const all = [...pyqPapers, ...testSeriesPapers];
+      const currentTest = all.find(t => t.id === selectedTestId);
       if (currentTest) {
         setEditTestTitle(currentTest.title || currentTest.name || '');
         setEditExamType(currentTest.exam_type || currentTest.test_type || 'IAT');
         setEditDuration(currentTest.duration_minutes || 180);
       }
     }
-  }, [selectedTestId, tests]);
+  }, [selectedTestId, pyqPapers, testSeriesPapers]);
 
   const handleFieldChange = (id: string, field: string, value: any) => {
     setQuestions(prev =>
@@ -175,7 +175,6 @@ export function Questions() {
         setMessage({ type: 'success', text: `Question ${nextNum} added to paper!` });
         fetchQuestions(selectedTestId);
       } else {
-        // Fallback: local add for editing
         const tempObj: QuestionItem = {
           id: `temp_${Date.now()}`,
           test_id: selectedTestId,
@@ -262,9 +261,10 @@ export function Questions() {
   };
 
   const handleDeleteTest = async () => {
-    const currentTest = tests.find(t => t.id === selectedTestId);
+    const all = [...pyqPapers, ...testSeriesPapers];
+    const currentTest = all.find(t => t.id === selectedTestId);
     if (!currentTest) return;
-    if (!window.confirm(`⚠️ Are you sure you want to DELETE "${currentTest.title}"?\n\nThis will remove the test paper and all its questions from both the Admin Panel and the Student Website permanently.`)) {
+    if (!window.confirm(`⚠️ Are you sure you want to DELETE "${currentTest.title || currentTest.name}"?\n\nThis will remove the test paper and all its questions permanently.`)) {
       return;
     }
     setDeletingTest(true);
@@ -303,7 +303,8 @@ export function Questions() {
     return matchesSection && matchesSearch;
   });
 
-  const selectedTestObj = tests.find(t => t.id === selectedTestId);
+  const allCombined = [...pyqPapers, ...testSeriesPapers];
+  const selectedTestObj = allCombined.find(t => t.id === selectedTestId);
 
   return (
     <div className="space-y-6">
@@ -314,10 +315,10 @@ export function Questions() {
             <h1 className="text-2xl font-serif font-bold text-gold-400 flex items-center gap-2">
               <Edit3 size={24} /> Test Paper Question Builder & Bank Manager
             </h1>
-            <p className="text-xs text-gray-400 mt-1">Add, edit, upload diagram images, or configure options for any PYQ or Test Series paper.</p>
+            <p className="text-xs text-gray-400 mt-1">Select a paper from the Free PYQ Section or Paid Test Series Section to manage its questions.</p>
           </div>
 
-          {/* Test Selector Dropdown */}
+          {/* Test Selector Dropdown with Grouping */}
           <div className="flex items-center gap-3">
             <select
               value={selectedTestId}
@@ -326,14 +327,29 @@ export function Questions() {
             >
               {loadingTests ? (
                 <option>Loading Test Papers...</option>
-              ) : tests.length === 0 ? (
+              ) : pyqPapers.length === 0 && testSeriesPapers.length === 0 ? (
                 <option>No Test Papers Found</option>
               ) : (
-                tests.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title || t.name} ({t.exam_type || t.test_type || 'IAT'})
-                  </option>
-                ))
+                <>
+                  {pyqPapers.length > 0 && (
+                    <optgroup label="─── 📚 FREE PYQ PAPERS ───">
+                      {pyqPapers.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.title || t.name} ({t.exam_type || 'PYQ'})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {testSeriesPapers.length > 0 && (
+                    <optgroup label="─── 🎯 PAID TEST SERIES PAPERS ───">
+                      {testSeriesPapers.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.title || t.name} ({t.exam_type || 'Test Series'})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </>
               )}
             </select>
 
