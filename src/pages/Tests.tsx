@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../stores/authStore';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
 export function Tests() {
+  const token = useAuthStore((state) => state.token);
   const [tests, setTests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Form state
   const [title, setTitle] = useState('');
-  const [examType, setExamType] = useState('NEST');
+  const [examType, setExamType] = useState('IAT');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [duration, setDuration] = useState('180');
@@ -17,11 +21,19 @@ export function Tests() {
 
   const fetchTests = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('tests').select('*').order('created_at', { ascending: false });
-    if (!error && data) {
-      setTests(data);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/pyq/list`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      });
+      const data = await res.json();
+      if (data.tests) {
+        setTests(data.tests);
+      }
+    } catch (err) {
+      console.error('Failed to fetch tests:', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -36,24 +48,35 @@ export function Tests() {
 
   const handleCreateTest = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from('tests').insert([
-      {
-        title,
-        exam_type: examType,
-        start_date: startDate,
-        end_date: endDate,
-        duration: parseInt(duration),
-        description,
-        status: 'Draft',
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/tests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          title,
+          name: title,
+          exam_type: examType,
+          duration_minutes: parseInt(duration) || 180,
+          description: description || `${title} Test Paper`
+        })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setShowModal(false);
+        fetchTests();
+        setTitle(''); setExamType('IAT'); setStartDate(''); setEndDate(''); setDuration('180'); setDescription('');
+      } else {
+        alert('Error creating test: ' + (data.error || data.message || 'Server error'));
       }
-    ]);
-    if (!error) {
-      setShowModal(false);
-      fetchTests();
-      // Reset form
-      setTitle(''); setExamType('NEST'); setStartDate(''); setEndDate(''); setDuration('180'); setDescription('');
-    } else {
-      alert('Error creating test: ' + error.message);
+    } catch (err: any) {
+      alert('Error creating test: ' + err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -87,12 +110,12 @@ export function Tests() {
             <tbody>
               {tests.map((t) => (
                 <tr key={t.id} className="border-b border-white/5 hover:bg-white/5">
-                  <td className="px-6 py-4 font-medium text-white">{t.title}</td>
+                  <td className="px-6 py-4 font-medium text-white">{t.title || t.name}</td>
                   <td className="px-6 py-4">{t.exam_type || t.test_type || 'IAT'}</td>
                   <td className="px-6 py-4">{t.duration_minutes || t.duration || 180} mins</td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs ${t.is_published || t.status === 'Published' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                      {t.is_published || t.status === 'Published' ? 'Published' : 'Active'}
+                    <span className={`px-2 py-1 rounded-full text-xs ${t.is_published || t.status === 'Published' || t.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                      {t.is_published || t.status === 'Published' || t.is_active ? 'Active / Published' : 'Draft'}
                     </span>
                   </td>
                   <td className="px-6 py-4 space-x-3">
@@ -130,8 +153,8 @@ export function Tests() {
               <div>
                 <label className="block text-sm text-neutral-400 mb-1">Exam Type</label>
                 <select required value={examType} onChange={e => handleExamTypeChange(e.target.value)} className="w-full bg-neutral-800 border border-white/10 rounded-lg px-4 py-2 text-white">
-                  <option value="NEST">NEST</option>
                   <option value="IAT">IAT</option>
+                  <option value="NEST">NEST</option>
                   <option value="CMI">CMI</option>
                   <option value="PYQ">PYQ</option>
                 </select>
@@ -152,8 +175,8 @@ export function Tests() {
                 <label className="block text-sm text-neutral-400 mb-1">Description</label>
                 <textarea required value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-neutral-800 border border-white/10 rounded-lg px-4 py-2 text-white h-24" />
               </div>
-              <button type="submit" className="w-full bg-amber-400 text-neutral-950 font-semibold py-2 rounded-lg hover:bg-amber-500 transition-colors">
-                Save Test
+              <button type="submit" disabled={saving} className="w-full bg-amber-400 text-neutral-950 font-semibold py-2 rounded-lg hover:bg-amber-500 transition-colors disabled:opacity-50">
+                {saving ? 'Saving...' : 'Save Test'}
               </button>
             </form>
           </div>

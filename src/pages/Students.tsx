@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../stores/authStore';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
 export function Students() {
+  const token = useAuthStore((state) => state.token);
   const [searchTerm, setSearchTerm] = useState('');
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -11,24 +14,32 @@ export function Students() {
   useEffect(() => {
     const fetchStudents = async () => {
       setLoading(true);
-      const { data, error } = await supabase.from('students').select('*');
-      if (!error && data) {
-        setStudents(data);
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/students`, {
+          headers: { Authorization: token ? `Bearer ${token}` : '' }
+        });
+        const data = await res.json();
+        if (data.students) {
+          setStudents(data.students);
+        }
+      } catch (err) {
+        console.error('Failed to fetch students:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchStudents();
   }, []);
 
   const filteredStudents = students.filter(s =>
-    (s.name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
-    (s.email?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
-    (s.roll?.toLowerCase().includes(searchTerm.toLowerCase()) || '')
+    (s.full_name || s.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (s.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (s.phone || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-white">Students</h1>
+      <h1 className="text-2xl font-bold text-white">Students Management</h1>
 
       <div className="bg-neutral-800/50 border border-white/10 rounded-xl overflow-hidden">
         <div className="p-4 border-b border-white/10">
@@ -36,7 +47,7 @@ export function Students() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={20} />
             <input
               type="text"
-              placeholder="Search by name, email or roll..."
+              placeholder="Search by name or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-neutral-900 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-amber-400"
@@ -52,18 +63,22 @@ export function Students() {
               <tr>
                 <th className="px-6 py-4">Name</th>
                 <th className="px-6 py-4">Email</th>
-                <th className="px-6 py-4">Roll Number</th>
-                <th className="px-6 py-4">Course</th>
+                <th className="px-6 py-4">Role</th>
+                <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredStudents.map((s) => (
                 <tr key={s.id} className="border-b border-white/5 hover:bg-white/5">
-                  <td className="px-6 py-4 font-medium text-white">{s.name}</td>
+                  <td className="px-6 py-4 font-medium text-white">{s.full_name || s.name || 'Student'}</td>
                   <td className="px-6 py-4">{s.email}</td>
-                  <td className="px-6 py-4">{s.roll}</td>
-                  <td className="px-6 py-4">{s.course || 'N/A'}</td>
+                  <td className="px-6 py-4">{s.role || 'student'}</td>
+                  <td className="px-6 py-4">
+                    <span className="px-2 py-1 rounded-full text-xs bg-emerald-500/10 text-emerald-400">
+                      {s.status || 'Active'}
+                    </span>
+                  </td>
                   <td className="px-6 py-4">
                     <button onClick={() => setSelectedStudent(s)} className="text-amber-400 hover:underline">View Detail</button>
                   </td>
@@ -87,17 +102,9 @@ export function Students() {
               </button>
             </div>
             <div className="space-y-4 text-neutral-300">
-              <p><strong className="text-white">Name:</strong> {selectedStudent.name}</p>
+              <p><strong className="text-white">Name:</strong> {selectedStudent.full_name || selectedStudent.name}</p>
               <p><strong className="text-white">Email:</strong> {selectedStudent.email}</p>
-              <p><strong className="text-white">Roll No:</strong> {selectedStudent.roll}</p>
-              <p><strong className="text-white">Course:</strong> {selectedStudent.course || 'None'}</p>
-              <div className="mt-4">
-                <h3 className="font-semibold text-white mb-2">Test History</h3>
-                <div className="bg-neutral-800 p-4 rounded-lg border border-white/5 text-sm">
-                  {/* Mock history for now, can be fetched if needed */}
-                  <p>No test history available.</p>
-                </div>
-              </div>
+              <p><strong className="text-white">Role:</strong> {selectedStudent.role || 'Student'}</p>
             </div>
           </div>
         </div>
