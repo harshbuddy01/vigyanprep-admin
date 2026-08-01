@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
@@ -33,4 +35,33 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
+}
+
+/* Light mode overrides for card containers & backgrounds */
+html:not(.dark) .bg-neutral-900,
+html:not(.dark) .bg-neutral-950,
+html:not(.dark) .bg-[#0d0b08],
+html:not(.dark) .bg-[#120e08],
+html:not(.dark) .bg-neutral-800\/50,
+html:not(.dark) .bg-neutral-900\/50 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .text-white,
+html:not(.dark) .text-neutral-100,
+html:not(.dark) .text-neutral-200,
+html:not(.dark) .text-neutral-300 {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .text-neutral-400,
+html:not(.dark) .text-neutral-500 {
+  color: #475569 !important;
+}
+
+html:not(.dark) .border-white\/10,
+html:not(.dark) .border-white\/20 {
+  border-color: #cbd5e1 !important;
 }
