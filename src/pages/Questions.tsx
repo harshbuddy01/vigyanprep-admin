@@ -224,10 +224,20 @@ export function Questions() {
 
   const sections = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
 
+  const matchSection = (qSection: string | undefined, targetSection: string) => {
+    if (!qSection) return targetSection === 'Physics';
+    const qNorm = qSection.trim().toLowerCase();
+    const targetNorm = targetSection.toLowerCase();
+    const validNorms = sections.map(s => s.toLowerCase());
+    if (qNorm === targetNorm) return true;
+    if (!validNorms.includes(qNorm) && targetNorm === 'physics') return true;
+    return false;
+  };
+
   const filteredQuestions = questions.filter(q => {
-    const matchesSection = q.section === activeTab || (!sections.includes(q.section) && activeTab === 'Physics');
-    const matchesSearch = q.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          q.options.some(opt => opt.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSection = matchSection(q.section, activeTab);
+    const matchesSearch = (q.question_text || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (q.options || []).some(opt => (opt || '').toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesSection && matchesSearch;
   });
 
@@ -304,7 +314,7 @@ export function Questions() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex gap-2">
             {sections.map((sec) => {
-              const count = questions.filter(q => q.section === sec || (!sections.includes(q.section) && sec === 'Physics')).length;
+              const count = questions.filter(q => matchSection(q.section, sec)).length;
               return (
                 <button
                   key={sec}
