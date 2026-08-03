@@ -53,6 +53,9 @@ export function Transactions() {
               <tr>
                 <th className="px-6 py-4">Payment ID</th>
                 <th className="px-6 py-4">Order ID</th>
+                <th className="px-6 py-4">Student Name</th>
+                <th className="px-6 py-4">Student Email</th>
+                <th className="px-6 py-4">Plan</th>
                 <th className="px-6 py-4">Amount</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Verified Date</th>
@@ -63,6 +66,18 @@ export function Transactions() {
                 <tr key={t.id || t.razorpay_payment_id} className="border-b border-white/5 hover:bg-white/5">
                   <td className="px-6 py-4 font-medium text-amber-300">{t.razorpay_payment_id || t.id}</td>
                   <td className="px-6 py-4 font-mono text-xs">{t.razorpay_order_id || 'N/A'}</td>
+                  <td className="px-6 py-4 font-medium text-white">{t.student_name || 'Unknown'}</td>
+                  <td className="px-6 py-4 text-xs text-neutral-400">{t.student_email || 'N/A'}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-white">{t.plan_name || 'N/A'}</span>
+                      {t.exam_type && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wider">
+                          {t.exam_type}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 font-bold text-white">₹{t.amount || 0}</td>
                   <td className="px-6 py-4">
                     <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
@@ -76,7 +91,7 @@ export function Transactions() {
               ))}
               {transactions.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-neutral-400 font-mono">
+                  <td colSpan={8} className="p-8 text-center text-neutral-400 font-mono">
                     No payment records captured yet. Transactions will automatically populate when students subscribe on the website via Razorpay.
                   </td>
                 </tr>
