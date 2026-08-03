@@ -173,9 +173,17 @@ export function Questions() {
       });
 
       if (response.ok) {
+        const data = await response.json();
+        // Use the real DB question object with proper UUID id
+        if (data.question) {
+          setQuestions(prev => [...prev, data.question]);
+          setEditingQId(data.question.id);
+        } else {
+          fetchQuestions(selectedTestId);
+        }
         setMessage({ type: 'success', text: `Question ${nextNum} added to paper!` });
-        fetchQuestions(selectedTestId);
       } else {
+        // Fallback: create temp local question for editing
         const tempObj: QuestionItem = {
           id: `temp_${Date.now()}`,
           test_id: selectedTestId,
@@ -187,6 +195,7 @@ export function Questions() {
         };
         setQuestions(prev => [...prev, tempObj]);
         setEditingQId(tempObj.id);
+        setMessage({ type: 'error', text: 'Question created locally. Save to persist it to the database.' });
       }
     } catch (err: any) {
       alert('Failed to add question');
@@ -197,23 +206,60 @@ export function Questions() {
     setSavingId(q.id);
     setMessage(null);
     try {
-      const response = await fetch(`${API_BASE}/api/admin/pyq/question/${q.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({
-          question_text: q.question_text,
-          options: q.options,
-          correct_answer: q.correct_answer,
-          section: q.section,
-          image_url: q.image_url
-        })
-      });
+      // If this is a temp/local question (not yet in DB), INSERT it instead of UPDATE
+      const isTempQuestion = q.id.startsWith('temp_') || q.id.startsWith('q_');
 
-      if (!response.ok) throw new Error('Failed to update question');
-      setMessage({ type: 'success', text: `Question ${q.question_number} updated successfully` });
+      if (isTempQuestion) {
+        // POST to create a new question in the database
+        const response = await fetch(`${API_BASE}/api/admin/questions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+          },
+          body: JSON.stringify({
+            test_id: q.test_id || selectedTestId,
+            section: q.section,
+            question_number: q.question_number,
+            question_text: q.question_text,
+            type: q.type || q.question_type || 'MCQ',
+            options: q.options,
+            correct_answer: q.correct_answer,
+            image_url: q.image_url
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to save new question');
+        const data = await response.json();
+
+        // Replace the temp question in state with the real DB question
+        if (data.question) {
+          setQuestions(prev => prev.map(existing =>
+            existing.id === q.id ? data.question : existing
+          ));
+        }
+        setMessage({ type: 'success', text: `Question ${q.question_number} saved to database!` });
+      } else {
+        // Normal PUT update for existing DB questions
+        const response = await fetch(`${API_BASE}/api/admin/pyq/question/${q.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+          },
+          body: JSON.stringify({
+            question_text: q.question_text,
+            options: q.options,
+            correct_answer: q.correct_answer,
+            section: q.section,
+            image_url: q.image_url
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to update question');
+        setMessage({ type: 'success', text: `Question ${q.question_number} updated successfully` });
+      }
+
       setEditingQId(null);
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Error saving question' });
