@@ -133,6 +133,39 @@ export function Questions() {
     );
   };
 
+  // 🔥 Auto-save correct answer immediately when clicked (no Edit→Save needed)
+  const handleCorrectAnswerChange = async (questionId: string, letter: string) => {
+    // 1. Update local state immediately for instant UI feedback
+    setQuestions(prev =>
+      prev.map(q => q.id === questionId ? { ...q, correct_answer: letter } : q)
+    );
+
+    // 2. Auto-save to database if this is a real DB question (not temp)
+    const isTempQuestion = questionId.startsWith('temp_') || questionId.startsWith('q_');
+    if (!isTempQuestion) {
+      try {
+        setSavingId(questionId);
+        const response = await fetch(`${API_BASE}/api/admin/pyq/question/${questionId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+          },
+          body: JSON.stringify({ correct_answer: letter })
+        });
+        if (!response.ok) throw new Error('Failed to save correct answer');
+        setMessage({ type: 'success', text: `✓ Correct answer set to Option ${letter}` });
+      } catch (err: any) {
+        setMessage({ type: 'error', text: err.message || 'Error saving correct answer' });
+      } finally {
+        setSavingId(null);
+      }
+    } else {
+      // For temp questions, just update state — will be saved when full question is saved
+      setMessage({ type: 'success', text: `Correct answer set to ${letter} (save question to persist)` });
+    }
+  };
+
   const handleOptionChange = (id: string, optIdx: number, value: string) => {
     setQuestions(prev =>
       prev.map(q => {
@@ -582,7 +615,7 @@ export function Questions() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-2">Options & Answer Key</label>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-2">Options & Answer Key <span className="text-amber-500">(Click letter to set correct answer)</span></label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {['A', 'B', 'C', 'D'].map((letter, optIdx) => {
                         const isCorrectKey = q.correct_answer === letter;
@@ -590,29 +623,34 @@ export function Questions() {
                         return (
                           <div
                             key={letter}
-                            className={`flex flex-col gap-1.5 p-3 rounded-xl border transition ${
+                            onClick={() => handleCorrectAnswerChange(q.id, letter)}
+                            className={`flex flex-col gap-1.5 p-3 rounded-xl border transition cursor-pointer ${
                               isCorrectKey
-                                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-950 dark:text-white'
-                                : 'bg-slate-50 dark:bg-black/60 border-slate-200 dark:border-gray-800'
+                                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-950 dark:text-white ring-2 ring-emerald-500/30'
+                                : 'bg-slate-50 dark:bg-black/60 border-slate-200 dark:border-gray-800 hover:border-amber-400/40'
                             }`}
                           >
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
-                                onClick={() => handleFieldChange(q.id, 'correct_answer', letter)}
+                                onClick={(e) => { e.stopPropagation(); handleCorrectAnswerChange(q.id, letter); }}
                                 className={`w-7 h-7 rounded-lg font-bold text-xs shrink-0 flex items-center justify-center transition ${
                                   isCorrectKey ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-200 dark:bg-gray-800 text-slate-700 dark:text-gray-400 hover:bg-slate-300 dark:hover:bg-gray-700'
                                 }`}
-                                title={`Set Option ${letter} as Correct Key`}
+                                title={`Set Option ${letter} as Correct Answer`}
                               >
-                                {letter}
+                                {isCorrectKey ? '✓' : letter}
                               </button>
                               <input
                                 type="text"
                                 value={optVal || ''}
                                 onChange={(e) => handleOptionChange(q.id, optIdx, e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
                                 className="flex-1 bg-transparent border-none text-xs text-slate-900 dark:text-white focus:outline-none"
                               />
+                              {isCorrectKey && (
+                                <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider whitespace-nowrap">✓ CORRECT</span>
+                              )}
                             </div>
                             {optVal && (
                               <div className="text-[11px] text-slate-700 dark:text-amber-200 pl-9 font-medium">
@@ -623,6 +661,12 @@ export function Questions() {
                         );
                       })}
                     </div>
+                    {savingId === q.id && (
+                      <div className="mt-2 text-[11px] text-amber-500 flex items-center gap-1.5">
+                        <div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                        Saving correct answer...
+                      </div>
+                    )}
                   </div>
 
                 </div>
