@@ -196,7 +196,8 @@ export function Questions() {
         image_url: null
       };
 
-      const response = await fetch(`${API_BASE}/api/admin/questions`, {
+      // Try primary endpoint /api/admin/questions
+      let response = await fetch(`${API_BASE}/api/admin/questions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -205,16 +206,28 @@ export function Questions() {
         body: JSON.stringify(newQ)
       });
 
+      // Fallback to secondary endpoint /api/admin/test-builder/tests/:testId/questions if primary 404s
+      if (!response.ok) {
+        response = await fetch(`${API_BASE}/api/admin/test-builder/tests/${selectedTestId}/questions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+          },
+          body: JSON.stringify({ question: newQ })
+        });
+      }
+
       if (response.ok) {
         const data = await response.json();
-        // Use the real DB question object with proper UUID id
-        if (data.question) {
-          setQuestions(prev => [...prev, data.question]);
-          setEditingQId(data.question.id);
+        const createdQ = data.question || (data.questions && data.questions[0]);
+        if (createdQ && createdQ.id) {
+          setQuestions(prev => [...prev, createdQ]);
+          setEditingQId(createdQ.id);
         } else {
           fetchQuestions(selectedTestId);
         }
-        setMessage({ type: 'success', text: `Question ${nextNum} added to paper!` });
+        setMessage({ type: 'success', text: `Question ${nextNum} added to paper and saved to database!` });
       } else {
         // Fallback: create temp local question for editing
         const tempObj: QuestionItem = {
@@ -228,7 +241,7 @@ export function Questions() {
         };
         setQuestions(prev => [...prev, tempObj]);
         setEditingQId(tempObj.id);
-        setMessage({ type: 'error', text: 'Question created locally. Save to persist it to the database.' });
+        setMessage({ type: 'error', text: 'Server API needs restart. Click "Save Changes" after editing to persist to database.' });
       }
     } catch (err: any) {
       alert('Failed to add question');
@@ -243,35 +256,52 @@ export function Questions() {
       const isTempQuestion = q.id.startsWith('temp_') || q.id.startsWith('q_');
 
       if (isTempQuestion) {
-        // POST to create a new question in the database
-        const response = await fetch(`${API_BASE}/api/admin/questions`, {
+        const payload = {
+          test_id: q.test_id || selectedTestId,
+          section: q.section,
+          question_number: q.question_number,
+          question_text: q.question_text,
+          type: q.type || q.question_type || 'MCQ',
+          options: q.options,
+          correct_answer: q.correct_answer,
+          image_url: q.image_url
+        };
+
+        // Try primary endpoint
+        let response = await fetch(`${API_BASE}/api/admin/questions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': token ? `Bearer ${token}` : ''
           },
-          body: JSON.stringify({
-            test_id: q.test_id || selectedTestId,
-            section: q.section,
-            question_number: q.question_number,
-            question_text: q.question_text,
-            type: q.type || q.question_type || 'MCQ',
-            options: q.options,
-            correct_answer: q.correct_answer,
-            image_url: q.image_url
-          })
+          body: JSON.stringify(payload)
         });
 
-        if (!response.ok) throw new Error('Failed to save new question');
-        const data = await response.json();
-
-        // Replace the temp question in state with the real DB question
-        if (data.question) {
-          setQuestions(prev => prev.map(existing =>
-            existing.id === q.id ? data.question : existing
-          ));
+        // Fallback to secondary endpoint
+        if (!response.ok) {
+          response = await fetch(`${API_BASE}/api/admin/test-builder/tests/${selectedTestId}/questions`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token ? `Bearer ${token}` : ''
+            },
+            body: JSON.stringify({ question: payload })
+          });
         }
-        setMessage({ type: 'success', text: `Question ${q.question_number} saved to database!` });
+
+        if (!response.ok) throw new Error('API server error. Please pull latest code on GCP VM and restart pm2.');
+        const data = await response.json();
+        const createdQ = data.question || (data.questions && data.questions[0]);
+
+        // Replace the temp question in state with the real DB question with UUID
+        if (createdQ && createdQ.id) {
+          setQuestions(prev => prev.map(existing =>
+            existing.id === q.id ? createdQ : existing
+          ));
+        } else {
+          fetchQuestions(selectedTestId);
+        }
+        setMessage({ type: 'success', text: `✓ Question ${q.question_number} saved permanently to database!` });
       } else {
         // Normal PUT update for existing DB questions
         const response = await fetch(`${API_BASE}/api/admin/pyq/question/${q.id}`, {
@@ -290,7 +320,7 @@ export function Questions() {
         });
 
         if (!response.ok) throw new Error('Failed to update question');
-        setMessage({ type: 'success', text: `Question ${q.question_number} updated successfully` });
+        setMessage({ type: 'success', text: `✓ Question ${q.question_number} updated in database` });
       }
 
       setEditingQId(null);
