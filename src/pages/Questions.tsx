@@ -575,22 +575,13 @@ export function Questions() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {isEditing ? (
-                      <button
-                        onClick={() => handleSaveQuestion(q)}
-                        disabled={savingId === q.id}
-                        className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow transition"
-                      >
-                        <Save size={14} /> {savingId === q.id ? 'Saving...' : 'Save Changes'}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setEditingQId(q.id)}
-                        className="px-3.5 py-1.5 bg-amber-400/15 hover:bg-amber-400/25 text-amber-900 dark:text-amber-300 font-bold text-xs rounded-lg flex items-center gap-1.5 border border-amber-400/30 transition"
-                      >
-                        <Edit3 size={14} /> Edit
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleSaveQuestion(q)}
+                      disabled={savingId === q.id}
+                      className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow transition"
+                    >
+                      <Save size={14} /> {savingId === q.id ? 'Saving...' : 'Save Changes'}
+                    </button>
 
                     <button
                       onClick={() => handleDeleteQuestion(q.id, q.question_number)}
@@ -600,6 +591,7 @@ export function Questions() {
                       <Trash2 size={14} />
                     </button>
                   </div>
+
                 </div>
 
                 <div className="space-y-4">
