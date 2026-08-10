@@ -86,8 +86,10 @@ export function Tests() {
 
   const handleFreezeTest = async (test: any) => {
     if (test.preview_status !== 'valid') {
-      alert('🔒 PREVIEW QUALITY GATE: You must complete at least one admin Preview run before freezing this test paper!');
-      return;
+      const bypass = window.confirm(
+        '⚠️ PREVIEW QUALITY GATE: You have not completed an admin preview run for this test.\n\nDo you want to bypass the quality gate and freeze/publish this test anyway?'
+      );
+      if (!bypass) return;
     }
     try {
       const res = await fetch(`${API_BASE}/api/admin/tests/${test.id}`, {
