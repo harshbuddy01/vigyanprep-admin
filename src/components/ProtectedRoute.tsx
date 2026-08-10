@@ -46,6 +46,7 @@ export function ProtectedRoute() {
       try {
         const apiBase = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
         const res = await fetch(`${apiBase}/api/admin/auth/validate-session`, {
+          method: 'POST',
           headers: { 'Authorization': `Bearer ${storedToken}` }
         });
         if (!res.ok) {
