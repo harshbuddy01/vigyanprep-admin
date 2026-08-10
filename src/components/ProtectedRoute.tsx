@@ -14,14 +14,56 @@ export function ProtectedRoute() {
     // Ensure theme class is applied on document root on mount
     setTheme(theme);
 
-    const storedToken = token || localStorage.getItem('admin_token') || localStorage.getItem('token');
-    if (isAuthenticated || storedToken) {
+    const validateSession = async () => {
+      const storedToken = token || localStorage.getItem('admin_token') || localStorage.getItem('token');
+      
+      if (!storedToken) {
+        logout();
+        setIsValid(false);
+        setLoading(false);
+        return;
+      }
+
+      // Decode JWT and check expiry (without library)
+      try {
+        const payload = JSON.parse(atob(storedToken.split('.')[1]));
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+          console.warn('⚠️ Admin token expired. Logging out.');
+          logout();
+          setIsValid(false);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // If JWT decode fails, token is invalid
+        logout();
+        setIsValid(false);
+        setLoading(false);
+        return;
+      }
+
+      // Verify with backend
+      try {
+        const apiBase = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
+        const res = await fetch(`${apiBase}/api/admin/auth/validate-session`, {
+          headers: { 'Authorization': `Bearer ${storedToken}` }
+        });
+        if (!res.ok) {
+          console.warn('⚠️ Admin session invalid. Logging out.');
+          logout();
+          setIsValid(false);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // Network error — allow offline access with valid token
+      }
+
       setIsValid(true);
-    } else {
-      logout();
-      setIsValid(false);
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    validateSession();
   }, [isAuthenticated, token, logout, theme, setTheme]);
 
   if (loading) {
