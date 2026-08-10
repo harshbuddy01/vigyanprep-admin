@@ -38,7 +38,7 @@ export function PreviewExam() {
         const data = await res.json();
         setQuestions(data.questions || []);
 
-        const testRes = await fetch(`${API_BASE}/api/public/details/${testId}`);
+        const testRes = await fetch(`${API_BASE}/api/public/tests/${testId}`);
         const testData = await testRes.json();
         setTest(testData.test || { id: testId, title: 'Test Series Paper' });
       } catch (err) {
@@ -57,6 +57,11 @@ export function PreviewExam() {
   const handleValidatePreview = async () => {
     setValidating(true);
     try {
+      const answersArray = questions.map(q => ({
+        question_id: q.id,
+        answer: selectedAnswers[q.question_number] || ''
+      }));
+
       const res = await fetch(`${API_BASE}/api/admin/preview/submit`, {
         method: 'POST',
         headers: {
@@ -65,8 +70,7 @@ export function PreviewExam() {
         },
         body: JSON.stringify({
           testId,
-          score: 100,
-          passed: true
+          answers: answersArray
         })
       });
 
