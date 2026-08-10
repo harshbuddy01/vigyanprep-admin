@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Eye, Lock, CheckCircle2, AlertCircle, Edit3 } from 'lucide-react';
+import { Plus, X, Eye, Lock, CheckCircle2, AlertCircle, Edit3, Trash2 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
@@ -104,6 +104,42 @@ export function TestSeries() {
     }
   };
 
+  const handleDeleteTest = async (test: any) => {
+    if (window.confirm('Are you sure you want to delete this test? This cannot be undone.')) {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/test-series/${test.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: token ? `Bearer ${token}` : '' }
+        });
+        if (res.ok) {
+          fetchTests();
+        } else {
+          alert('Failed to delete test');
+        }
+      } catch (err: any) {
+        alert('Error deleting test: ' + err.message);
+      }
+    }
+  };
+
+  function getTestStatus(test: any) {
+    const now = new Date();
+    if (test.window_end && new Date(test.window_end) < now) return 'expired';
+    if (test.window_start && new Date(test.window_start) > now) return 'upcoming';
+    if (test.window_start && test.window_end && 
+        new Date(test.window_start) <= now && new Date(test.window_end) >= now) return 'live';
+    return test.status || 'draft';
+  }
+
+  function getStatusColor(status: string) {
+    switch (status) {
+      case 'expired': return 'bg-gray-500/15 text-gray-700 dark:text-gray-300';
+      case 'upcoming': return 'bg-blue-500/15 text-blue-700 dark:text-blue-400';
+      case 'live': return 'bg-green-500/15 text-green-700 dark:text-green-400';
+      default: return 'bg-yellow-500/15 text-yellow-800 dark:text-yellow-400';
+    }
+  }
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return 'Not Scheduled';
     return new Date(dateStr).toLocaleString('en-IN', {
@@ -165,8 +201,8 @@ export function TestSeries() {
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <span className="px-2.5 py-1 rounded-full text-xs font-mono uppercase bg-slate-200 dark:bg-neutral-700 text-slate-800 dark:text-neutral-200">
-                      {t.status || 'draft'}
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-mono uppercase ${getStatusColor(getTestStatus(t))}`}>
+                      {getTestStatus(t)}
                     </span>
                   </td>
                   <td className="px-6 py-4 space-x-2">
@@ -190,6 +226,12 @@ export function TestSeries() {
                         <Lock size={13} /> Freeze
                       </button>
                     )}
+                    <button
+                      onClick={() => handleDeleteTest(t)}
+                      className="px-3 py-1.5 bg-red-500/15 text-red-800 dark:text-red-400 border border-red-500/30 rounded-lg text-xs font-bold hover:bg-red-500 hover:text-white transition inline-flex items-center gap-1 shadow-sm"
+                    >
+                      <Trash2 size={13} /> Delete
+                    </button>
                   </td>
                 </tr>
               ))}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Eye, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Plus, X, Eye, Lock, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
@@ -61,7 +61,11 @@ export function Tests() {
           name: title,
           exam_type: examType,
           duration_minutes: parseInt(duration) || 180,
-          description: description || `${title} Test Paper`
+          description: description || `${title} Test Paper`,
+          window_start: startDate,
+          window_end: endDate,
+          scheduled_start: startDate,
+          scheduled_end: endDate
         })
       });
       const data = await res.json();
@@ -100,6 +104,24 @@ export function Tests() {
       }
     } catch (err: any) {
       alert('Error freezing test: ' + err.message);
+    }
+  };
+
+  const handleDeleteTest = async (test: any) => {
+    if (window.confirm('Are you sure you want to delete this test? This cannot be undone.')) {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/tests/${test.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: token ? `Bearer ${token}` : '' }
+        });
+        if (res.ok) {
+          fetchTests();
+        } else {
+          alert('Failed to delete test');
+        }
+      } catch (err: any) {
+        alert('Error deleting test: ' + err.message);
+      }
     }
   };
 
@@ -169,6 +191,12 @@ export function Tests() {
                         <Lock size={13} /> Freeze
                       </button>
                     )}
+                    <button
+                      onClick={() => handleDeleteTest(t)}
+                      className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-xs font-semibold hover:bg-red-500 hover:text-white transition inline-flex items-center gap-1"
+                    >
+                      <Trash2 size={13} /> Delete
+                    </button>
                   </td>
                 </tr>
               ))}

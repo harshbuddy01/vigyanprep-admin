@@ -183,69 +183,22 @@ export function Questions() {
       return;
     }
 
-    try {
-      const nextNum = questions.length + 1;
-      const newQ = {
-        test_id: selectedTestId,
-        section: activeTab,
-        question_number: nextNum,
-        question_text: `New ${activeTab} Question ${nextNum}... (e.g. $E=mc^2$)`,
-        type: 'MCQ',
-        options: ['Option A', 'Option B', 'Option C', 'Option D'],
-        correct_answer: 'A',
-        image_url: null
-      };
-
-      // Try primary endpoint /api/admin/questions
-      let response = await fetch(`${API_BASE}/api/admin/questions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify(newQ)
-      });
-
-      // Fallback to secondary endpoint /api/admin/test-builder/tests/:testId/questions if primary 404s
-      if (!response.ok) {
-        response = await fetch(`${API_BASE}/api/admin/test-builder/tests/${selectedTestId}/questions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          body: JSON.stringify({ question: newQ })
-        });
-      }
-
-      if (response.ok) {
-        const data = await response.json();
-        const createdQ = data.question || (data.questions && data.questions[0]);
-        if (createdQ && createdQ.id) {
-          setQuestions(prev => [...prev, createdQ]);
-          setEditingQId(createdQ.id);
-        } else {
-          fetchQuestions(selectedTestId);
-        }
-        setMessage({ type: 'success', text: `Question ${nextNum} added to paper and saved to database!` });
-      } else {
-        // Fallback: create temp local question for editing
-        const tempObj: QuestionItem = {
-          id: `temp_${Date.now()}`,
-          test_id: selectedTestId,
-          section: activeTab,
-          question_number: nextNum,
-          question_text: `New ${activeTab} Question ${nextNum}... (e.g. $E=mc^2$)`,
-          options: ['Option A', 'Option B', 'Option C', 'Option D'],
-          correct_answer: 'A'
-        };
-        setQuestions(prev => [...prev, tempObj]);
-        setEditingQId(tempObj.id);
-        setMessage({ type: 'error', text: 'Server API needs restart. Click "Save Changes" after editing to persist to database.' });
-      }
-    } catch (err: any) {
-      alert('Failed to add question');
-    }
+    const nextNum = Math.max(...questions.map(q => q.question_number || 0), 0) + 1;
+    const tempObj: QuestionItem = {
+      id: `temp_${Date.now()}`,
+      test_id: selectedTestId,
+      section: activeTab,
+      question_number: nextNum,
+      question_text: `New ${activeTab} Question ${nextNum}... (e.g. $E=mc^2$)`,
+      options: ['Option A', 'Option B', 'Option C', 'Option D'],
+      correct_answer: 'A',
+      type: 'MCQ',
+      image_url: ''
+    };
+    
+    setQuestions(prev => [...prev, tempObj]);
+    setEditingQId(tempObj.id);
+    setMessage({ type: 'success', text: `Draft question added. Click "Save Changes" to persist.` });
   };
 
   const handleSaveQuestion = async (q: QuestionItem) => {
@@ -339,8 +292,33 @@ export function Questions() {
         headers: { 'Authorization': token ? `Bearer ${token}` : '' }
       });
       if (!response.ok) throw new Error('Failed to delete question');
-      setQuestions(prev => prev.filter(q => q.id !== id));
-      setMessage({ type: 'success', text: `Question ${qNum} deleted successfully` });
+      
+      setQuestions(prev => {
+        const filtered = prev.filter(q => q.id !== id);
+        const renumbered = filtered.map((q, idx) => ({ ...q, question_number: idx + 1 }));
+        
+        // Background renumbering for saved questions
+        renumbered.forEach(async (q) => {
+          if (!q.id.startsWith('temp_') && !q.id.startsWith('q_')) {
+            try {
+              await fetch(`${API_BASE}/api/admin/pyq/question/${q.id}`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': token ? `Bearer ${token}` : ''
+                },
+                body: JSON.stringify({ question_number: q.question_number })
+              });
+            } catch (err) {
+              console.error('Failed to renumber question', q.id);
+            }
+          }
+        });
+        
+        return renumbered;
+      });
+
+      setMessage({ type: 'success', text: `Question ${qNum} deleted and others renumbered successfully` });
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Error deleting question' });
     }
