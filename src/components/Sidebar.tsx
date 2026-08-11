@@ -81,7 +81,7 @@ export function Sidebar() {
           <img
             src="/vigyan-logo-light.png"
             alt="VigyanPrep Official Logo"
-            className="h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+            className="h-14 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
           />
           <span className="text-[9px] text-amber-400 font-extrabold tracking-widest uppercase border-l border-white/20 pl-2">
             ADMIN
