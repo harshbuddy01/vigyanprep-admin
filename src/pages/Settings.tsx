@@ -39,19 +39,24 @@ export function Settings() {
     localStorage.setItem('support_email', supportEmail);
     localStorage.setItem('maintenance_mode', String(maintenanceMode));
 
+    // Save domain cookie for .vigyanprep.com
     try {
-      const token = localStorage.getItem('admin_token') || localStorage.getItem('token');
+      const isProd = window.location.hostname.includes('vigyanprep.com');
+      const domainAttr = isProd ? '; domain=.vigyanprep.com' : '';
+      document.cookie = `maintenance_mode=${maintenanceMode ? 'true' : 'false'}; path=/${domainAttr}; max-age=31536000`;
+    } catch (e) {
+      console.warn('Cookie set error:', e);
+    }
+
+    try {
       const apiBase = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
-      await fetch(`${apiBase}/api/admin/settings`, {
+      await fetch(`${apiBase}/api/public/settings`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ siteName, supportEmail, maintenanceMode })
-      }).catch(() => {});
-    } catch {
-      // Local fallback saved
+      });
+    } catch (err) {
+      console.warn('Settings sync error:', err);
     }
 
     setLoading(false);
