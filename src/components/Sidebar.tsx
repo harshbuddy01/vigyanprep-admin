@@ -73,15 +73,20 @@ export function Sidebar() {
     <div className="w-64 bg-slate-900 dark:bg-neutral-950 border-r border-slate-700/50 dark:border-white/10 h-screen flex flex-col overflow-y-auto shrink-0 transition-colors">
       {/* Header */}
       <div className="p-5 border-b border-slate-700/50 dark:border-white/10 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow">
-            <span className="text-neutral-950 font-black text-sm">V</span>
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-white tracking-wide">VIGYAN.PREP</h1>
-            <span className="text-[10px] text-amber-400 font-medium tracking-widest uppercase">Admin Portal</span>
-          </div>
-        </div>
+        <a
+          href="https://vigyanprep.com/"
+          className="flex items-center gap-2 group cursor-pointer"
+          title="Go to VigyanPrep Homepage"
+        >
+          <img
+            src="/vigyan-logo-light.png"
+            alt="VigyanPrep Official Logo"
+            className="h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+          />
+          <span className="text-[9px] text-amber-400 font-extrabold tracking-widest uppercase border-l border-white/20 pl-2">
+            ADMIN
+          </span>
+        </a>
 
         {/* Theme Toggle Button */}
         <button
