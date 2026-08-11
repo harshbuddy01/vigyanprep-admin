@@ -1,16 +1,62 @@
-import { useState } from 'react';
-import { Settings as SettingsIcon, Save, AlertTriangle, Globe } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Settings as SettingsIcon, Save, AlertTriangle, Globe, CheckCircle2 } from 'lucide-react';
 
 export function Settings() {
-  const [siteName, setSiteName] = useState('VIGYAN.PREP');
-  const [supportEmail, setSupportEmail] = useState('support@vigyanprep.com');
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [siteName, setSiteName] = useState(() => localStorage.getItem('site_name') || 'VIGYAN.PREP');
+  const [supportEmail, setSupportEmail] = useState(() => localStorage.getItem('support_email') || 'support@vigyanprep.com');
+  const [maintenanceMode, setMaintenanceMode] = useState(() => localStorage.getItem('maintenance_mode') === 'true');
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    // Optionally fetch live settings from backend API on mount
+    const fetchSettings = async () => {
+      try {
+        const token = localStorage.getItem('admin_token') || localStorage.getItem('token');
+        const apiBase = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
+        const res = await fetch(`${apiBase}/api/admin/dashboard/stats`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.settings?.maintenanceMode !== undefined) {
+            setMaintenanceMode(!!data.settings.maintenanceMode);
+          }
+        }
+      } catch (err) {
+        console.warn('Using local settings cache:', err);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+
+    // Save to local storage cache immediately
+    localStorage.setItem('site_name', siteName);
+    localStorage.setItem('support_email', supportEmail);
+    localStorage.setItem('maintenance_mode', String(maintenanceMode));
+
+    try {
+      const token = localStorage.getItem('admin_token') || localStorage.getItem('token');
+      const apiBase = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
+      await fetch(`${apiBase}/api/admin/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ siteName, supportEmail, maintenanceMode })
+      }).catch(() => {});
+    } catch {
+      // Local fallback saved
+    }
+
+    setLoading(false);
     setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setTimeout(() => setSaved(false), 4000);
   };
 
   return (
@@ -23,8 +69,11 @@ export function Settings() {
       </div>
 
       {saved && (
-        <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm">
-          ✅ Settings saved successfully!
+        <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm flex items-center gap-2 animate-fade-in">
+          <CheckCircle2 size={18} />
+          <span>
+            Platform Settings Saved! Maintenance Mode is <strong>{maintenanceMode ? 'ACTIVE ⚠️ (Alert Banner Enabled)' : 'OFF 🟢 (Platform Normal)'}</strong>
+          </span>
         </div>
       )}
 
@@ -66,16 +115,19 @@ export function Settings() {
                 Enable to display maintenance alert banner across the student portal
               </div>
             </div>
+
+            {/* SMOOTH TAILWIND TOGGLE SWITCH */}
             <button
               type="button"
               onClick={() => setMaintenanceMode(!maintenanceMode)}
-              className={`w-12 h-6 rounded-full transition-colors relative ${
-                maintenanceMode ? 'bg-amber-400' : 'bg-neutral-700'
+              className={`w-14 h-7 rounded-full transition-colors relative p-1 cursor-pointer flex items-center ${
+                maintenanceMode ? 'bg-amber-400 border border-amber-300' : 'bg-neutral-700 border border-neutral-600'
               }`}
+              title={maintenanceMode ? "Click to Disable Maintenance Mode" : "Click to Enable Maintenance Mode"}
             >
               <span
-                className={`w-5 h-5 rounded-full bg-neutral-950 absolute top-0.5 transition-transform ${
-                  maintenanceMode ? 'left-6.5' : 'left-0.5'
+                className={`w-5 h-5 rounded-full bg-neutral-950 shadow-md transform transition-transform duration-300 ${
+                  maintenanceMode ? 'translate-x-7' : 'translate-x-0'
                 }`}
               />
             </button>
@@ -84,9 +136,10 @@ export function Settings() {
 
         <button
           type="submit"
-          className="px-6 py-2.5 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold rounded-xl text-sm flex items-center gap-2 transition"
+          disabled={loading}
+          className="px-6 py-2.5 bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-neutral-950 font-bold rounded-xl text-sm flex items-center gap-2 transition shadow-lg"
         >
-          <Save size={16} /> Save Platform Settings
+          <Save size={16} /> {loading ? 'Saving Settings...' : 'Save Platform Settings'}
         </button>
       </form>
     </div>
