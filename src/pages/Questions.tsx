@@ -229,7 +229,11 @@ export function Questions() {
       return;
     }
 
-    const nextNum = Math.max(...questions.map(q => q.question_number || 0), 0) + 1;
+    // Per-section numbering: only count questions in the CURRENT section (activeTab)
+    const sectionQs = questions.filter(q => matchSection(q.section, activeTab));
+    const nextNum = sectionQs.length > 0
+      ? Math.max(...sectionQs.map(q => q.question_number || 0)) + 1
+      : 1;
     const tempObj: QuestionItem = {
       id: `temp_${Date.now()}`,
       test_id: selectedTestId,
@@ -244,7 +248,7 @@ export function Questions() {
     
     setQuestions(prev => [...prev, tempObj]);
     setEditingQId(tempObj.id);
-    setMessage({ type: 'success', text: `Draft question added. Click "Save Changes" to persist.` });
+    setMessage({ type: 'success', text: `Draft ${activeTab} Question #${nextNum} added. Click "Save Changes" to persist.` });
   };
 
   const handleSaveQuestion = async (q: QuestionItem) => {
@@ -333,38 +337,33 @@ export function Questions() {
   const handleDeleteQuestion = async (id: string, qNum: number) => {
     if (!window.confirm(`Are you sure you want to delete Question ${qNum}?`)) return;
     try {
+      // Find the section of the question being deleted
+      const deletedQ = questions.find(q => q.id === id);
+      const deletedSection = deletedQ?.section || activeTab;
+
       const response = await fetch(`${API_BASE}/api/admin/pyq/question/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': token ? `Bearer ${token}` : '' }
       });
       if (!response.ok) throw new Error('Failed to delete question');
       
+      // Server-side renumbering is handled by the API now.
+      // Update local state: remove deleted question, then renumber ONLY the same section.
       setQuestions(prev => {
         const filtered = prev.filter(q => q.id !== id);
-        const renumbered = filtered.map((q, idx) => ({ ...q, question_number: idx + 1 }));
         
-        // Background renumbering for saved questions
-        renumbered.forEach(async (q) => {
-          if (!q.id.startsWith('temp_') && !q.id.startsWith('q_')) {
-            try {
-              await fetch(`${API_BASE}/api/admin/pyq/question/${q.id}`, {
-                method: 'PUT',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': token ? `Bearer ${token}` : ''
-                },
-                body: JSON.stringify({ question_number: q.question_number })
-              });
-            } catch (err) {
-              console.error('Failed to renumber question', q.id);
-            }
+        // Renumber only questions in the deleted question's section
+        let sectionCounter = 0;
+        return filtered.map(q => {
+          if (matchSection(q.section, deletedSection)) {
+            sectionCounter++;
+            return { ...q, question_number: sectionCounter };
           }
+          return q;
         });
-        
-        return renumbered;
       });
 
-      setMessage({ type: 'success', text: `Question ${qNum} deleted and others renumbered successfully` });
+      setMessage({ type: 'success', text: `Question ${qNum} deleted. ${deletedSection} section renumbered.` });
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Error deleting question' });
     }

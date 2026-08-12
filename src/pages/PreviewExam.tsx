@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CheckCircle2, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import { MathRenderer } from '../components/MathRenderer';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
@@ -156,7 +157,7 @@ export function PreviewExam() {
             </div>
 
             <div className="text-white text-base leading-relaxed font-medium">
-              {currentQ?.question_text}
+              <MathRenderer text={currentQ?.question_text || ''} />
             </div>
 
             {currentQ?.image_url && (
@@ -187,7 +188,7 @@ export function PreviewExam() {
                       }`}>
                         {optKey}
                       </span>
-                      <span className="text-sm">{optText}</span>
+                      <span className="text-sm"><MathRenderer text={optText} /></span>
                     </div>
                     {isCorrect && (
                       <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded font-semibold border border-emerald-500/30">
