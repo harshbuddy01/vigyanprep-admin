@@ -171,8 +171,54 @@ export function Questions() {
       prev.map(q => {
         if (q.id !== id) return q;
         const newOpts = [...(q.options || [])];
-        newOpts[optIdx] = value;
+        const existingImg = extractOptionImage(newOpts[optIdx] || '');
+        if (existingImg) {
+          const cleanVal = value.replace(/!\[.*?\]\(.*?\)/g, '').replace(/\[img:.*?\]/g, '').replace(/\{\{https?:\/\/.*?\}\}/g, '').trim();
+          newOpts[optIdx] = cleanVal ? `${cleanVal}\n![Option Diagram](${existingImg})` : `![Option Diagram](${existingImg})`;
+        } else {
+          newOpts[optIdx] = value;
+        }
         return { ...q, options: newOpts };
+      })
+    );
+  };
+
+  const extractOptionImage = (optStr: string): string => {
+    if (!optStr) return '';
+    const match = optStr.match(/!\[.*?\]\((.*?)\)/) || optStr.match(/\[img:(.*?)\]/) || optStr.match(/\{\{(https?:\/\/.*?)\}\}/);
+    return match ? match[1] : '';
+  };
+
+  const updateOptionImage = (qId: string, optIdx: number, imgUrl: string) => {
+    setQuestions(prev =>
+      prev.map(q => {
+        if (q.id !== qId) return q;
+        const newOpts = [...(q.options || [])];
+        let currentText = (newOpts[optIdx] || '').replace(/!\[.*?\]\(.*?\)/g, '').replace(/\[img:.*?\]/g, '').replace(/\{\{https?:\/\/.*?\}\}/g, '').trim();
+        const formattedUrl = formatImageUrl(imgUrl);
+        if (formattedUrl) {
+          newOpts[optIdx] = currentText ? `${currentText}\n![Option Diagram](${formattedUrl})` : `![Option Diagram](${formattedUrl})`;
+        } else {
+          newOpts[optIdx] = currentText;
+        }
+        return { ...q, options: newOpts };
+      })
+    );
+  };
+
+  const handleInsertInlineImage = (qId: string) => {
+    const rawUrl = prompt('Enter Diagram or Image URL (Google Drive links auto-convert):');
+    if (!rawUrl) return;
+    const formatted = formatImageUrl(rawUrl);
+    if (!formatted) return;
+
+    setQuestions(prev =>
+      prev.map(q => {
+        if (q.id !== qId) return q;
+        const updatedText = q.question_text
+          ? `${q.question_text}\n\n![Diagram Image](${formatted})\n\n`
+          : `![Diagram Image](${formatted})\n\n`;
+        return { ...q, question_text: updatedText };
       })
     );
   };
@@ -574,7 +620,17 @@ export function Questions() {
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-1.5">Question Text & Formula Input</label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400">Question Text & Formula Input</label>
+                      <button
+                        type="button"
+                        onClick={() => handleInsertInlineImage(q.id)}
+                        className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-800 dark:text-amber-300 font-bold text-[10px] rounded-lg border border-amber-500/30 flex items-center gap-1 transition shadow-xs"
+                        title="Insert Image anywhere inside Question Text (e.g. between sentences)"
+                      >
+                        <Image size={12} /> 📷 Insert Image in Text
+                      </button>
+                    </div>
                     <textarea
                       value={q.question_text}
                       onChange={(e) => handleFieldChange(q.id, 'question_text', e.target.value)}
@@ -585,7 +641,7 @@ export function Questions() {
                     {/* LIVE KATEX FORMULA PREVIEW */}
                     <div className="mt-2.5 p-3.5 bg-slate-100 dark:bg-black/60 border border-amber-500/30 rounded-xl text-xs text-slate-900 dark:text-amber-100">
                       <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
-                        <Eye size={13} /> Live Rendered Math Preview:
+                        <Eye size={13} /> Live Rendered Math & Diagram Preview:
                       </div>
                       <MathRenderer text={q.question_text} />
                     </div>
@@ -593,7 +649,7 @@ export function Questions() {
 
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-1.5 flex items-center gap-1.5">
-                      <Image size={14} className="text-amber-500 dark:text-amber-400" /> Diagram / Image URL (Google Drive Links Auto-Convert)
+                      <Image size={14} className="text-amber-500 dark:text-amber-400" /> Question Main Diagram / Image URL (Google Drive Links Auto-Convert)
                     </label>
                     <input
                       type="text"
@@ -619,12 +675,15 @@ export function Questions() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {['A', 'B', 'C', 'D'].map((letter, optIdx) => {
                         const isCorrectKey = q.correct_answer === letter;
-                        const optVal = q.options ? q.options[optIdx] : '';
+                        const rawOptVal = q.options ? q.options[optIdx] : '';
+                        const cleanOptVal = (rawOptVal || '').replace(/!\[.*?\]\(.*?\)/g, '').replace(/\[img:.*?\]/g, '').replace(/\{\{https?:\/\/.*?\}\}/g, '').trim();
+                        const optImgUrl = extractOptionImage(rawOptVal || '');
+
                         return (
                           <div
                             key={letter}
                             onClick={() => handleCorrectAnswerChange(q.id, letter)}
-                            className={`flex flex-col gap-1.5 p-3 rounded-xl border transition cursor-pointer ${
+                            className={`flex flex-col gap-2 p-3.5 rounded-xl border transition cursor-pointer ${
                               isCorrectKey
                                 ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-950 dark:text-white ring-2 ring-emerald-500/30'
                                 : 'bg-slate-50 dark:bg-black/60 border-slate-200 dark:border-gray-800 hover:border-amber-400/40'
@@ -643,18 +702,33 @@ export function Questions() {
                               </button>
                               <input
                                 type="text"
-                                value={optVal || ''}
+                                value={cleanOptVal}
                                 onChange={(e) => handleOptionChange(q.id, optIdx, e.target.value)}
                                 onClick={(e) => e.stopPropagation()}
-                                className="flex-1 bg-transparent border-none text-xs text-slate-900 dark:text-white focus:outline-none"
+                                placeholder={`Option ${letter} Text`}
+                                className="flex-1 bg-transparent border-none text-xs text-slate-900 dark:text-white focus:outline-none font-medium"
                               />
                               {isCorrectKey && (
                                 <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider whitespace-nowrap">✓ CORRECT</span>
                               )}
                             </div>
-                            {optVal && (
-                              <div className="text-[11px] text-slate-700 dark:text-amber-200 pl-9 font-medium">
-                                <MathRenderer text={optVal} />
+
+                            {/* Option Diagram Image URL Field */}
+                            <div className="pl-9 pr-1 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <Image size={12} className="text-amber-500 shrink-0" />
+                              <input
+                                type="text"
+                                placeholder={`Option ${letter} Diagram Image URL (Google Drive auto-converts)`}
+                                value={optImgUrl}
+                                onChange={(e) => updateOptionImage(q.id, optIdx, e.target.value)}
+                                className="w-full bg-slate-100 dark:bg-black/80 border border-slate-200 dark:border-gray-800/80 rounded-lg px-2.5 py-1 text-[11px] text-slate-800 dark:text-amber-200 font-mono placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-amber-400"
+                              />
+                            </div>
+
+                            {/* Option Render Preview */}
+                            {rawOptVal && (
+                              <div className="text-[11px] text-slate-700 dark:text-amber-200 pl-9 font-medium border-t border-slate-200/50 dark:border-gray-800/40 pt-1.5">
+                                <MathRenderer text={rawOptVal} />
                               </div>
                             )}
                           </div>
