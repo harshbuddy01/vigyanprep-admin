@@ -4,7 +4,7 @@ import {
   FileUp, CheckCircle, AlertCircle, Sparkles, BookOpen, Trash2,
   Image, Plus, ChevronRight, ChevronLeft, Settings2, Edit3, Eye,
   Rocket, Save, ArrowLeft, Upload, Check, X, Loader2,
-  Atom, FlaskConical, Calculator, Dna, Crop
+  Atom, FlaskConical, Calculator, Dna, Crop, Shuffle
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { MathRenderer } from '../components/MathRenderer';
@@ -313,6 +313,47 @@ export function PaperBuilder() {
     };
     setQuestions(prev => [...prev, newQ]);
     setEditingQId(newId);
+  };
+
+  // --- Option Shuffling & Randomization Handlers ---
+  const shuffleQuestionOptions = (q: ParsedQuestion): ParsedQuestion => {
+    const currentKey = q.correctAnswer || q.correct_answer || 'A';
+    const keys = ['A', 'B', 'C', 'D'];
+    const correctIdx = keys.indexOf(currentKey);
+
+    if (correctIdx === -1 || !q.options || q.options.length < 4) return q;
+
+    const indexedOptions = q.options.map((optText, idx) => ({ optText, isCorrect: idx === correctIdx }));
+
+    // Fisher-Yates Shuffle
+    for (let i = indexedOptions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indexedOptions[i], indexedOptions[j]] = [indexedOptions[j], indexedOptions[i]];
+    }
+
+    const newOptions = indexedOptions.map(o => o.optText);
+    const newCorrectIdx = indexedOptions.findIndex(o => o.isCorrect);
+    const newCorrectKey = keys[newCorrectIdx];
+
+    return {
+      ...q,
+      options: newOptions,
+      correctAnswer: newCorrectKey,
+      correct_answer: newCorrectKey
+    };
+  };
+
+  const handleShuffleAllOptions = () => {
+    if (!window.confirm('Randomly shuffle options for ALL questions across Physics, Chemistry, Math, and Biology? Correct answers will be automatically updated to match.')) return;
+    setQuestions(prev => prev.map(q => shuffleQuestionOptions(q)));
+    setMessage({
+      type: 'success',
+      text: '🎲 All question options have been randomly shuffled and answer keys (A, B, C, D) redistributed evenly! Students cannot guess all A.'
+    });
+  };
+
+  const handleShuffleSingleQuestionOptions = (id: string) => {
+    setQuestions(prev => prev.map(q => (q.tempId || q.id) === id ? shuffleQuestionOptions(q) : q));
   };
 
   // --- Step 4: Save / Publish ---
@@ -638,6 +679,15 @@ export function PaperBuilder() {
               })}
               <div className="ml-auto flex items-center gap-2">
                 <span className="text-xs text-slate-400 dark:text-neutral-500">Total: <strong className="text-slate-700 dark:text-white">{totalQuestions}</strong></span>
+                {totalQuestions > 0 && (
+                  <button
+                    onClick={handleShuffleAllOptions}
+                    className="px-3 py-2 bg-purple-50 dark:bg-purple-500/10 hover:bg-purple-100 dark:hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-500/30 rounded-xl text-xs font-bold flex items-center gap-1 transition"
+                    title="Randomly shuffle options for ALL questions and redistribute answer keys (A, B, C, D)"
+                  >
+                    <Shuffle size={14} /> Shuffle All Options & Keys
+                  </button>
+                )}
                 <button
                   onClick={handleAddQuestion}
                   className="px-3 py-2 bg-amber-400 hover:bg-amber-500 text-neutral-950 font-bold rounded-xl text-xs flex items-center gap-1 transition"
@@ -682,6 +732,13 @@ export function PaperBuilder() {
                           </select>
                         </div>
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleShuffleSingleQuestionOptions(qId)}
+                            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-100 flex items-center gap-1"
+                            title="Shuffle options for this question and update correct answer key"
+                          >
+                            <Shuffle size={13} /> Shuffle
+                          </button>
                           <button onClick={() => setEditingQId(isEditing ? null : qId)}
                             className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition bg-slate-50 dark:bg-neutral-800 border-slate-200 dark:border-white/10 text-slate-600 dark:text-neutral-300 hover:border-amber-300">
                             {isEditing ? 'Collapse' : 'Edit'}
