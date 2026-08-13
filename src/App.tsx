@@ -16,6 +16,7 @@ import { Performance } from './pages/Performance';
 import { Calendar } from './pages/Calendar';
 import { QuestionChallenges } from './pages/QuestionChallenges';
 import { LiveInvigilation } from './pages/LiveInvigilation';
+import { PaperBuilder } from './pages/PaperBuilder';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 export function HallTicketsPlaceholder() {
@@ -46,6 +47,8 @@ function App() {
           <Route path="/upload-pdf" element={<Navigate to="/pyq/upload" replace />} />
 
           <Route path="/questions" element={<Questions />} />
+          <Route path="/paper-builder" element={<PaperBuilder />} />
+          <Route path="/paper-builder/:testId" element={<PaperBuilder />} />
           <Route path="/question-reports" element={<QuestionChallenges />} />
           <Route path="/question-challenges" element={<QuestionChallenges />} />
           <Route path="/hall-tickets" element={<HallTicketsPlaceholder />} />

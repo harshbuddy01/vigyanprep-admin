@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, FileQuestion, BookOpen, Users, Receipt,
   Trophy, LogOut, FileUp, Calendar, BarChart2, Shield, Settings, Activity, AlertCircle, FileText, Tag, Sun, Moon,
-  PanelLeftClose, PanelLeftOpen
+  PanelLeftClose, PanelLeftOpen, Hammer
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -31,6 +31,7 @@ const navGroups = [
     links: [
       { to: '/pyq', icon: FileText, label: 'PYQ Papers' },
       { to: '/pyq/upload', icon: FileUp, label: 'Upload PYQ PDF' },
+      { to: '/paper-builder', icon: Hammer, label: '⚡ Paper Builder' },
     ]
   },
   {
