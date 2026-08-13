@@ -4,10 +4,11 @@ import {
   FileUp, CheckCircle, AlertCircle, Sparkles, BookOpen, Trash2,
   Image, Plus, ChevronRight, ChevronLeft, Settings2, Edit3, Eye,
   Rocket, Save, ArrowLeft, Upload, Check, X, Loader2,
-  Atom, FlaskConical, Calculator, Dna
+  Atom, FlaskConical, Calculator, Dna, Crop
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { MathRenderer } from '../components/MathRenderer';
+import { CropDiagramModal } from '../components/CropDiagramModal';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
@@ -69,6 +70,7 @@ export function PaperBuilder() {
   const [questions, setQuestions] = useState<ParsedQuestion[]>([]);
   const [activeTab, setActiveTab] = useState('Physics');
   const [editingQId, setEditingQId] = useState<string | null>(null);
+  const [cropTargetQId, setCropTargetQId] = useState<string | null>(null);
 
   // Step 3: Preview
   const [previewIdx, setPreviewIdx] = useState(0);
@@ -733,7 +735,7 @@ export function PaperBuilder() {
                         </div>
                       )}
 
-                      {/* Image URL */}
+                      {/* Image URL & Crop Diagram Button */}
                       {isEditing && (
                         <div className="flex items-center gap-2">
                           <Image size={14} className="text-amber-500 shrink-0" />
@@ -742,8 +744,16 @@ export function PaperBuilder() {
                             value={q.imageUrl || q.image_url || ''}
                             onChange={(e) => handleImageChange(qId, e.target.value)}
                             className="flex-1 bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-white focus:outline-none focus:border-amber-400"
-                            placeholder="Optional: image/diagram URL"
+                            placeholder="Optional: diagram URL (auto-extracted or paste link)"
                           />
+                          <button
+                            type="button"
+                            onClick={() => setCropTargetQId(qId)}
+                            className="px-3 py-1.5 bg-amber-400/10 hover:bg-amber-400/20 text-amber-500 border border-amber-500/30 rounded-lg text-xs font-bold flex items-center gap-1 transition shrink-0"
+                            title="Open interactive canvas diagram cropper"
+                          >
+                            <Crop size={14} /> Crop Diagram
+                          </button>
                         </div>
                       )}
 
@@ -1024,6 +1034,19 @@ export function PaperBuilder() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Interactive Diagram Bounding-Box Canvas Crop Modal */}
+      {cropTargetQId && (
+        <CropDiagramModal
+          file={file}
+          token={token}
+          onCropComplete={(imageUrl) => {
+            handleImageChange(cropTargetQId, imageUrl);
+            setMessage({ type: 'success', text: '✂️ Diagram cropped & saved directly to server storage!' });
+          }}
+          onClose={() => setCropTargetQId(null)}
+        />
       )}
     </div>
   );
