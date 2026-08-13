@@ -84,12 +84,65 @@ export function PaperBuilder() {
   const [paperStatus, setPaperStatus] = useState<string>('new'); // new | draft | ongoing | frozen
   const [loading, setLoading] = useState(false);
 
-  // Load existing test if testId is provided
+  // Load existing test or restore LocalStorage draft on mount
   useEffect(() => {
     if (testId) {
       loadExistingPaper(testId);
+    } else {
+      // Check for saved local draft
+      try {
+        const localDraft = localStorage.getItem('vigyan_paper_builder_draft');
+        if (localDraft) {
+          const parsed = JSON.parse(localDraft);
+          if (parsed && (parsed.questions?.length > 0 || parsed.examTitle)) {
+            setExamTitle(parsed.examTitle || '');
+            setExamType(parsed.examType || 'IAT');
+            setYear(parsed.year || String(new Date().getFullYear()));
+            setDuration(parsed.duration || '180');
+            setQuestions(parsed.questions || []);
+            setCurrentStep(parsed.currentStep || 0);
+            if (parsed.savedTestId) setSavedTestId(parsed.savedTestId);
+            if (parsed.activeTab) setActiveTab(parsed.activeTab);
+            setMessage({
+              type: 'info',
+              text: `⚡ Restored working draft from your last session (${parsed.questions?.length || 0} questions). You can continue editing safely without losing progress!`
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to restore local draft:', err);
+      }
     }
   }, [testId]);
+
+  // Auto-Save Working Draft to LocalStorage whenever state changes
+  useEffect(() => {
+    if (testId) return; // Don't overwrite working draft when editing a specific published testId
+    if (questions.length > 0 || examTitle.trim().length > 0) {
+      const draftData = {
+        examTitle,
+        examType,
+        year,
+        duration,
+        questions,
+        currentStep,
+        savedTestId,
+        activeTab,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('vigyan_paper_builder_draft', JSON.stringify(draftData));
+    }
+  }, [questions, examTitle, examType, year, duration, currentStep, savedTestId, activeTab, testId]);
+
+  const clearLocalDraft = () => {
+    if (!window.confirm('Are you sure you want to clear your current working draft?')) return;
+    localStorage.removeItem('vigyan_paper_builder_draft');
+    setQuestions([]);
+    setExamTitle('');
+    setSavedTestId(null);
+    setCurrentStep(0);
+    setMessage({ type: 'info', text: 'Working draft cleared. You can start fresh.' });
+  };
 
   const loadExistingPaper = async (id: string) => {
     setLoading(true);
@@ -394,6 +447,17 @@ export function PaperBuilder() {
             </p>
           </div>
         </div>
+
+        {/* Header Action: Clear Local Working Draft */}
+        {!testId && (questions.length > 0 || examTitle) && (
+          <button
+            onClick={clearLocalDraft}
+            className="px-3 py-1.5 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl border border-red-200 dark:border-red-500/30 flex items-center gap-1.5 transition"
+            title="Clear saved local draft to start a fresh paper"
+          >
+            <Trash2 size={13} /> Clear Working Draft
+          </button>
+        )}
       </div>
 
       {/* Stepper Progress Bar */}
@@ -629,13 +693,40 @@ export function PaperBuilder() {
 
                       {/* Question Text */}
                       {isEditing ? (
-                        <textarea
-                          value={q.text || q.question_text || ''}
-                          onChange={(e) => handleTextChange(qId, e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-xl p-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-amber-400"
-                          rows={3}
-                          placeholder="Enter question text... (supports $LaTeX$ math)"
-                        />
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-1.5 p-2 bg-slate-50 dark:bg-neutral-800/80 border border-slate-200 dark:border-white/10 rounded-xl text-[11px] font-semibold text-slate-600 dark:text-neutral-400">
+                            <span className="text-[10px] text-amber-500 font-extrabold uppercase mr-1">Math Snippets:</span>
+                            {[
+                              { label: 'Fraction \\frac{a}{b}', code: '\\frac{a}{b}' },
+                              { label: 'Power xⁿ', code: '^{n}' },
+                              { label: 'Subscript xₙ', code: '_{n}' },
+                              { label: '√x', code: '\\sqrt{x}' },
+                              { label: 'ρ', code: '\\rho' },
+                              { label: 'Δ', code: '\\Delta' },
+                              { label: 'θ', code: '\\theta' },
+                              { label: 'π', code: '\\pi' },
+                              { label: '≫', code: '\\gg' },
+                              { label: '≪', code: '\\ll' },
+                              { label: '±', code: '\\pm' },
+                            ].map((item) => (
+                              <button
+                                key={item.label}
+                                type="button"
+                                onClick={() => handleTextChange(qId, (q.text || q.question_text || '') + ' ' + item.code)}
+                                className="px-2 py-0.5 bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded hover:border-amber-400 hover:text-amber-500 transition text-[10px]"
+                              >
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
+                          <textarea
+                            value={q.text || q.question_text || ''}
+                            onChange={(e) => handleTextChange(qId, e.target.value)}
+                            className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-xl p-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-amber-400"
+                            rows={3}
+                            placeholder="Enter question text... (supports $LaTeX$ math, e.g. $1 - (1 - \\frac{\\rho g d}{B})^{1/3}$)"
+                          />
+                        </div>
                       ) : (
                         <div className="text-sm text-slate-700 dark:text-neutral-200 leading-relaxed">
                           <MathRenderer text={q.text || q.question_text || '(empty question)'} />
@@ -657,35 +748,48 @@ export function PaperBuilder() {
                       )}
 
                       {/* Options */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {['A', 'B', 'C', 'D'].map((optKey, idx) => {
                           const isCorrect = (q.correctAnswer || q.correct_answer) === optKey;
+                          const optVal = q.options[idx] || '';
                           return (
                             <div key={optKey}
-                              className={`px-3 py-2.5 rounded-xl border flex items-center gap-2.5 transition ${
+                              className={`p-3 rounded-xl border flex flex-col gap-2 transition ${
                                 isCorrect ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/30' : 'bg-slate-50 dark:bg-neutral-800 border-slate-200 dark:border-white/10'
                               }`}
                             >
-                              <button
-                                onClick={() => handleAnswerChange(qId, optKey)}
-                                className={`w-6 h-6 rounded-full font-bold text-[10px] shrink-0 flex items-center justify-center transition ${
-                                  isCorrect ? 'bg-emerald-400 text-white' : 'bg-slate-200 dark:bg-neutral-700 text-slate-500 dark:text-neutral-400 hover:bg-amber-200 dark:hover:bg-amber-500/30'
-                                }`}
-                              >
-                                {isCorrect ? <Check size={12} /> : optKey}
-                              </button>
-                              {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={q.options[idx] || ''}
-                                  onChange={(e) => handleOptionChange(qId, idx, e.target.value)}
-                                  className="flex-1 bg-transparent text-xs text-slate-700 dark:text-white focus:outline-none"
-                                  placeholder={`Option ${optKey}...`}
-                                />
-                              ) : (
-                                <span className="text-xs text-slate-700 dark:text-neutral-200">
-                                  <MathRenderer text={q.options[idx] || `Option ${optKey}`} />
-                                </span>
+                              <div className="flex items-center gap-2.5">
+                                <button
+                                  onClick={() => handleAnswerChange(qId, optKey)}
+                                  className={`w-6 h-6 rounded-full font-bold text-[10px] shrink-0 flex items-center justify-center transition ${
+                                    isCorrect ? 'bg-emerald-400 text-white' : 'bg-slate-200 dark:bg-neutral-700 text-slate-500 dark:text-neutral-400 hover:bg-amber-200 dark:hover:bg-amber-500/30'
+                                  }`}
+                                >
+                                  {isCorrect ? <Check size={12} /> : optKey}
+                                </button>
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    value={optVal}
+                                    onChange={(e) => handleOptionChange(qId, idx, e.target.value)}
+                                    className="flex-1 bg-transparent text-xs text-slate-800 dark:text-white focus:outline-none border-b border-dashed border-slate-300 dark:border-white/20 pb-0.5 font-mono"
+                                    placeholder={`Option ${optKey} text or LaTeX (e.g. 1 - (1 - \\frac{\\rho g d}{B})^{1/3})...`}
+                                  />
+                                ) : (
+                                  <span className="text-xs text-slate-700 dark:text-neutral-200">
+                                    <MathRenderer text={optVal || `Option ${optKey}`} />
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Real-time Live KaTeX Preview Box when editing */}
+                              {isEditing && optVal && (
+                                <div className="ml-8 p-2 rounded-lg bg-white/50 dark:bg-neutral-950 border border-slate-200 dark:border-white/10 text-xs flex items-center gap-2">
+                                  <span className="text-[9px] font-extrabold text-amber-500 uppercase shrink-0">Live Math Preview:</span>
+                                  <div className="text-slate-800 dark:text-neutral-100 overflow-x-auto">
+                                    <MathRenderer text={optVal} />
+                                  </div>
+                                </div>
                               )}
                             </div>
                           );

@@ -88,7 +88,8 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = ''
                   return <code key={index} className="text-amber-400 font-mono">{part}</code>;
                 }
               } else {
-                if (/\\(frac|sqrt|vec|int|sum|alpha|beta|gamma|theta|omega|pi|infty|rightarrow|times|partial|mathrm|mathbf)/.test(part)) {
+                // Auto-detect math constructs even if dollar signs were omitted
+                if (/\\(frac|sqrt|vec|int|sum|alpha|beta|gamma|delta|theta|omega|pi|rho|lambda|sigma|mu|epsilon|infty|rightarrow|times|partial|mathrm|mathbf|gg|ll|left|right|pm|approx|neq|le|ge|cdot|binom|limits)/.test(part) || /\^{[^{}]*}|\_{[^{}]*}/.test(part)) {
                   try {
                     const html = katex.renderToString(part, { displayMode: false, throwOnError: false });
                     return (
