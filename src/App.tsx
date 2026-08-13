@@ -5,7 +5,6 @@ import { Questions } from './pages/Questions';
 import { TestSeries } from './pages/TestSeries';
 import { PricingPlans } from './pages/PricingPlans';
 import { PyqPapers } from './pages/PyqPapers';
-import { PyqUpload } from './pages/PyqUpload';
 import { PreviewExam } from './pages/PreviewExam';
 import { Students } from './pages/Students';
 import { Transactions } from './pages/Transactions';
@@ -43,8 +42,8 @@ function App() {
           <Route path="/preview/:testId" element={<PreviewExam />} />
 
           <Route path="/pyq" element={<PyqPapers />} />
-          <Route path="/pyq/upload" element={<PyqUpload />} />
-          <Route path="/upload-pdf" element={<Navigate to="/pyq/upload" replace />} />
+          <Route path="/pyq/upload" element={<Navigate to="/paper-builder" replace />} />
+          <Route path="/upload-pdf" element={<Navigate to="/paper-builder" replace />} />
 
           <Route path="/questions" element={<Questions />} />
           <Route path="/paper-builder" element={<PaperBuilder />} />

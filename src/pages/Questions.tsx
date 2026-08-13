@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Search, Edit3, Trash2, CheckCircle, Image, AlertCircle, Save, Settings, X, Plus, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Edit3, Trash2, CheckCircle, Image, AlertCircle, Save, Settings, X, Plus, Eye, Rocket, Hammer } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { MathRenderer } from '../components/MathRenderer';
 
@@ -30,6 +31,7 @@ type QuestionItem = {
 };
 
 export function Questions() {
+  const navigate = useNavigate();
   const token = useAuthStore((state) => state.token);
   const [pyqPapers, setPyqPapers] = useState<any[]>([]);
   const [testSeriesPapers, setTestSeriesPapers] = useState<any[]>([]);
@@ -41,6 +43,7 @@ export function Questions() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingQId, setEditingQId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Edit & Delete Test Modal States
@@ -49,6 +52,25 @@ export function Questions() {
   const [editExamType, setEditExamType] = useState('IAT');
   const [editDuration, setEditDuration] = useState(180);
   const [deletingTest, setDeletingTest] = useState(false);
+
+  const handlePublishTest = async () => {
+    if (!selectedTestId) return;
+    setIsPublishing(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/pyq/publish/${selectedTestId}`, {
+        method: 'POST',
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to publish');
+      setMessage({ type: 'success', text: '🚀 Paper successfully published & is now LIVE for students on vigyanprep.com!' });
+      fetchTests();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Publish failed' });
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   // Read ?testId from URL
   const urlTestId = new URLSearchParams(window.location.search).get('testId');
@@ -500,6 +522,24 @@ export function Questions() {
               title="Edit Test Paper Name & Category"
             >
               <Settings size={16} /> Edit Title
+            </button>
+
+            <button
+              onClick={() => navigate(`/paper-builder/${selectedTestId}`)}
+              disabled={!selectedTestId}
+              className="px-3.5 py-2.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
+              title="Open paper in full 4-step Paper Builder"
+            >
+              <Hammer size={16} /> Open in Paper Builder
+            </button>
+
+            <button
+              onClick={handlePublishTest}
+              disabled={!selectedTestId || isPublishing}
+              className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition shadow disabled:opacity-50"
+              title="Publish edits and make test paper LIVE to students"
+            >
+              <Rocket size={16} /> {isPublishing ? 'Publishing...' : '🚀 Go Live / Publish'}
             </button>
 
             <button

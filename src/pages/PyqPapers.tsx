@@ -53,11 +53,11 @@ export function PyqPapers() {
           <p className="text-sm text-slate-500 dark:text-neutral-400">Past Year Papers — Unlimited Free Practice</p>
         </div>
         <a
-          href="/pyq/upload"
-          className="flex items-center gap-2 bg-amber-400 text-neutral-950 px-4 py-2 rounded-lg font-bold hover:bg-amber-500 transition-colors shadow"
+          href="/paper-builder"
+          className="flex items-center gap-2 bg-amber-400 text-neutral-950 px-4 py-2 rounded-lg font-bold hover:bg-amber-500 transition-colors shadow text-xs"
         >
-          <FileUp size={20} />
-          Upload PYQ PDF
+          <FileUp size={18} />
+          ⚡ Upload & Build Paper
         </a>
       </div>
 
@@ -79,6 +79,7 @@ export function PyqPapers() {
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
               {papers.map((p) => {
                 const yearDisplay = p.pyq_year || (p.title && p.title.match(/\d{4}/) ? p.title.match(/\d{4}/)[0] : new Date(p.created_at).getFullYear());
+                const isPublished = p.is_published || p.status === 'ongoing' || p.status === 'published';
                 return (
                   <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition">
                     <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{p.title}</td>
@@ -86,16 +87,20 @@ export function PyqPapers() {
                     <td className="px-6 py-4 font-bold text-amber-600 dark:text-amber-400">{yearDisplay}</td>
                     <td className="px-6 py-4 text-slate-600 dark:text-neutral-400">{p.duration_minutes || 180} mins</td>
                     <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 rounded-full text-xs bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-semibold border border-emerald-500/30">
-                        Published
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                        isPublished
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                          : 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30'
+                      }`}>
+                        {isPublished ? '🟢 Published' : '📝 Draft'}
                       </span>
                     </td>
                     <td className="px-6 py-4 space-x-3">
                       <a
-                        href={`/questions?testId=${p.id}`}
+                        href={`/paper-builder/${p.id}`}
                         className="px-3 py-1.5 bg-amber-400/20 text-amber-900 dark:text-amber-300 border border-amber-400/40 rounded-lg text-xs font-bold hover:bg-amber-400 hover:text-neutral-950 transition inline-flex items-center gap-1 shadow-sm"
                       >
-                        <Edit3 size={13} /> Edit Questions
+                        <Edit3 size={13} /> Edit in Paper Builder
                       </a>
                       <button
                         onClick={() => handleDelete(p.id)}
