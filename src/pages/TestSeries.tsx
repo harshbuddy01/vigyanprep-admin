@@ -60,8 +60,8 @@ export function TestSeries() {
           title,
           name: title,
           exam_type: examType,
-          window_start: startDate,
-          window_end: endDate,
+          window_start: startDate ? new Date(startDate + ':00+05:30').toISOString() : undefined,
+          window_end: endDate ? new Date(endDate + ':00+05:30').toISOString() : undefined,
           duration_minutes: parseInt(duration) || 180,
           description: description || `${title} Scheduled Paper`
         })
@@ -144,7 +144,7 @@ export function TestSeries() {
     if (!dateStr) return 'Not Scheduled';
     return new Date(dateStr).toLocaleString('en-IN', {
       day: '2-digit', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
+      hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata'
     });
   };
 
