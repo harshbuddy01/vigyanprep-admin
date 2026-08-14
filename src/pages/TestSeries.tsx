@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Eye, Lock, CheckCircle2, AlertCircle, Edit3, Trash2 } from 'lucide-react';
+import { Plus, X, Eye, Lock, CheckCircle2, AlertCircle, Edit3, Trash2, Trophy, BarChart3, Send } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
@@ -122,6 +122,42 @@ export function TestSeries() {
     }
   };
 
+  // 🏆 Calculate Rankings
+  const handleCalculateRankings = async (test: any) => {
+    if (!window.confirm(`Calculate rankings for "${test.title || test.name}"?\n\nThis computes All-India Ranks for all submitted attempts.`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/results/calculate/${test.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`✅ Rankings calculated for ${data.count || 0} students!\nNow click "Release Results" to notify students.`);
+        fetchTests();
+      } else {
+        alert('Failed: ' + (data.error || 'Server error'));
+      }
+    } catch (err: any) { alert('Error: ' + err.message); }
+  };
+
+  // 📢 Release Results — sets result_released_at and emails all students
+  const handleReleaseResults = async (test: any) => {
+    if (!window.confirm(`Release results for "${test.title || test.name}"?\n\n✓ Students can immediately see rank, score & answers\n✓ Email sent to all participants\n\nThis cannot be undone.`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/results/release/${test.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`✅ Results Released! ${data.notified || 0} students notified via email.`);
+        fetchTests();
+      } else {
+        alert('Failed: ' + (data.error || 'Server error'));
+      }
+    } catch (err: any) { alert('Error: ' + err.message); }
+  };
+
   function getTestStatus(test: any) {
     const now = new Date();
     if (test.window_end && new Date(test.window_end) < now) return 'expired';
@@ -178,6 +214,7 @@ export function TestSeries() {
                 <th className="px-6 py-4 font-semibold">Duration</th>
                 <th className="px-6 py-4 font-semibold">Preview Gate</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
+                <th className="px-6 py-4 font-semibold">Results</th>
                 <th className="px-6 py-4 font-semibold">Actions</th>
               </tr>
             </thead>
@@ -204,6 +241,33 @@ export function TestSeries() {
                     <span className={`px-2.5 py-1 rounded-full text-xs font-mono uppercase ${getStatusColor(getTestStatus(t))}`}>
                       {getTestStatus(t)}
                     </span>
+                  </td>
+                  {/* Results Release Column */}
+                  <td className="px-6 py-4">
+                    {getTestStatus(t) === 'expired' || getTestStatus(t) === 'live' ? (
+                      t.result_released_at ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                          <CheckCircle2 size={12} /> Released
+                        </span>
+                      ) : (
+                        <div className="flex flex-col gap-1.5">
+                          <button
+                            onClick={() => handleCalculateRankings(t)}
+                            className="px-2.5 py-1 bg-blue-500/15 text-blue-800 dark:text-blue-400 border border-blue-500/30 rounded-lg text-[11px] font-bold hover:bg-blue-500 hover:text-white transition inline-flex items-center gap-1"
+                          >
+                            <BarChart3 size={11} /> Calc Ranks
+                          </button>
+                          <button
+                            onClick={() => handleReleaseResults(t)}
+                            className="px-2.5 py-1 bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30 rounded-lg text-[11px] font-bold hover:bg-emerald-500 hover:text-white transition inline-flex items-center gap-1"
+                          >
+                            <Send size={11} /> Release Results
+                          </button>
+                        </div>
+                      )
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 space-x-2">
                     <a
