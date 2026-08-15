@@ -111,11 +111,11 @@ export function ImportFromBankModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
-      <div className="bg-[#121215] text-zinc-100 border border-white/10 rounded-2xl w-full max-w-5xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-fade-in font-sans">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-5">
+      <div className="bg-[#121215] text-zinc-100 border border-zinc-700/60 rounded-2xl w-full max-w-5xl h-[92vh] max-h-[92vh] shadow-2xl flex flex-col overflow-hidden animate-fade-in font-sans">
         
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-[#18181b]/70 shrink-0">
+        <div className="h-16 px-6 border-b border-zinc-800 flex items-center justify-between bg-[#18181c] shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
               <Layers size={18} />

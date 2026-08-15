@@ -172,50 +172,57 @@ export function QuestionStudioModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
-      <div className="bg-[#121215] text-zinc-100 border border-white/10 rounded-2xl w-full max-w-6xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-5">
+      {/* Main Studio Card with Guaranteed Fit & Scrollable Columns */}
+      <div className="bg-[#121215] text-zinc-100 border border-zinc-700/60 rounded-2xl w-full max-w-7xl h-[94vh] max-h-[94vh] shadow-2xl flex flex-col overflow-hidden animate-fade-in font-sans">
         
-        {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-[#18181b]/70 shrink-0">
+        {/* Studio Header (Fixed 60px) */}
+        <div className="h-16 px-6 border-b border-zinc-800 flex items-center justify-between bg-[#18181c] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-xl bg-amber-400/10 border border-amber-400/30 text-amber-400 flex items-center justify-center font-bold">
               <Zap size={18} />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white tracking-wide">
-                {initialData?.id ? 'Edit Question in Studio' : 'Question Authoring Studio (Unacademy Grade)'}
-              </h2>
-              <p className="text-xs text-zinc-400">Live KaTeX math rendering, diagram preview & instant validation</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-black text-white tracking-wide">
+                  {initialData?.id ? 'Edit Question in Studio' : 'Question Authoring Studio'}
+                </h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400/10 border border-amber-400/30 text-amber-400 uppercase tracking-wider">
+                  Unacademy Grade
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-400">Live KaTeX math rendering, diagram preview & instant validation</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-white/5 transition"
+            className="p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition"
+            title="Close Studio"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Studio Split Workspace */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+        {/* Studio Split Workspace (Fills Remaining Viewport with min-h-0) */}
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
           
-          {/* Left Column: Authoring Form (7 cols) */}
-          <div className="lg:col-span-7 p-6 overflow-y-auto border-r border-white/10 space-y-5">
+          {/* Left Column: Authoring Form (7 cols) — Smooth Independent Scroll */}
+          <div className="lg:col-span-7 h-full min-h-0 overflow-y-auto p-5 sm:p-6 border-r border-zinc-800 space-y-4 bg-[#121215]">
             {errorMsg && (
-              <div className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-center gap-2">
-                <AlertCircle size={16} /> {errorMsg}
+              <div className="p-3.5 bg-red-950/40 border border-red-500/30 rounded-xl text-red-300 text-xs flex items-center gap-2">
+                <AlertCircle size={16} className="text-red-400 shrink-0" /> {errorMsg}
               </div>
             )}
 
-            {/* Metadata Bar (Subject, Topic, Difficulty, Exam Type) */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Metadata Bar (Subject, Difficulty, Exam Type, Marks) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#18181c] p-3.5 rounded-xl border border-zinc-800">
               <div>
-                <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Subject</label>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Subject</label>
                 <select
                   value={section}
                   onChange={(e) => setSection(e.target.value)}
-                  className="w-full bg-[#18181b] border border-white/10 rounded-lg px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-amber-400"
+                  className="w-full bg-[#202024] border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-amber-400"
                 >
                   <option value="Physics">Physics</option>
                   <option value="Chemistry">Chemistry</option>
@@ -225,11 +232,11 @@ export function QuestionStudioModal({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Difficulty</label>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Difficulty</label>
                 <select
                   value={difficulty}
                   onChange={(e) => setDifficulty(e.target.value as any)}
-                  className="w-full bg-[#18181b] border border-white/10 rounded-lg px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-amber-400"
+                  className="w-full bg-[#202024] border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-amber-400"
                 >
                   <option value="Easy">🟢 Easy</option>
                   <option value="Medium">🟡 Medium</option>
@@ -238,34 +245,34 @@ export function QuestionStudioModal({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Exam Type</label>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Exam Type</label>
                 <select
                   value={examType}
                   onChange={(e) => setExamType(e.target.value)}
-                  className="w-full bg-[#18181b] border border-white/10 rounded-lg px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-amber-400"
+                  className="w-full bg-[#202024] border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-amber-400"
                 >
                   <option value="IAT">IISER IAT</option>
                   <option value="NEST">NISER NEST</option>
                   <option value="JEE">JEE Main / Adv</option>
-                  <option value="General">General Practice</option>
+                  <option value="General">General</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Marks (+ / -)</label>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Marks (+ / -)</label>
                 <div className="flex gap-1.5">
                   <input
                     type="number"
                     value={marksPositive}
                     onChange={(e) => setMarksPositive(Number(e.target.value))}
-                    className="w-1/2 bg-[#18181b] border border-white/10 rounded-lg px-2 py-2 text-xs font-bold text-emerald-400 text-center"
+                    className="w-1/2 bg-[#202024] border border-zinc-700 rounded-lg px-2 py-1.5 text-xs font-bold text-emerald-400 text-center focus:outline-none focus:border-amber-400"
                     placeholder="+4"
                   />
                   <input
                     type="number"
                     value={marksNegative}
                     onChange={(e) => setMarksNegative(Number(e.target.value))}
-                    className="w-1/2 bg-[#18181b] border border-white/10 rounded-lg px-2 py-2 text-xs font-bold text-red-400 text-center"
+                    className="w-1/2 bg-[#202024] border border-zinc-700 rounded-lg px-2 py-1.5 text-xs font-bold text-red-400 text-center focus:outline-none focus:border-amber-400"
                     placeholder="-1"
                   />
                 </div>
@@ -274,31 +281,31 @@ export function QuestionStudioModal({
 
             {/* Topic / Subtopic Tag */}
             <div>
-              <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Topic / Chapter Tag</label>
+              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Topic / Chapter Tag</label>
               <input
                 type="text"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="e.g. Wave Optics, Thermodynamics, Calculus, Genetics..."
-                className="w-full bg-[#18181b] border border-white/10 rounded-lg px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400"
+                className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400"
               />
             </div>
 
             {/* Question Text Editor */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Question Statement (LaTeX supported)</label>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Question Statement</label>
                 <span className="text-[10px] text-amber-400 font-mono">Use $...$ for inline math, $$...$$ for display</span>
               </div>
 
               {/* Quick Math Snippet Bar */}
-              <div className="flex flex-wrap gap-1.5 p-2 bg-[#18181b] border border-white/10 rounded-t-xl overflow-x-auto">
+              <div className="flex flex-wrap gap-1 p-2 bg-[#18181c] border border-zinc-800 rounded-t-xl overflow-x-auto">
                 {MATH_SNIPPETS.map(snip => (
                   <button
                     key={snip.label}
                     type="button"
                     onClick={() => insertSnippet(snip.tex)}
-                    className="px-2 py-1 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-amber-300 rounded text-[10px] font-mono border border-white/5 transition"
+                    className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-amber-300 rounded text-[10px] font-mono border border-zinc-700 transition"
                   >
                     {snip.label}
                   </button>
@@ -310,13 +317,13 @@ export function QuestionStudioModal({
                 onChange={(e) => setQuestionText(e.target.value)}
                 rows={4}
                 placeholder="Type the question statement here. Formulas: e.g. What is the value of $\int_{0}^{\pi} \sin(x) dx$?"
-                className="w-full bg-[#141417] border border-white/10 border-t-0 rounded-b-xl p-3 text-xs text-white font-mono leading-relaxed placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-y"
+                className="w-full bg-[#151518] border border-zinc-800 border-t-0 rounded-b-xl p-3 text-xs text-white font-mono leading-relaxed placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-y"
               />
             </div>
 
             {/* Diagram Image URL */}
             <div>
-              <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">
+              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">
                 Diagram Image URL (Google Drive / Direct URL)
               </label>
               <div className="flex gap-2">
@@ -329,14 +336,14 @@ export function QuestionStudioModal({
                     value={imageUrl}
                     onChange={(e) => setImageUrl(e.target.value)}
                     placeholder="https://lh3.googleusercontent.com/... or Google Drive share link"
-                    className="w-full bg-[#18181b] border border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-400"
+                    className="w-full bg-[#18181c] border border-zinc-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-400"
                   />
                 </div>
                 {imageUrl && (
                   <button
                     type="button"
                     onClick={() => setImageUrl('')}
-                    className="px-3 py-1 bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-bold rounded-lg hover:bg-red-500/20"
+                    className="px-3 py-1 bg-red-950/40 text-red-400 border border-red-500/20 text-xs font-bold rounded-xl hover:bg-red-900/40"
                   >
                     Clear
                   </button>
@@ -345,12 +352,12 @@ export function QuestionStudioModal({
             </div>
 
             {/* Options Builder (A, B, C, D) */}
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
                   Options & Correct Answer Selection
                 </label>
-                <span className="text-[10px] text-emerald-400 font-semibold">Click the circle to mark correct key</span>
+                <span className="text-[10px] text-emerald-400 font-semibold">Click circle to mark correct key</span>
               </div>
 
               {['A', 'B', 'C', 'D'].map((label, idx) => {
@@ -360,8 +367,8 @@ export function QuestionStudioModal({
                     key={label}
                     className={`flex items-center gap-3 p-2.5 rounded-xl border transition ${
                       isCorrect
-                        ? 'border-emerald-500/50 bg-emerald-500/10'
-                        : 'border-white/10 bg-[#18181b]'
+                        ? 'border-emerald-500/60 bg-emerald-950/30'
+                        : 'border-zinc-800 bg-[#18181c]'
                     }`}
                   >
                     <button
@@ -397,7 +404,7 @@ export function QuestionStudioModal({
 
             {/* Solution / Explanation */}
             <div>
-              <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-1">
+              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">
                 Step-by-Step Solution Explanation (Optional)
               </label>
               <textarea
@@ -405,25 +412,25 @@ export function QuestionStudioModal({
                 onChange={(e) => setSolution(e.target.value)}
                 rows={3}
                 placeholder="Explain the derivation / formula so students can learn from mistakes..."
-                className="w-full bg-[#18181b] border border-white/10 rounded-xl p-3 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-y"
+                className="w-full bg-[#18181c] border border-zinc-800 rounded-xl p-3 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-y"
               />
             </div>
           </div>
 
-          {/* Right Column: Live Student CBT Screen Simulator (5 cols) */}
-          <div className="lg:col-span-5 p-6 bg-[#0c0c0e] overflow-y-auto flex flex-col justify-between">
+          {/* Right Column: Live Student CBT Screen Simulator (5 cols) — Smooth Independent Scroll */}
+          <div className="lg:col-span-5 h-full min-h-0 overflow-y-auto p-5 sm:p-6 bg-[#0c0c0e] flex flex-col justify-between border-t lg:border-t-0 border-zinc-800 space-y-4">
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
                 <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Eye size={14} /> Student CBT Screen View
                 </span>
-                <span className="px-2.5 py-0.5 bg-white/10 rounded-full text-[10px] font-bold text-zinc-300">
+                <span className="px-2.5 py-0.5 bg-zinc-800 rounded-full text-[10px] font-bold text-zinc-300">
                   +{marksPositive} | -{marksNegative}
                 </span>
               </div>
 
               {/* Rendered Question Body */}
-              <div className="p-4 bg-[#141418] border border-white/10 rounded-xl text-zinc-100 text-sm leading-relaxed space-y-3 min-h-[100px]">
+              <div className="p-4 bg-[#141418] border border-zinc-800 rounded-xl text-zinc-100 text-xs sm:text-sm leading-relaxed space-y-3 min-h-[90px]">
                 {questionText ? (
                   <MathRenderer text={questionText} />
                 ) : (
@@ -431,11 +438,11 @@ export function QuestionStudioModal({
                 )}
 
                 {imageUrl && (
-                  <div className="p-2 bg-white/5 rounded-lg border border-white/10 text-center">
+                  <div className="p-2 bg-white/5 rounded-lg border border-zinc-800 text-center">
                     <img
                       src={formatImageUrl(imageUrl)}
                       alt="Question Diagram"
-                      className="max-h-48 mx-auto object-contain rounded"
+                      className="max-h-40 mx-auto object-contain rounded"
                       onError={(e) => {
                         (e.target as HTMLElement).style.display = 'none';
                       }}
@@ -455,7 +462,7 @@ export function QuestionStudioModal({
                       className={`p-3 rounded-xl border text-xs flex items-start gap-3 transition ${
                         isCorrect
                           ? 'border-emerald-500/60 bg-emerald-950/40 text-emerald-200'
-                          : 'border-white/5 bg-[#141418] text-zinc-300'
+                          : 'border-zinc-800/80 bg-[#141418] text-zinc-300'
                       }`}
                     >
                       <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 ${
@@ -481,14 +488,14 @@ export function QuestionStudioModal({
               {/* Rendered Solution */}
               {solution && (
                 <div className="p-3 bg-blue-950/30 border border-blue-800/40 rounded-xl text-blue-200 text-xs space-y-1">
-                  <p className="font-bold text-blue-400 text-[11px]">Solution Explanation:</p>
+                  <p className="font-bold text-blue-400 text-[10px] uppercase tracking-wider">Solution Explanation:</p>
                   <MathRenderer text={solution} />
                 </div>
               )}
             </div>
 
             {/* Live CBT Status Summary */}
-            <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-[11px] text-zinc-500">
+            <div className="pt-4 border-t border-zinc-800 flex items-center justify-between text-[11px] text-zinc-500">
               <span>Section: <strong className="text-zinc-300">{section}</strong></span>
               <span>Diff: <strong className="text-zinc-300">{difficulty}</strong></span>
               <span>Key: <strong className="text-emerald-400 font-bold">{correctAnswer}</strong></span>
@@ -496,8 +503,8 @@ export function QuestionStudioModal({
           </div>
         </div>
 
-        {/* Modal Footer Controls */}
-        <div className="px-6 py-4 border-t border-white/10 bg-[#18181b]/90 flex items-center justify-between shrink-0">
+        {/* Modal Footer Controls (Fixed 64px — Never Cut Off) */}
+        <div className="h-16 px-6 border-t border-zinc-800 bg-[#18181c] flex items-center justify-between shrink-0">
           <button
             type="button"
             onClick={onClose}
