@@ -10,6 +10,16 @@ import { MathRenderer } from '../components/MathRenderer';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
+function formatImageUrl(url?: string): string {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (driveMatch && driveMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+  }
+  return trimmed;
+}
+
 interface Question {
   id: string;
   question_number: number;
@@ -548,7 +558,7 @@ export function PreviewExam() {
                 {currentQ.image_url && (
                   <div className="mt-4 text-center">
                     <img
-                      src={currentQ.image_url}
+                      src={formatImageUrl(currentQ.image_url)}
                       alt="Question Diagram"
                       className="max-h-72 mx-auto rounded-xl border border-slate-700 shadow-md bg-white/5 p-1"
                     />
