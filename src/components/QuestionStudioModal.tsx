@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X, Image as ImageIcon, Save, CheckCircle2, AlertCircle,
   Eye, Zap, Camera, Link2, Trash2
@@ -226,10 +227,10 @@ export function QuestionStudioModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-5">
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-5 overflow-hidden">
       {/* Main Studio Card with Guaranteed Fit & Scrollable Columns */}
-      <div className="bg-[#121215] text-zinc-100 border border-zinc-700/60 rounded-2xl w-full max-w-7xl h-[94vh] max-h-[94vh] shadow-2xl flex flex-col overflow-hidden animate-fade-in font-sans">
+      <div className="bg-[#121215] text-zinc-100 border border-zinc-700/80 rounded-2xl w-full max-w-7xl h-[92vh] max-h-[92vh] shadow-2xl flex flex-col overflow-hidden animate-fade-in font-sans relative z-10">
         
         {/* Studio Header (Fixed 60px) */}
         <div className="h-16 px-6 border-b border-zinc-800 flex items-center justify-between bg-[#18181c] shrink-0">
@@ -644,6 +645,7 @@ export function QuestionStudioModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

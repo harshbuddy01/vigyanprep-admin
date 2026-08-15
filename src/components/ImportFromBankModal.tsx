@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Search, Check, Layers, AlertCircle, Loader2 } from 'lucide-react';
 import { MathRenderer } from './MathRenderer';
 import { useAuthStore } from '../stores/authStore';
@@ -110,9 +111,9 @@ export function ImportFromBankModal({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-5">
-      <div className="bg-[#121215] text-zinc-100 border border-zinc-700/60 rounded-2xl w-full max-w-5xl h-[92vh] max-h-[92vh] shadow-2xl flex flex-col overflow-hidden animate-fade-in font-sans">
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-5 overflow-hidden">
+      <div className="bg-[#121215] text-zinc-100 border border-zinc-700/80 rounded-2xl w-full max-w-5xl h-[92vh] max-h-[92vh] shadow-2xl flex flex-col overflow-hidden animate-fade-in font-sans relative z-10">
         
         {/* Modal Header */}
         <div className="h-16 px-6 border-b border-zinc-800 flex items-center justify-between bg-[#18181c] shrink-0">
@@ -281,6 +282,7 @@ export function ImportFromBankModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
