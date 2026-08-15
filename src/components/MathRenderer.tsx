@@ -19,6 +19,27 @@ function formatImageUrl(url: string): string {
 
 export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = '' }) => {
   if (!text) return null;
+  const trimmedText = text.trim();
+  // If the whole text is a bare image URL or drive link
+  if (/^https?:\/\/[^\s]+$/i.test(trimmedText) && (
+    /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(trimmedText) ||
+    /googleusercontent\.com/i.test(trimmedText) ||
+    /drive\.google\.com/i.test(trimmedText)
+  )) {
+    const formattedUrl = formatImageUrl(trimmedText);
+    return (
+      <span className={`block my-1.5 text-center ${className}`}>
+        <img
+          src={formattedUrl}
+          alt="Option Diagram"
+          className="max-h-36 mx-auto object-contain rounded-lg border border-zinc-700/60 shadow-sm bg-white/5 p-1"
+          onError={(e) => {
+            (e.target as HTMLElement).style.display = 'none';
+          }}
+        />
+      </span>
+    );
+  }
 
   // First split by inline markdown images: ![alt](url) or [img:url] or {{url}}
   const imageRegex = /(!\[.*?\]\(.*?\)|\[img:.*?\]|\{\{https?:\/\/.*?\}\})/gs;

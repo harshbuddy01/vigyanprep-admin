@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   X, Image as ImageIcon, Save, CheckCircle2, AlertCircle,
-  Eye, Zap
+  Eye, Zap, Camera, Link2, Trash2
 } from 'lucide-react';
 import { MathRenderer } from './MathRenderer';
 
@@ -70,6 +70,8 @@ export function QuestionStudioModal({
   const [questionText, setQuestionText] = useState('');
   const [qType, setQType] = useState<'MCQ' | 'MSQ' | 'Numerical'>('MCQ');
   const [options, setOptions] = useState<string[]>(['', '', '', '']);
+  const [optionImages, setOptionImages] = useState<string[]>(['', '', '', '']);
+  const [showOptionImage, setShowOptionImage] = useState<Record<number, boolean>>({});
   const [correctAnswer, setCorrectAnswer] = useState('A');
   const [imageUrl, setImageUrl] = useState('');
   const [marksPositive, setMarksPositive] = useState(4);
@@ -86,11 +88,37 @@ export function QuestionStudioModal({
       setSection(initialData.section || defaultSection);
       setQuestionText(initialData.question_text || (initialData as any).text || '');
       setQType(initialData.type || 'MCQ');
-      setOptions(
-        Array.isArray(initialData.options) && initialData.options.length === 4
-          ? initialData.options
-          : ['', '', '', '']
-      );
+      
+      const rawOpts = Array.isArray(initialData.options) && initialData.options.length === 4
+        ? initialData.options
+        : ['', '', '', ''];
+      
+      const parsedTexts: string[] = [];
+      const parsedImgs: string[] = [];
+      const openImgs: Record<number, boolean> = {};
+
+      rawOpts.forEach((optStr, i) => {
+        const mdImgMatch = optStr.match(/!\[.*?\]\((https?:\/\/.*?)\)/);
+        const bareImgMatch = optStr.match(/^(https?:\/\/[^\s]+)$/);
+        
+        if (mdImgMatch) {
+          parsedImgs.push(mdImgMatch[1]);
+          parsedTexts.push(optStr.replace(mdImgMatch[0], '').trim());
+          openImgs[i] = true;
+        } else if (bareImgMatch) {
+          parsedImgs.push(bareImgMatch[1]);
+          parsedTexts.push('');
+          openImgs[i] = true;
+        } else {
+          parsedImgs.push('');
+          parsedTexts.push(optStr);
+        }
+      });
+
+      setOptions(parsedTexts);
+      setOptionImages(parsedImgs);
+      setShowOptionImage(openImgs);
+
       setCorrectAnswer(initialData.correct_answer || 'A');
       setImageUrl(initialData.image_url || '');
       setMarksPositive(initialData.marks_positive ?? 4);
@@ -104,6 +132,8 @@ export function QuestionStudioModal({
       setQuestionText('');
       setQType('MCQ');
       setOptions(['', '', '', '']);
+      setOptionImages(['', '', '', '']);
+      setShowOptionImage({});
       setCorrectAnswer('A');
       setImageUrl('');
       setMarksPositive(4);
@@ -128,6 +158,16 @@ export function QuestionStudioModal({
     setOptions(updated);
   };
 
+  const handleOptionImageChange = (idx: number, val: string) => {
+    const updated = [...optionImages];
+    updated[idx] = val;
+    setOptionImages(updated);
+  };
+
+  const toggleOptionImageInput = (idx: number) => {
+    setShowOptionImage(prev => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!questionText.trim()) {
@@ -135,10 +175,22 @@ export function QuestionStudioModal({
       return;
     }
 
+    // Build final combined options
+    const finalOptions = options.map((optText, i) => {
+      const img = optionImages[i]?.trim();
+      const text = optText.trim();
+      if (img && text) {
+        return `${text} ![Option ${['A', 'B', 'C', 'D'][i]}](${img})`;
+      } else if (img) {
+        return img;
+      }
+      return text;
+    });
+
     if (qType === 'MCQ') {
-      const hasEmpty = options.some(opt => !opt.trim());
+      const hasEmpty = finalOptions.some(opt => !opt.trim());
       if (hasEmpty) {
-        setErrorMsg('Please fill in all 4 options for Multiple Choice Question.');
+        setErrorMsg('Please provide text or an image for all 4 options.');
         return;
       }
     }
@@ -153,7 +205,7 @@ export function QuestionStudioModal({
         section,
         question_text: questionText.trim(),
         type: qType,
-        options: options.map(o => o.trim()),
+        options: finalOptions,
         correct_answer: correctAnswer,
         image_url: imageUrl.trim() || undefined,
         marks_positive: marksPositive,
@@ -188,10 +240,10 @@ export function QuestionStudioModal({
                   {initialData?.id ? 'Edit Question in Studio' : 'Question Authoring Studio'}
                 </h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400/10 border border-amber-400/30 text-amber-400 uppercase tracking-wider">
-                  Unacademy Grade
+                  Option Image & Math Enabled
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-400">Live KaTeX math rendering, diagram preview & instant validation</p>
+              <p className="text-[11px] text-zinc-400">Live KaTeX math, question diagrams & option image support</p>
             </div>
           </div>
 
@@ -204,10 +256,10 @@ export function QuestionStudioModal({
           </button>
         </div>
 
-        {/* Studio Split Workspace (Fills Remaining Viewport with min-h-0) */}
+        {/* Studio Split Workspace (min-h-0) */}
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
           
-          {/* Left Column: Authoring Form (7 cols) — Smooth Independent Scroll */}
+          {/* Left Column: Authoring Form (7 cols) */}
           <div className="lg:col-span-7 h-full min-h-0 overflow-y-auto p-5 sm:p-6 border-r border-zinc-800 space-y-4 bg-[#121215]">
             {errorMsg && (
               <div className="p-3.5 bg-red-950/40 border border-red-500/30 rounded-xl text-red-300 text-xs flex items-center gap-2">
@@ -316,15 +368,15 @@ export function QuestionStudioModal({
                 value={questionText}
                 onChange={(e) => setQuestionText(e.target.value)}
                 rows={4}
-                placeholder="Type the question statement here. Formulas: e.g. What is the value of $\int_{0}^{\pi} \sin(x) dx$?"
+                placeholder="Type question statement here. Formulas: e.g. What is the value of $\int_{0}^{\pi} \sin(x) dx$?"
                 className="w-full bg-[#151518] border border-zinc-800 border-t-0 rounded-b-xl p-3 text-xs text-white font-mono leading-relaxed placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-y"
               />
             </div>
 
-            {/* Diagram Image URL */}
+            {/* Question Diagram Image URL */}
             <div>
               <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">
-                Diagram Image URL (Google Drive / Direct URL)
+                Main Question Diagram (Google Drive / Direct URL)
               </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
@@ -351,51 +403,105 @@ export function QuestionStudioModal({
               </div>
             </div>
 
-            {/* Options Builder (A, B, C, D) */}
-            <div className="space-y-2">
+            {/* Options Builder with Diagram Image Support */}
+            <div className="space-y-3 pt-1">
               <div className="flex items-center justify-between">
                 <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                  Options & Correct Answer Selection
+                  Options (Text &amp; Diagram Images)
                 </label>
                 <span className="text-[10px] text-emerald-400 font-semibold">Click circle to mark correct key</span>
               </div>
 
               {['A', 'B', 'C', 'D'].map((label, idx) => {
                 const isCorrect = correctAnswer === label;
+                const hasImg = !!optionImages[idx];
+                const isImgInputOpen = showOptionImage[idx] || hasImg;
+
                 return (
                   <div
                     key={label}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl border transition ${
+                    className={`p-3 rounded-xl border space-y-2 transition ${
                       isCorrect
-                        ? 'border-emerald-500/60 bg-emerald-950/30'
+                        ? 'border-emerald-500/60 bg-emerald-950/20'
                         : 'border-zinc-800 bg-[#18181c]'
                     }`}
                   >
-                    <button
-                      type="button"
-                      onClick={() => setCorrectAnswer(label)}
-                      className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 transition ${
-                        isCorrect
-                          ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/30'
-                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                      }`}
-                      title={`Mark option ${label} as correct answer`}
-                    >
-                      {label}
-                    </button>
+                    {/* Option Text Input Row */}
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setCorrectAnswer(label)}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 transition ${
+                          isCorrect
+                            ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/30'
+                            : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                        }`}
+                        title={`Mark option ${label} as correct answer`}
+                      >
+                        {label}
+                      </button>
 
-                    <input
-                      type="text"
-                      value={options[idx] || ''}
-                      onChange={(e) => handleOptionChange(idx, e.target.value)}
-                      placeholder={`Option ${label} text (LaTeX supported)...`}
-                      className="flex-1 bg-transparent border-none text-xs text-white placeholder-zinc-600 focus:outline-none font-mono"
-                    />
+                      <input
+                        type="text"
+                        value={options[idx] || ''}
+                        onChange={(e) => handleOptionChange(idx, e.target.value)}
+                        placeholder={`Option ${label} text (optional if image used)...`}
+                        className="flex-1 bg-transparent border-none text-xs text-white placeholder-zinc-600 focus:outline-none font-mono"
+                      />
 
-                    {isCorrect && (
-                      <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider flex items-center gap-1 shrink-0">
-                        <CheckCircle2 size={13} /> Correct Key
-                      </span>
+                      {/* Add Image Button for this Option */}
+                      <button
+                        type="button"
+                        onClick={() => toggleOptionImageInput(idx)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition shrink-0 ${
+                          hasImg
+                            ? 'bg-blue-500/20 text-blue-400 border-blue-500/40'
+                            : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-white'
+                        }`}
+                        title={`Attach diagram image to Option ${label}`}
+                      >
+                        <Camera size={11} /> {hasImg ? 'Image Added' : '+ Add Image'}
+                      </button>
+
+                      {isCorrect && (
+                        <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider flex items-center gap-1 shrink-0">
+                          <CheckCircle2 size={13} /> Correct Key
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Option Image Link Section */}
+                    {isImgInputOpen && (
+                      <div className="pt-2 border-t border-zinc-800/80 flex items-center gap-2">
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase shrink-0 flex items-center gap-1">
+                          <Link2 size={11} /> Option {label} Image:
+                        </span>
+                        <input
+                          type="text"
+                          value={optionImages[idx] || ''}
+                          onChange={(e) => handleOptionImageChange(idx, e.target.value)}
+                          placeholder="https://... or Google Drive link for this option diagram"
+                          className="flex-1 bg-[#141418] border border-zinc-700/80 rounded-lg px-2.5 py-1.5 text-[11px] text-white placeholder-zinc-600 focus:outline-none focus:border-amber-400"
+                        />
+                        {hasImg && (
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={formatImageUrl(optionImages[idx])}
+                              alt={`Opt ${label}`}
+                              className="h-7 w-12 object-contain rounded bg-white/5 border border-zinc-700"
+                              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleOptionImageChange(idx, '')}
+                              className="p-1 text-red-400 hover:text-red-300"
+                              title="Remove option image"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 );
@@ -417,7 +523,7 @@ export function QuestionStudioModal({
             </div>
           </div>
 
-          {/* Right Column: Live Student CBT Screen Simulator (5 cols) — Smooth Independent Scroll */}
+          {/* Right Column: Live Student CBT Screen Simulator (5 cols) */}
           <div className="lg:col-span-5 h-full min-h-0 overflow-y-auto p-5 sm:p-6 bg-[#0c0c0e] flex flex-col justify-between border-t lg:border-t-0 border-zinc-800 space-y-4">
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
@@ -451,11 +557,13 @@ export function QuestionStudioModal({
                 )}
               </div>
 
-              {/* Rendered Options */}
+              {/* Rendered Options (with diagram images) */}
               <div className="space-y-2">
                 {['A', 'B', 'C', 'D'].map((label, idx) => {
                   const isCorrect = correctAnswer === label;
                   const optText = options[idx];
+                  const optImg = optionImages[idx];
+
                   return (
                     <div
                       key={label}
@@ -470,11 +578,20 @@ export function QuestionStudioModal({
                       }`}>
                         {label}
                       </span>
-                      <div className="flex-1 font-medium">
-                        {optText ? (
-                          <MathRenderer text={optText} />
-                        ) : (
-                          <span className="text-zinc-600 italic">Option {label} text</span>
+                      <div className="flex-1 font-medium space-y-2">
+                        {optText && <MathRenderer text={optText} />}
+                        {optImg && (
+                          <div className="p-1 bg-white/5 rounded border border-zinc-700/60 inline-block">
+                            <img
+                              src={formatImageUrl(optImg)}
+                              alt={`Option ${label} diagram`}
+                              className="max-h-28 object-contain rounded"
+                              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                            />
+                          </div>
+                        )}
+                        {!optText && !optImg && (
+                          <span className="text-zinc-600 italic">Option {label} content</span>
                         )}
                       </div>
                       {isCorrect && (
@@ -503,7 +620,7 @@ export function QuestionStudioModal({
           </div>
         </div>
 
-        {/* Modal Footer Controls (Fixed 64px — Never Cut Off) */}
+        {/* Modal Footer Controls */}
         <div className="h-16 px-6 border-t border-zinc-800 bg-[#18181c] flex items-center justify-between shrink-0">
           <button
             type="button"
