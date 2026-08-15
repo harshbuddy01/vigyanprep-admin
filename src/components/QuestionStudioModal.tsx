@@ -98,12 +98,15 @@ export function QuestionStudioModal({
       const openImgs: Record<number, boolean> = {};
 
       rawOpts.forEach((optStr, i) => {
-        const mdImgMatch = optStr.match(/!\[.*?\]\((https?:\/\/.*?)\)/);
-        const bareImgMatch = optStr.match(/^(https?:\/\/[^\s]+)$/);
+        const strVal = typeof optStr === 'string'
+          ? optStr
+          : (typeof optStr === 'object' && optStr !== null ? ((optStr as any).text || JSON.stringify(optStr)) : String(optStr || ''));
+        const mdImgMatch = strVal.match(/!\[.*?\]\((https?:\/\/.*?)\)/);
+        const bareImgMatch = strVal.match(/^(https?:\/\/[^\s]+)$/);
         
         if (mdImgMatch) {
           parsedImgs.push(mdImgMatch[1]);
-          parsedTexts.push(optStr.replace(mdImgMatch[0], '').trim());
+          parsedTexts.push(strVal.replace(mdImgMatch[0], '').trim());
           openImgs[i] = true;
         } else if (bareImgMatch) {
           parsedImgs.push(bareImgMatch[1]);
@@ -111,7 +114,7 @@ export function QuestionStudioModal({
           openImgs[i] = true;
         } else {
           parsedImgs.push('');
-          parsedTexts.push(optStr);
+          parsedTexts.push(strVal);
         }
       });
 
