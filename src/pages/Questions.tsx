@@ -377,6 +377,19 @@ export function Questions() {
                           {q.topic}
                         </span>
                       )}
+                      {/* PYQ Symbol / Test Series Badge */}
+                      {q.is_pyq ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-500/20 border border-purple-500/40 text-purple-300 flex items-center gap-1">
+                          <BookOpen size={11} className="text-purple-300" />
+                          📜 PYQ {q.pyq_year || 'Official'}
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/15 border border-blue-500/30 text-blue-300 flex items-center gap-1">
+                          <Layers size={11} className="text-blue-400" />
+                          ⚡ Test Series / Bank
+                        </span>
+                      )}
+
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                         q.difficulty === 'Easy'
                           ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
@@ -389,9 +402,9 @@ export function Questions() {
                       <span className="text-[11px] font-mono text-zinc-500">
                         +{q.marks_positive ?? 4} / -{q.marks_negative ?? 1}
                       </span>
-                      {q.tests?.title && (
-                        <span className="text-[10px] text-zinc-500 italic max-w-xs truncate">
-                          Source: {q.tests.title}
+                      {q.test_title && (
+                        <span className="text-[10px] text-zinc-400 font-medium px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 max-w-xs truncate" title={q.test_title}>
+                          📁 {q.test_title}
                         </span>
                       )}
                     </div>
