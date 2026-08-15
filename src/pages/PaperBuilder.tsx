@@ -15,6 +15,16 @@ import { ImportFromBankModal } from '../components/ImportFromBankModal';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
+function formatImageUrl(url: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (driveMatch && driveMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+  }
+  return trimmed;
+}
+
 type ParsedQuestion = {
   id?: string;
   tempId?: string;
@@ -940,6 +950,20 @@ export function PaperBuilder() {
                       ) : (
                         <div className="text-sm text-slate-700 dark:text-neutral-200 leading-relaxed">
                           <MathRenderer text={q.text || q.question_text || '(empty question)'} />
+                        </div>
+                      )}
+
+                      {/* Question Diagram Image Preview in List Card */}
+                      {(q.imageUrl || q.image_url) && (
+                        <div className="my-2 p-2 bg-slate-100 dark:bg-black/30 border border-slate-200 dark:border-white/10 rounded-xl max-w-sm">
+                          <img
+                            src={formatImageUrl(q.imageUrl || q.image_url || '')}
+                            alt="Question Diagram"
+                            className="max-h-48 mx-auto object-contain rounded-lg shadow-xs"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
                         </div>
                       )}
 
