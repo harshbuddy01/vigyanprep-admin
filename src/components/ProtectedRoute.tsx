@@ -4,6 +4,8 @@ import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 import { Sidebar } from './Sidebar';
 
+import { ErrorBoundary } from './ErrorBoundary';
+
 export function ProtectedRoute() {
   const { isAuthenticated, token, logout } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
@@ -83,7 +85,9 @@ export function ProtectedRoute() {
     <div className="flex h-screen bg-slate-100 dark:bg-neutral-950 text-slate-900 dark:text-white transition-colors">
       <Sidebar />
       <main className="flex-1 overflow-auto p-8">
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </div>
   );
