@@ -9,6 +9,9 @@ import {
 import { useAuthStore } from '../stores/authStore';
 import { MathRenderer } from '../components/MathRenderer';
 import { CropDiagramModal } from '../components/CropDiagramModal';
+import { QuestionStudioModal } from '../components/QuestionStudioModal';
+import type { QuestionData } from '../components/QuestionStudioModal';
+import { ImportFromBankModal } from '../components/ImportFromBankModal';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
@@ -71,6 +74,11 @@ export function PaperBuilder() {
   const [activeTab, setActiveTab] = useState('Physics');
   const [editingQId, setEditingQId] = useState<string | null>(null);
   const [cropTargetQId, setCropTargetQId] = useState<string | null>(null);
+
+  // Question Studio & Bank Import State
+  const [studioOpen, setStudioOpen] = useState(false);
+  const [studioQuestion, setStudioQuestion] = useState<QuestionData | null>(null);
+  const [bankImportOpen, setBankImportOpen] = useState(false);
 
   // Step 3: Preview
   const [previewIdx, setPreviewIdx] = useState(0);
@@ -357,6 +365,72 @@ export function PaperBuilder() {
     };
     setQuestions(prev => [...prev, newQ]);
     setEditingQId(newId);
+  };
+
+  const handleOpenStudioForNew = () => {
+    setStudioQuestion(null);
+    setStudioOpen(true);
+  };
+
+  const handleOpenStudioForEdit = (q: ParsedQuestion) => {
+    setStudioQuestion({
+      id: q.id || q.tempId,
+      test_id: savedTestId || testId || null,
+      section: q.section || activeTab,
+      question_number: q.questionNumber || q.question_number || 1,
+      question_text: q.text || q.question_text || '',
+      type: q.type || 'MCQ',
+      options: q.options || ['Option A', 'Option B', 'Option C', 'Option D'],
+      correct_answer: q.correctAnswer || q.correct_answer || 'A',
+      image_url: q.imageUrl || q.image_url || '',
+      solution_explanation: (q as any).solution_explanation || ''
+    });
+    setStudioOpen(true);
+  };
+
+  const handleSaveFromStudio = async (qData: QuestionData) => {
+    if (qData.id) {
+      setQuestions(prev => prev.map(q => {
+        if ((q.tempId || q.id) === qData.id) {
+          return {
+            ...q,
+            section: qData.section,
+            type: qData.type || 'MCQ',
+            text: qData.question_text,
+            question_text: qData.question_text,
+            options: qData.options,
+            correctAnswer: qData.correct_answer,
+            correct_answer: qData.correct_answer,
+            imageUrl: qData.image_url || '',
+            image_url: qData.image_url || '',
+            solution_explanation: qData.solution_explanation
+          };
+        }
+        return q;
+      }));
+    } else {
+      const sectionQs = getSectionQuestions(qData.section);
+      const nextNum = sectionQs.length > 0 ? Math.max(...sectionQs.map(q => q.questionNumber || 0)) + 1 : 1;
+      const newId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      setQuestions(prev => [
+        ...prev,
+        {
+          tempId: newId,
+          questionNumber: nextNum,
+          section: qData.section,
+          type: qData.type || 'MCQ',
+          text: qData.question_text,
+          question_text: qData.question_text,
+          options: qData.options,
+          correctAnswer: qData.correct_answer,
+          correct_answer: qData.correct_answer,
+          imageUrl: qData.image_url || '',
+          image_url: qData.image_url || '',
+          status: 'draft_review'
+        }
+      ]);
+    }
+    setMessage({ type: 'success', text: '✅ Question updated in Paper Builder!' });
   };
 
   // --- Option Shuffling & Randomization Handlers ---
@@ -740,14 +814,22 @@ export function PaperBuilder() {
                     className="px-3 py-2 bg-purple-50 dark:bg-purple-500/10 hover:bg-purple-100 dark:hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-500/30 rounded-xl text-xs font-bold flex items-center gap-1 transition"
                     title="Randomly shuffle options for ALL questions and redistribute answer keys (A, B, C, D)"
                   >
-                    <Shuffle size={14} /> Shuffle All Options & Keys
+                    <Shuffle size={14} /> Shuffle Keys
+                  </button>
+                )}
+                {savedTestId && (
+                  <button
+                    onClick={() => setBankImportOpen(true)}
+                    className="px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold rounded-xl text-xs flex items-center gap-1.5 transition"
+                  >
+                    <BookOpen size={14} /> Import from Bank
                   </button>
                 )}
                 <button
-                  onClick={handleAddQuestion}
-                  className="px-3 py-2 bg-amber-400 hover:bg-amber-500 text-neutral-950 font-bold rounded-xl text-xs flex items-center gap-1 transition"
+                  onClick={handleOpenStudioForNew}
+                  className="px-3.5 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition"
                 >
-                  <Plus size={14} /> Add Question
+                  <Sparkles size={14} /> Studio Mode (+Live KaTeX)
                 </button>
               </div>
             </div>
@@ -793,6 +875,13 @@ export function PaperBuilder() {
                             title="Shuffle options for this question and update correct answer key"
                           >
                             <Shuffle size={13} /> Shuffle
+                          </button>
+                          <button
+                            onClick={() => handleOpenStudioForEdit(q)}
+                            className="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition bg-amber-400/10 border-amber-400/30 text-amber-400 hover:bg-amber-400 hover:text-black flex items-center gap-1"
+                            title="Open in split-pane Studio with Live KaTeX preview"
+                          >
+                            <Sparkles size={12} /> Studio
                           </button>
                           <button onClick={() => setEditingQId(isEditing ? null : qId)}
                             className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition bg-slate-50 dark:bg-neutral-800 border-slate-200 dark:border-white/10 text-slate-600 dark:text-neutral-300 hover:border-amber-300">
@@ -1165,6 +1254,29 @@ export function PaperBuilder() {
             setMessage({ type: 'success', text: '✂️ Diagram cropped & saved directly to server storage!' });
           }}
           onClose={() => setCropTargetQId(null)}
+        />
+      )}
+
+      {/* Question Studio Split-Pane Modal */}
+      <QuestionStudioModal
+        isOpen={studioOpen}
+        onClose={() => setStudioOpen(false)}
+        onSave={handleSaveFromStudio}
+        initialData={studioQuestion}
+        defaultSection={activeTab}
+        defaultTestId={savedTestId || testId}
+      />
+
+      {/* Import from Master Question Bank Modal */}
+      {savedTestId && (
+        <ImportFromBankModal
+          isOpen={bankImportOpen}
+          onClose={() => setBankImportOpen(false)}
+          testId={savedTestId}
+          onSuccess={() => {
+            loadExistingPaper(savedTestId);
+            setMessage({ type: 'success', text: '✅ Questions imported from Question Bank successfully!' });
+          }}
         />
       )}
     </div>

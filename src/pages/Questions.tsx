@@ -1,858 +1,519 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, Edit3, Trash2, CheckCircle, Image, AlertCircle, Save, Settings, X, Plus, Eye, Rocket, Hammer } from 'lucide-react';
+import {
+  Search, Plus, Trash2, Edit3, CheckCircle2,
+  BookOpen, Layers, Atom, FlaskConical, Calculator, Dna,
+  ChevronLeft, ChevronRight
+} from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { MathRenderer } from '../components/MathRenderer';
+import { QuestionStudioModal } from '../components/QuestionStudioModal';
+import type { QuestionData } from '../components/QuestionStudioModal';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
-function formatImageUrl(url: string): string {
-  if (!url) return '';
-  const trimmed = url.trim();
-  const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (driveMatch && driveMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
-  }
-  return trimmed;
-}
-
-type QuestionItem = {
-  id: string;
-  test_id?: string;
-  test_series_id?: string;
-  section: string;
-  question_number: number;
-  question_text: string;
-  type?: string;
-  question_type?: string;
-  options: string[];
-  correct_answer: string;
-  image_url?: string;
+const SUBJECT_ICONS: Record<string, any> = {
+  Physics: Atom,
+  Chemistry: FlaskConical,
+  Mathematics: Calculator,
+  Biology: Dna,
+  All: Layers
 };
 
 export function Questions() {
-  const navigate = useNavigate();
   const token = useAuthStore((state) => state.token);
-  const [pyqPapers, setPyqPapers] = useState<any[]>([]);
-  const [testSeriesPapers, setTestSeriesPapers] = useState<any[]>([]);
-  const [selectedTestId, setSelectedTestId] = useState<string>('');
-  const [questions, setQuestions] = useState<QuestionItem[]>([]);
-  const [loadingTests, setLoadingTests] = useState(true);
-  const [loadingQuestions, setLoadingQuestions] = useState(false);
-  const [activeTab, setActiveTab] = useState('Physics');
+
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [stats, setStats] = useState<{
+    total: number;
+    Physics: number;
+    Chemistry: number;
+    Mathematics: number;
+    Biology: number;
+    easy: number;
+    medium: number;
+    hard: number;
+  } | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [activeSection, setActiveSection] = useState('All');
+  const [selectedDifficulty, setSelectedDifficulty] = useState('All');
+  const [selectedExamType, setSelectedExamType] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingQId, setEditingQId] = useState<string | null>(null);
-  const [savingId, setSavingId] = useState<string | null>(null);
-  const [isPublishing, setIsPublishing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Studio Modal State
+  const [studioOpen, setStudioOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<QuestionData | null>(null);
+
+  // Notification message
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Edit & Delete Test Modal States
-  const [showEditTestModal, setShowEditTestModal] = useState(false);
-  const [editTestTitle, setEditTestTitle] = useState('');
-  const [editExamType, setEditExamType] = useState('IAT');
-  const [editDuration, setEditDuration] = useState(180);
-  const [deletingTest, setDeletingTest] = useState(false);
-
-  const handlePublishTest = async () => {
-    if (!selectedTestId) return;
-    setIsPublishing(true);
+  const fetchStats = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/admin/pyq/publish/${selectedTestId}`, {
-        method: 'POST',
-        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+      const res = await fetch(`${API_BASE}/api/admin/questions/bank/stats`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to publish');
-      setMessage({ type: 'success', text: '🚀 Paper successfully published & is now LIVE for students on vigyanprep.com!' });
-      fetchTests();
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Publish failed' });
-    } finally {
-      setIsPublishing(false);
+      const data = await res.json();
+      if (data.success && data.stats) {
+        setStats(data.stats);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch stats:', err);
     }
   };
 
-  // Read ?testId from URL
-  const urlTestId = new URLSearchParams(window.location.search).get('testId');
-
-  // Fetch tests separated by PYQ vs Test Series
-  const fetchTests = async () => {
-    setLoadingTests(true);
+  const fetchQuestions = async () => {
+    setLoading(true);
     try {
-      const [pyqRes, tsRes] = await Promise.all([
-        fetch(`${API_BASE}/api/admin/pyq/list`, { headers: { Authorization: token ? `Bearer ${token}` : '' } }),
-        fetch(`${API_BASE}/api/admin/test-series`, { headers: { Authorization: token ? `Bearer ${token}` : '' } })
-      ]);
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: '24',
+        section: activeSection === 'All' ? '' : activeSection,
+        difficulty: selectedDifficulty === 'All' ? '' : selectedDifficulty,
+        exam_type: selectedExamType === 'All' ? '' : selectedExamType,
+        search: searchTerm.trim()
+      });
 
-      const pyqData = await pyqRes.json();
-      const tsData = await tsRes.json();
+      const res = await fetch(`${API_BASE}/api/admin/questions/bank?${params}`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      });
+      const data = await res.json();
 
-      const pyqs = pyqData.papers || [];
-      const testSeries = tsData.tests || [];
-
-      setPyqPapers(pyqs);
-      setTestSeriesPapers(testSeries);
-
-      const allPapers = [...pyqs, ...testSeries];
-      const uniqueMap = new Map();
-      allPapers.forEach(p => { if (p && p.id) uniqueMap.set(p.id, p); });
-
-      if (urlTestId && uniqueMap.has(urlTestId)) {
-        setSelectedTestId(urlTestId);
-      } else if (allPapers.length > 0) {
-        setSelectedTestId(allPapers[0].id);
+      if (data.success) {
+        setQuestions(data.questions || []);
+        setTotalPages(data.totalPages || 1);
+        setTotalCount(data.total || 0);
       }
     } catch (err: any) {
-      console.error('Failed to load tests:', err);
+      console.error('Failed to fetch question bank:', err);
     } finally {
-      setLoadingTests(false);
-    }
-  };
-
-  // Fetch questions for selected test
-  const fetchQuestions = async (testId: string) => {
-    if (!testId) return;
-    setLoadingQuestions(true);
-    try {
-      const response = await fetch(`${API_BASE}/api/admin/pyq/test/${testId}/questions`, {
-        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
-      });
-      const data = await response.json();
-      setQuestions(data.questions || []);
-    } catch (err: any) {
-      console.error('Failed to load questions:', err);
-    } finally {
-      setLoadingQuestions(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchTests();
+    fetchStats();
   }, []);
 
   useEffect(() => {
-    if (selectedTestId) {
-      fetchQuestions(selectedTestId);
-      const all = [...pyqPapers, ...testSeriesPapers];
-      const currentTest = all.find(t => t.id === selectedTestId);
-      if (currentTest) {
-        setEditTestTitle(currentTest.title || currentTest.name || '');
-        setEditExamType(currentTest.exam_type || currentTest.test_type || 'IAT');
-        setEditDuration(currentTest.duration_minutes || 180);
-      }
-    }
-  }, [selectedTestId, pyqPapers, testSeriesPapers]);
+    fetchQuestions();
+  }, [activeSection, selectedDifficulty, selectedExamType, page]);
 
-  const handleFieldChange = (id: string, field: string, value: any) => {
-    setQuestions(prev =>
-      prev.map(q => {
-        if (q.id !== id) return q;
-        if (field === 'image_url') {
-          return { ...q, image_url: formatImageUrl(value) };
-        }
-        return { ...q, [field]: value };
-      })
-    );
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1);
+    fetchQuestions();
   };
 
-  // 🔥 Auto-save correct answer immediately when clicked (no Edit→Save needed)
-  const handleCorrectAnswerChange = async (questionId: string, letter: string) => {
-    // 1. Update local state immediately for instant UI feedback
-    setQuestions(prev =>
-      prev.map(q => q.id === questionId ? { ...q, correct_answer: letter } : q)
-    );
+  const handleSaveQuestion = async (qData: QuestionData) => {
+    const isEdit = !!qData.id;
+    const url = isEdit
+      ? `${API_BASE}/api/admin/questions/bank/${qData.id}`
+      : `${API_BASE}/api/admin/questions/bank`;
+    const method = isEdit ? 'PUT' : 'POST';
 
-    // 2. Auto-save to database if this is a real DB question (not temp)
-    const isTempQuestion = questionId.startsWith('temp_') || questionId.startsWith('q_');
-    if (!isTempQuestion) {
-      try {
-        setSavingId(questionId);
-        const response = await fetch(`${API_BASE}/api/admin/pyq/question/${questionId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          body: JSON.stringify({ correct_answer: letter })
-        });
-        if (!response.ok) throw new Error('Failed to save correct answer');
-        setMessage({ type: 'success', text: `✓ Correct answer set to Option ${letter}` });
-      } catch (err: any) {
-        setMessage({ type: 'error', text: err.message || 'Error saving correct answer' });
-      } finally {
-        setSavingId(null);
-      }
-    } else {
-      // For temp questions, just update state — will be saved when full question is saved
-      setMessage({ type: 'success', text: `Correct answer set to ${letter} (save question to persist)` });
-    }
-  };
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token ? `Bearer ${token}` : ''
+      },
+      body: JSON.stringify(qData)
+    });
 
-  const handleOptionChange = (id: string, optIdx: number, value: string) => {
-    setQuestions(prev =>
-      prev.map(q => {
-        if (q.id !== id) return q;
-        const newOpts = [...(q.options || [])];
-        const existingImg = extractOptionImage(newOpts[optIdx] || '');
-        if (existingImg) {
-          const cleanVal = value.replace(/!\[.*?\]\(.*?\)/g, '').replace(/\[img:.*?\]/g, '').replace(/\{\{https?:\/\/.*?\}\}/g, '').trim();
-          newOpts[optIdx] = cleanVal ? `${cleanVal}\n![Option Diagram](${existingImg})` : `![Option Diagram](${existingImg})`;
-        } else {
-          newOpts[optIdx] = value;
-        }
-        return { ...q, options: newOpts };
-      })
-    );
-  };
-
-  const extractOptionImage = (optStr: string): string => {
-    if (!optStr) return '';
-    const match = optStr.match(/!\[.*?\]\((.*?)\)/) || optStr.match(/\[img:(.*?)\]/) || optStr.match(/\{\{(https?:\/\/.*?)\}\}/);
-    return match ? match[1] : '';
-  };
-
-  const updateOptionImage = (qId: string, optIdx: number, imgUrl: string) => {
-    setQuestions(prev =>
-      prev.map(q => {
-        if (q.id !== qId) return q;
-        const newOpts = [...(q.options || [])];
-        let currentText = (newOpts[optIdx] || '').replace(/!\[.*?\]\(.*?\)/g, '').replace(/\[img:.*?\]/g, '').replace(/\{\{https?:\/\/.*?\}\}/g, '').trim();
-        const formattedUrl = formatImageUrl(imgUrl);
-        if (formattedUrl) {
-          newOpts[optIdx] = currentText ? `${currentText}\n![Option Diagram](${formattedUrl})` : `![Option Diagram](${formattedUrl})`;
-        } else {
-          newOpts[optIdx] = currentText;
-        }
-        return { ...q, options: newOpts };
-      })
-    );
-  };
-
-  const handleInsertInlineImage = (qId: string) => {
-    const rawUrl = prompt('Enter Diagram or Image URL (Google Drive links auto-convert):');
-    if (!rawUrl) return;
-    const formatted = formatImageUrl(rawUrl);
-    if (!formatted) return;
-
-    setQuestions(prev =>
-      prev.map(q => {
-        if (q.id !== qId) return q;
-        const updatedText = q.question_text
-          ? `${q.question_text}\n\n![Diagram Image](${formatted})\n\n`
-          : `![Diagram Image](${formatted})\n\n`;
-        return { ...q, question_text: updatedText };
-      })
-    );
-  };
-
-  const handleAddQuestionToPaper = async () => {
-    if (!selectedTestId) {
-      alert('Please select a test paper first.');
-      return;
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to save question');
     }
 
-    // Per-section numbering: only count questions in the CURRENT section (activeTab)
-    const sectionQs = questions.filter(q => matchSection(q.section, activeTab));
-    const nextNum = sectionQs.length > 0
-      ? Math.max(...sectionQs.map(q => q.question_number || 0)) + 1
-      : 1;
-    const tempObj: QuestionItem = {
-      id: `temp_${Date.now()}`,
-      test_id: selectedTestId,
-      section: activeTab,
-      question_number: nextNum,
-      question_text: `New ${activeTab} Question ${nextNum}... (e.g. $E=mc^2$)`,
-      options: ['Option A', 'Option B', 'Option C', 'Option D'],
-      correct_answer: 'A',
-      type: 'MCQ',
-      image_url: ''
-    };
-    
-    setQuestions(prev => [...prev, tempObj]);
-    setEditingQId(tempObj.id);
-    setMessage({ type: 'success', text: `Draft ${activeTab} Question #${nextNum} added. Click "Save Changes" to persist.` });
+    setMessage({
+      type: 'success',
+      text: isEdit ? '✅ Question updated in database!' : '✅ Question added to Master Question Bank!'
+    });
+    fetchQuestions();
+    fetchStats();
+    setTimeout(() => setMessage(null), 4000);
   };
 
-  const handleSaveQuestion = async (q: QuestionItem) => {
-    setSavingId(q.id);
-    setMessage(null);
+  const handleDeleteQuestion = async (q: any) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to PERMANENTLY delete this question from the database?\n\nSubject: ${q.section}\nText: "${(q.question_text || q.text || '').substring(0, 60)}..."\n\nThis cannot be undone.`
+    );
+    if (!confirmDelete) return;
+
     try {
-      // If this is a temp/local question (not yet in DB), INSERT it instead of UPDATE
-      const isTempQuestion = q.id.startsWith('temp_') || q.id.startsWith('q_');
+      const res = await fetch(`${API_BASE}/api/admin/questions/bank/${q.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      });
+      const data = await res.json();
 
-      if (isTempQuestion) {
-        const payload = {
-          test_id: q.test_id || selectedTestId,
-          section: q.section,
-          question_number: q.question_number,
-          question_text: q.question_text,
-          type: q.type || q.question_type || 'MCQ',
-          options: q.options,
-          correct_answer: q.correct_answer,
-          image_url: q.image_url
-        };
-
-        // Try primary endpoint
-        let response = await fetch(`${API_BASE}/api/admin/questions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          body: JSON.stringify(payload)
-        });
-
-        // Fallback to secondary endpoint
-        if (!response.ok) {
-          response = await fetch(`${API_BASE}/api/admin/test-builder/tests/${selectedTestId}/questions`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': token ? `Bearer ${token}` : ''
-            },
-            body: JSON.stringify({ question: payload })
-          });
-        }
-
-        if (!response.ok) throw new Error('API server error. Please pull latest code on GCP VM and restart pm2.');
-        const data = await response.json();
-        const createdQ = data.question || (data.questions && data.questions[0]);
-
-        // Replace the temp question in state with the real DB question with UUID
-        if (createdQ && createdQ.id) {
-          setQuestions(prev => prev.map(existing =>
-            existing.id === q.id ? createdQ : existing
-          ));
-        } else {
-          fetchQuestions(selectedTestId);
-        }
-        setMessage({ type: 'success', text: `✓ Question ${q.question_number} saved permanently to database!` });
+      if (res.ok && data.success) {
+        setMessage({ type: 'success', text: '🗑️ Question permanently deleted from database.' });
+        fetchQuestions();
+        fetchStats();
+        setTimeout(() => setMessage(null), 4000);
       } else {
-        // Normal PUT update for existing DB questions
-        const response = await fetch(`${API_BASE}/api/admin/pyq/question/${q.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          body: JSON.stringify({
-            question_text: q.question_text,
-            options: q.options,
-            correct_answer: q.correct_answer,
-            section: q.section,
-            image_url: q.image_url
-          })
-        });
-
-        if (!response.ok) throw new Error('Failed to update question');
-        setMessage({ type: 'success', text: `✓ Question ${q.question_number} updated in database` });
+        alert('Failed to delete question: ' + (data.error || 'Server error'));
       }
-
-      setEditingQId(null);
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Error saving question' });
-    } finally {
-      setSavingId(null);
+      alert('Error deleting question: ' + err.message);
     }
   };
-
-  const handleDeleteQuestion = async (id: string, qNum: number) => {
-    if (!window.confirm(`Are you sure you want to delete Question ${qNum}?`)) return;
-    try {
-      // Find the section of the question being deleted
-      const deletedQ = questions.find(q => q.id === id);
-      const deletedSection = deletedQ?.section || activeTab;
-
-      const response = await fetch(`${API_BASE}/api/admin/pyq/question/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
-      });
-      if (!response.ok) throw new Error('Failed to delete question');
-      
-      // Server-side renumbering is handled by the API now.
-      // Update local state: remove deleted question, then renumber ONLY the same section.
-      setQuestions(prev => {
-        const filtered = prev.filter(q => q.id !== id);
-        
-        // Renumber only questions in the deleted question's section
-        let sectionCounter = 0;
-        return filtered.map(q => {
-          if (matchSection(q.section, deletedSection)) {
-            sectionCounter++;
-            return { ...q, question_number: sectionCounter };
-          }
-          return q;
-        });
-      });
-
-      setMessage({ type: 'success', text: `Question ${qNum} deleted. ${deletedSection} section renumbered.` });
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Error deleting question' });
-    }
-  };
-
-  const handleUpdateTest = async () => {
-    if (!selectedTestId || !editTestTitle.trim()) return;
-    try {
-      const response = await fetch(`${API_BASE}/api/admin/pyq/test/${selectedTestId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({
-          title: editTestTitle,
-          examType: editExamType,
-          durationMinutes: editDuration
-        })
-      });
-      if (!response.ok) throw new Error('Failed to update test details');
-      setMessage({ type: 'success', text: 'Test paper details updated successfully!' });
-      setShowEditTestModal(false);
-      fetchTests();
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Error updating test' });
-    }
-  };
-
-  const handleDeleteTest = async () => {
-    const all = [...pyqPapers, ...testSeriesPapers];
-    const currentTest = all.find(t => t.id === selectedTestId);
-    if (!currentTest) return;
-    if (!window.confirm(`⚠️ Are you sure you want to DELETE "${currentTest.title || currentTest.name}"?\n\nThis will remove the test paper and all its questions permanently.`)) {
-      return;
-    }
-    setDeletingTest(true);
-    try {
-      const response = await fetch(`${API_BASE}/api/admin/pyq/test/${selectedTestId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
-      });
-      if (!response.ok) throw new Error('Failed to delete test paper');
-      setMessage({ type: 'success', text: 'Test paper deleted from database and website.' });
-      setSelectedTestId('');
-      fetchTests();
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Error deleting test' });
-    } finally {
-      setDeletingTest(false);
-    }
-  };
-
-  const sections = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
-
-  const matchSection = (qSection: string | undefined, targetSection: string) => {
-    if (!qSection) return targetSection === 'Physics';
-    const qNorm = qSection.trim().toLowerCase();
-    const targetNorm = targetSection.toLowerCase();
-    const validNorms = sections.map(s => s.toLowerCase());
-    if (qNorm === targetNorm) return true;
-    if (!validNorms.includes(qNorm) && targetNorm === 'physics') return true;
-    return false;
-  };
-
-  const filteredQuestions = questions.filter(q => {
-    const matchesSection = matchSection(q.section, activeTab);
-    const matchesSearch = (q.question_text || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (q.options || []).some(opt => (opt || '').toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesSection && matchesSearch;
-  });
-
-  const allCombined = [...pyqPapers, ...testSeriesPapers];
-  const selectedTestObj = allCombined.find(t => t.id === selectedTestId);
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner & Selector */}
-      <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-amber-500/20 rounded-2xl p-6 shadow-sm dark:shadow-xl">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-gray-800 pb-6 mb-6">
-          <div>
-            <h1 className="text-2xl font-serif font-bold text-amber-600 dark:text-amber-400 flex items-center gap-2">
-              <Edit3 size={24} /> Test Paper Question Builder & Bank Manager
+    <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-fade-in text-zinc-100 font-sans">
+      
+      {/* Top Banner & Action Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              Master Question Bank
             </h1>
-            <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">LaTeX Math & Science rendering enabled ($...$ or \frac, \sqrt, \int). Add, edit, or upload diagram images.</p>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400/10 border border-amber-400/30 text-amber-400 uppercase tracking-wider">
+              Unacademy Grade
+            </span>
           </div>
-
-          {/* Test Selector Dropdown with Grouping */}
-          <div className="flex items-center gap-3">
-            <select
-              value={selectedTestId}
-              onChange={(e) => setSelectedTestId(e.target.value)}
-              className="bg-slate-50 dark:bg-black border border-slate-200 dark:border-amber-500/30 text-slate-900 dark:text-amber-100 rounded-xl px-4 py-2.5 text-sm font-semibold focus:outline-none focus:border-amber-500 min-w-[280px]"
-            >
-              {loadingTests ? (
-                <option>Loading Test Papers...</option>
-              ) : pyqPapers.length === 0 && testSeriesPapers.length === 0 ? (
-                <option>No Test Papers Found</option>
-              ) : (
-                <>
-                  {pyqPapers.length > 0 && (
-                    <optgroup label="─── 📚 FREE PYQ PAPERS ───">
-                      {pyqPapers.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.title || t.name} ({t.exam_type || 'PYQ'})
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {testSeriesPapers.length > 0 && (
-                    <optgroup label="─── 🎯 PAID TEST SERIES PAPERS ───">
-                      {testSeriesPapers.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.title || t.name} ({t.exam_type || 'Test Series'})
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </>
-              )}
-            </select>
-
-            <button
-              onClick={handleAddQuestionToPaper}
-              className="px-3.5 py-2.5 bg-amber-400 text-neutral-950 text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-amber-300 transition shadow"
-            >
-              <Plus size={16} /> Add Question
-            </button>
-
-            <button
-              onClick={() => setShowEditTestModal(true)}
-              disabled={!selectedTestId}
-              className="px-3 py-2.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
-              title="Edit Test Paper Name & Category"
-            >
-              <Settings size={16} /> Edit Title
-            </button>
-
-            <button
-              onClick={() => navigate(`/paper-builder/${selectedTestId}`)}
-              disabled={!selectedTestId}
-              className="px-3.5 py-2.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
-              title="Open paper in full 4-step Paper Builder"
-            >
-              <Hammer size={16} /> Open in Paper Builder
-            </button>
-
-            <button
-              onClick={handlePublishTest}
-              disabled={!selectedTestId || isPublishing}
-              className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition shadow disabled:opacity-50"
-              title="Publish edits and make test paper LIVE to students"
-            >
-              <Rocket size={16} /> {isPublishing ? 'Publishing...' : '🚀 Go Live / Publish'}
-            </button>
-
-            <button
-              onClick={handleDeleteTest}
-              disabled={!selectedTestId || deletingTest}
-              className="px-3 py-2.5 bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-700 dark:text-red-400 text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
-              title="Delete Entire Test Paper"
-            >
-              <Trash2 size={16} /> Delete
-            </button>
-          </div>
+          <p className="text-xs text-zinc-400 mt-1">
+            Central repository for all test questions • Live KaTeX rendering • 1-Click Database Deletion
+          </p>
         </div>
 
-        {/* Global Feedback Banner */}
-        {message && (
-          <div className={`p-4 rounded-xl text-sm flex items-center justify-between gap-2 mb-6 ${
-            message.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300' : 'bg-red-500/10 border border-red-500/30 text-red-800 dark:text-red-300'
-          }`}>
-            <div className="flex items-center gap-2">
-              {message.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
-              <span>{message.text}</span>
-            </div>
-            <button onClick={() => setMessage(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white"><X size={16} /></button>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setEditingQuestion(null);
+              setStudioOpen(true);
+            }}
+            className="px-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-amber-400/20 flex items-center gap-2 transition"
+          >
+            <Plus size={16} /> Add Question to Bank
+          </button>
+        </div>
+      </div>
 
-        {/* Section Tabs & Search Filter */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex gap-2">
-            {sections.map((sec) => {
-              const count = questions.filter(q => matchSection(q.section, sec)).length;
+      {/* Alert Notification */}
+      {message && (
+        <div className={`p-4 rounded-xl text-xs font-semibold flex items-center gap-2 border ${
+          message.type === 'success'
+            ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30'
+            : 'bg-red-950/40 text-red-300 border-red-500/30'
+        }`}>
+          <CheckCircle2 size={16} /> {message.text}
+        </div>
+      )}
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="p-4 bg-[#121215] border border-white/10 rounded-2xl">
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Total in Bank</p>
+          <p className="text-2xl font-black text-white mt-1">{stats?.total ?? '—'}</p>
+          <p className="text-[10px] text-zinc-500 mt-0.5">All Subjects</p>
+        </div>
+
+        <div className="p-4 bg-[#121215] border border-blue-500/20 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Physics</p>
+            <Atom size={14} className="text-blue-400" />
+          </div>
+          <p className="text-2xl font-black text-blue-300 mt-1">{stats?.Physics ?? '0'}</p>
+          <p className="text-[10px] text-blue-400/70 mt-0.5">Questions</p>
+        </div>
+
+        <div className="p-4 bg-[#121215] border border-emerald-500/20 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Chemistry</p>
+            <FlaskConical size={14} className="text-emerald-400" />
+          </div>
+          <p className="text-2xl font-black text-emerald-300 mt-1">{stats?.Chemistry ?? '0'}</p>
+          <p className="text-[10px] text-emerald-400/70 mt-0.5">Questions</p>
+        </div>
+
+        <div className="p-4 bg-[#121215] border border-purple-500/20 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">Mathematics</p>
+            <Calculator size={14} className="text-purple-400" />
+          </div>
+          <p className="text-2xl font-black text-purple-300 mt-1">{stats?.Mathematics ?? '0'}</p>
+          <p className="text-[10px] text-purple-400/70 mt-0.5">Questions</p>
+        </div>
+
+        <div className="p-4 bg-[#121215] border border-amber-500/20 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Biology</p>
+            <Dna size={14} className="text-amber-400" />
+          </div>
+          <p className="text-2xl font-black text-amber-300 mt-1">{stats?.Biology ?? '0'}</p>
+          <p className="text-[10px] text-amber-400/70 mt-0.5">Questions</p>
+        </div>
+      </div>
+
+      {/* Filter & Search Bar */}
+      <div className="p-4 bg-[#121215] border border-white/10 rounded-2xl space-y-4 shadow-sm">
+        
+        {/* Subject Filter Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {['All', 'Physics', 'Chemistry', 'Mathematics', 'Biology'].map(sec => {
+            const Icon = SUBJECT_ICONS[sec] || Layers;
+            const isActive = activeSection === sec;
+            return (
+              <button
+                key={sec}
+                onClick={() => {
+                  setActiveSection(sec);
+                  setPage(1);
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
+                  isActive
+                    ? 'bg-amber-400 text-black shadow-lg shadow-amber-400/20'
+                    : 'bg-[#18181b] text-zinc-400 hover:text-white hover:bg-zinc-800 border border-white/5'
+                }`}
+              >
+                <Icon size={14} />
+                {sec}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Search & Secondary Filter Dropdowns */}
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+          <form onSubmit={handleSearchSubmit} className="sm:col-span-6 relative">
+            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
+              <Search size={15} />
+            </span>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search question text or formulas (e.g. \int, Optics, Newton, DNA)..."
+              className="w-full bg-[#18181b] border border-white/10 rounded-xl pl-10 pr-20 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400"
+            />
+            <button
+              type="submit"
+              className="absolute right-1.5 top-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-[11px] rounded-lg transition"
+            >
+              Search
+            </button>
+          </form>
+
+          <div className="sm:col-span-3">
+            <select
+              value={selectedDifficulty}
+              onChange={(e) => {
+                setSelectedDifficulty(e.target.value);
+                setPage(1);
+              }}
+              className="w-full bg-[#18181b] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white font-medium focus:outline-none focus:border-amber-400"
+            >
+              <option value="All">All Difficulties</option>
+              <option value="Easy">🟢 Easy</option>
+              <option value="Medium">🟡 Medium</option>
+              <option value="Hard">🔴 Hard</option>
+            </select>
+          </div>
+
+          <div className="sm:col-span-3">
+            <select
+              value={selectedExamType}
+              onChange={(e) => {
+                setSelectedExamType(e.target.value);
+                setPage(1);
+              }}
+              className="w-full bg-[#18181b] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white font-medium focus:outline-none focus:border-amber-400"
+            >
+              <option value="All">All Exam Types</option>
+              <option value="IAT">IISER IAT</option>
+              <option value="NEST">NISER NEST</option>
+              <option value="JEE">JEE Main / Adv</option>
+              <option value="General">General Practice</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Questions Listing */}
+      {loading ? (
+        <div className="p-16 text-center text-zinc-500 space-y-3 bg-[#121215] border border-white/10 rounded-2xl">
+          <div className="w-8 h-8 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-xs font-semibold text-zinc-400">Loading master question bank...</p>
+        </div>
+      ) : questions.length === 0 ? (
+        <div className="p-16 text-center text-zinc-500 space-y-3 bg-[#121215] border border-white/10 rounded-2xl">
+          <BookOpen size={40} className="mx-auto text-zinc-600" />
+          <p className="text-sm font-bold text-white">No questions found in this filter.</p>
+          <p className="text-xs text-zinc-500">Try changing your search keywords or add a new question to the bank.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs text-zinc-400 px-1">
+            <span>Showing <strong>{questions.length}</strong> of <strong>{totalCount}</strong> questions in bank</span>
+            <span>Page {page} of {totalPages}</span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            {questions.map((q, idx) => {
+              const qText = q.question_text || q.text || 'Question Statement';
+              const opts = Array.isArray(q.options) && q.options.length >= 2 ? q.options : ['A', 'B', 'C', 'D'];
+              const correctKey = q.correct_answer || 'A';
+              const subject = q.section || 'Physics';
+
               return (
-                <button
-                  key={sec}
-                  onClick={() => setActiveTab(sec)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                    activeTab === sec
-                      ? 'bg-amber-400 text-neutral-950 shadow-md'
-                      : 'bg-slate-100 dark:bg-black/50 text-slate-600 dark:text-gray-400 border border-slate-200 dark:border-gray-800 hover:border-amber-400/40'
-                  }`}
+                <div
+                  key={q.id || idx}
+                  className="p-5 bg-[#121215] hover:bg-[#15151a] border border-white/10 hover:border-white/20 rounded-2xl transition space-y-4 shadow-sm"
                 >
-                  {sec} ({count})
-                </button>
+                  {/* Card Top Metadata & Action Controls */}
+                  <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-amber-400/10 border border-amber-400/30 text-amber-400">
+                        {subject}
+                      </span>
+                      {q.topic && (
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/5 text-zinc-300 border border-white/5">
+                          {q.topic}
+                        </span>
+                      )}
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        q.difficulty === 'Easy'
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          : q.difficulty === 'Hard'
+                          ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                          : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                      }`}>
+                        {q.difficulty || 'Medium'}
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-500">
+                        +{q.marks_positive ?? 4} / -{q.marks_negative ?? 1}
+                      </span>
+                      {q.tests?.title && (
+                        <span className="text-[10px] text-zinc-500 italic max-w-xs truncate">
+                          Source: {q.tests.title}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Action Buttons: Edit in Studio & Delete */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => {
+                          setEditingQuestion(q);
+                          setStudioOpen(true);
+                        }}
+                        className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
+                      >
+                        <Edit3 size={13} /> Edit
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteQuestion(q)}
+                        className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
+                        title="Delete permanently from database"
+                      >
+                        <Trash2 size={13} /> Delete
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Question Text with KaTeX Rendering */}
+                  <div className="text-zinc-100 text-sm leading-relaxed">
+                    <MathRenderer text={qText} />
+                  </div>
+
+                  {/* Question Diagram (if any) */}
+                  {q.image_url && (
+                    <div className="p-2 bg-white/5 border border-white/10 rounded-xl max-w-xs">
+                      <img
+                        src={q.image_url}
+                        alt="Question Diagram"
+                        className="max-h-36 object-contain rounded"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Options Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {opts.map((opt: string, oi: number) => {
+                      const label = ['A', 'B', 'C', 'D'][oi] || String(oi + 1);
+                      const isCorrect = correctKey === label;
+                      return (
+                        <div
+                          key={oi}
+                          className={`p-2.5 rounded-xl border text-xs flex items-start gap-2.5 ${
+                            isCorrect
+                              ? 'border-emerald-500/60 bg-emerald-950/30 text-emerald-200'
+                              : 'border-white/5 bg-[#18181b]/50 text-zinc-300'
+                          }`}
+                        >
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 ${
+                            isCorrect ? 'bg-emerald-500 text-black font-extrabold' : 'bg-zinc-800 text-zinc-400'
+                          }`}>
+                            {label}
+                          </span>
+                          <div className="flex-1 font-medium">
+                            <MathRenderer text={opt} />
+                          </div>
+                          {isCorrect && (
+                            <CheckCircle2 size={13} className="text-emerald-400 shrink-0 ml-auto" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Solution Explanation Preview (if available) */}
+                  {q.solution_explanation && (
+                    <div className="p-3 bg-blue-950/20 border border-blue-900/30 rounded-xl text-xs text-blue-200 space-y-1">
+                      <span className="font-bold text-blue-400 text-[10px] uppercase tracking-wider">Solution:</span>
+                      <MathRenderer text={q.solution_explanation} />
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
 
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search by question keywords..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-black border border-slate-200 dark:border-gray-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-amber-400"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Questions List Editor */}
-      <div className="space-y-6">
-        {loadingQuestions ? (
-          <div className="text-center py-16 bg-white dark:bg-[#121212] border border-slate-200 dark:border-gray-800 rounded-2xl">
-            <div className="w-8 h-8 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-xs text-slate-500 dark:text-gray-400">Loading Question Paper...</p>
-          </div>
-        ) : filteredQuestions.length === 0 ? (
-          <div className="text-center py-16 bg-white dark:bg-[#121212] border border-slate-200 dark:border-gray-800 rounded-2xl text-slate-600 dark:text-gray-400 space-y-3 shadow-sm">
-            <p className="text-sm">No questions found in <strong>{activeTab}</strong> for this paper.</p>
-            <button
-              onClick={handleAddQuestionToPaper}
-              className="px-4 py-2 bg-amber-400 text-neutral-950 text-xs font-bold rounded-xl inline-flex items-center gap-1.5 hover:bg-amber-300 transition shadow"
-            >
-              <Plus size={16} /> Add First Question in {activeTab}
-            </button>
-          </div>
-        ) : (
-          filteredQuestions.map((q) => {
-            const isEditing = editingQId === q.id;
-            return (
-              <div
-                key={q.id}
-                className={`bg-white dark:bg-[#121212] border rounded-2xl p-6 transition-all shadow-sm ${
-                  isEditing ? 'border-amber-400/80 shadow-md' : 'border-slate-200 dark:border-gray-800/80 hover:border-slate-300 dark:hover:border-gray-700'
-                }`}
-              >
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-800/60 pb-4 mb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 rounded-lg bg-amber-400/20 border border-amber-400/40 text-amber-900 dark:text-amber-400 font-bold text-xs flex items-center justify-center">
-                      Q{q.question_number}
-                    </span>
-                    <span className="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">
-                      {q.section} • {q.type || 'MCQ'}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleSaveQuestion(q)}
-                      disabled={savingId === q.id}
-                      className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow transition"
-                    >
-                      <Save size={14} /> {savingId === q.id ? 'Saving...' : 'Save Changes'}
-                    </button>
-
-                    <button
-                      onClick={() => handleDeleteQuestion(q.id, q.question_number)}
-                      className="px-3 py-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-700 dark:text-red-400 font-bold text-xs rounded-lg flex items-center gap-1 border border-red-500/30 transition"
-                      title="Delete Question"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400">Question Text & Formula Input</label>
-                      <button
-                        type="button"
-                        onClick={() => handleInsertInlineImage(q.id)}
-                        className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-800 dark:text-amber-300 font-bold text-[10px] rounded-lg border border-amber-500/30 flex items-center gap-1 transition shadow-xs"
-                        title="Insert Image anywhere inside Question Text (e.g. between sentences)"
-                      >
-                        <Image size={12} /> 📷 Insert Image in Text
-                      </button>
-                    </div>
-                    <textarea
-                      value={q.question_text}
-                      onChange={(e) => handleFieldChange(q.id, 'question_text', e.target.value)}
-                      rows={3}
-                      className="w-full bg-slate-50 dark:bg-black/80 border border-slate-200 dark:border-gray-800 rounded-xl p-3.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-400 leading-relaxed font-sans"
-                    />
-
-                    {/* LIVE KATEX FORMULA PREVIEW */}
-                    <div className="mt-2.5 p-3.5 bg-slate-100 dark:bg-black/60 border border-amber-500/30 rounded-xl text-xs text-slate-900 dark:text-amber-100">
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">
-                        <Eye size={13} /> Live Rendered Math & Diagram Preview:
-                      </div>
-                      <MathRenderer text={q.question_text} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-1.5 flex items-center gap-1.5">
-                      <Image size={14} className="text-amber-500 dark:text-amber-400" /> Question Main Diagram / Image URL (Google Drive Links Auto-Convert)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="https://drive.google.com/file/d/1ABC.../view"
-                      value={q.image_url || ''}
-                      onChange={(e) => handleFieldChange(q.id, 'image_url', e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-black/80 border border-slate-200 dark:border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-amber-200 placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-amber-400 font-mono"
-                    />
-
-                    {q.image_url && (
-                      <div className="mt-3 p-3 bg-slate-100 dark:bg-black border border-slate-200 dark:border-gray-800 rounded-xl text-center">
-                        <img
-                          src={q.image_url}
-                          alt="Diagram Preview"
-                          className="max-h-48 mx-auto object-contain rounded-lg"
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-2">Options & Answer Key <span className="text-amber-500">(Click letter to set correct answer)</span></label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {['A', 'B', 'C', 'D'].map((letter, optIdx) => {
-                        const isCorrectKey = q.correct_answer === letter;
-                        const rawOptVal = q.options ? q.options[optIdx] : '';
-                        const cleanOptVal = (rawOptVal || '').replace(/!\[.*?\]\(.*?\)/g, '').replace(/\[img:.*?\]/g, '').replace(/\{\{https?:\/\/.*?\}\}/g, '').trim();
-                        const optImgUrl = extractOptionImage(rawOptVal || '');
-
-                        return (
-                          <div
-                            key={letter}
-                            onClick={() => handleCorrectAnswerChange(q.id, letter)}
-                            className={`flex flex-col gap-2 p-3.5 rounded-xl border transition cursor-pointer ${
-                              isCorrectKey
-                                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-950 dark:text-white ring-2 ring-emerald-500/30'
-                                : 'bg-slate-50 dark:bg-black/60 border-slate-200 dark:border-gray-800 hover:border-amber-400/40'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); handleCorrectAnswerChange(q.id, letter); }}
-                                className={`w-7 h-7 rounded-lg font-bold text-xs shrink-0 flex items-center justify-center transition ${
-                                  isCorrectKey ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-200 dark:bg-gray-800 text-slate-700 dark:text-gray-400 hover:bg-slate-300 dark:hover:bg-gray-700'
-                                }`}
-                                title={`Set Option ${letter} as Correct Answer`}
-                              >
-                                {isCorrectKey ? '✓' : letter}
-                              </button>
-                              <input
-                                type="text"
-                                value={cleanOptVal}
-                                onChange={(e) => handleOptionChange(q.id, optIdx, e.target.value)}
-                                onClick={(e) => e.stopPropagation()}
-                                placeholder={`Option ${letter} Text`}
-                                className="flex-1 bg-transparent border-none text-xs text-slate-900 dark:text-white focus:outline-none font-medium"
-                              />
-                              {isCorrectKey && (
-                                <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider whitespace-nowrap">✓ CORRECT</span>
-                              )}
-                            </div>
-
-                            {/* Option Diagram Image URL Field */}
-                            <div className="pl-9 pr-1 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              <Image size={12} className="text-amber-500 shrink-0" />
-                              <input
-                                type="text"
-                                placeholder={`Option ${letter} Diagram Image URL (Google Drive auto-converts)`}
-                                value={optImgUrl}
-                                onChange={(e) => updateOptionImage(q.id, optIdx, e.target.value)}
-                                className="w-full bg-slate-100 dark:bg-black/80 border border-slate-200 dark:border-gray-800/80 rounded-lg px-2.5 py-1 text-[11px] text-slate-800 dark:text-amber-200 font-mono placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-amber-400"
-                              />
-                            </div>
-
-                            {/* Option Render Preview */}
-                            {rawOptVal && (
-                              <div className="text-[11px] text-slate-700 dark:text-amber-200 pl-9 font-medium border-t border-slate-200/50 dark:border-gray-800/40 pt-1.5">
-                                <MathRenderer text={rawOptVal} />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {savingId === q.id && (
-                      <div className="mt-2 text-[11px] text-amber-500 flex items-center gap-1.5">
-                        <div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-                        Saving correct answer...
-                      </div>
-                    )}
-                  </div>
-
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {/* Edit Test Details Modal */}
-      {showEditTestModal && selectedTestObj && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-[#121212] border border-slate-200 dark:border-amber-500/30 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-gray-800 pb-3">
-              <h3 className="text-lg font-serif font-bold text-slate-900 dark:text-gold-400 flex items-center gap-2">
-                <Settings size={20} /> Edit Test Paper Details
-              </h3>
-              <button onClick={() => setShowEditTestModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white"><X size={18} /></button>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              <div>
-                <label className="block text-slate-500 dark:text-gray-400 font-bold uppercase mb-1">Test Title</label>
-                <input
-                  type="text"
-                  value={editTestTitle}
-                  onChange={(e) => setEditTestTitle(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-500 dark:text-gray-400 font-bold uppercase mb-1">Exam Category</label>
-                <select
-                  value={editExamType}
-                  onChange={(e) => setEditExamType(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-400"
-                >
-                  <option value="IAT">IISER IAT</option>
-                  <option value="NEST">NISER NEST</option>
-                  <option value="CMI">CMI / ISI</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-500 dark:text-gray-400 font-bold uppercase mb-1">Duration (Minutes)</label>
-                <input
-                  type="number"
-                  value={editDuration}
-                  onChange={(e) => setEditDuration(parseInt(e.target.value) || 180)}
-                  className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-gray-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-400"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 pt-2">
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-6 border-t border-white/10">
               <button
-                onClick={() => setShowEditTestModal(false)}
-                className="py-2.5 bg-slate-200 dark:bg-gray-800 hover:bg-slate-300 dark:hover:bg-gray-700 text-slate-800 dark:text-gray-300 font-bold text-xs rounded-xl"
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                className="px-4 py-2 bg-[#121215] border border-white/10 hover:bg-zinc-800 disabled:opacity-30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
               >
-                Cancel
+                <ChevronLeft size={15} /> Previous Page
               </button>
+
+              <span className="text-xs font-medium text-zinc-400">
+                Page <strong className="text-white">{page}</strong> of <strong className="text-white">{totalPages}</strong>
+              </span>
+
               <button
-                onClick={handleUpdateTest}
-                className="py-2.5 bg-amber-400 text-neutral-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow"
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                className="px-4 py-2 bg-[#121215] border border-white/10 hover:bg-zinc-800 disabled:opacity-30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
               >
-                Save Details
+                Next Page <ChevronRight size={15} />
               </button>
             </div>
-          </div>
+          )}
         </div>
       )}
 
+      {/* Studio Modal */}
+      <QuestionStudioModal
+        isOpen={studioOpen}
+        onClose={() => setStudioOpen(false)}
+        onSave={handleSaveQuestion}
+        initialData={editingQuestion}
+        defaultSection={activeSection !== 'All' ? activeSection : 'Physics'}
+      />
     </div>
   );
 }

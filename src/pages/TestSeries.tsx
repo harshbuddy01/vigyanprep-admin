@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Eye, Lock, CheckCircle2, AlertCircle, Edit3, Trash2, BarChart3, Send } from 'lucide-react';
+import { Plus, X, Eye, Lock, CheckCircle2, AlertCircle, Trash2, BarChart3, Send, Hammer } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
@@ -271,10 +271,11 @@ export function TestSeries() {
                   </td>
                   <td className="px-6 py-4 space-x-2">
                     <a
-                      href={`/questions?testId=${t.id}`}
-                      className="px-3 py-1.5 bg-amber-400/20 text-amber-900 dark:text-amber-300 border border-amber-400/40 rounded-lg text-xs font-bold hover:bg-amber-400 hover:text-neutral-950 transition inline-flex items-center gap-1 shadow-sm"
+                      href={`/paper-builder/${t.id}`}
+                      className="px-3 py-1.5 bg-amber-400/20 text-amber-900 dark:text-amber-300 border border-amber-400/40 rounded-lg text-xs font-bold hover:bg-amber-400 hover:text-neutral-950 transition inline-flex items-center gap-1.5 shadow-sm"
+                      title="Assemble & edit paper questions in Paper Builder"
                     >
-                      <Edit3 size={13} /> Questions
+                      <Hammer size={13} /> Assemble Paper
                     </a>
                     <a
                       href={`/preview/${t.id}`}
