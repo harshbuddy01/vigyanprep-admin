@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus, X, Eye, Lock, CheckCircle2, AlertCircle, Trash2,
-  BarChart3, Send, Hammer, Edit3, BookOpen
+  BarChart3, Send, Hammer, Edit3, BookOpen, Rocket
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
@@ -19,6 +20,7 @@ function toLocalInputString(isoStr?: string): string {
 }
 
 export function TestSeries() {
+  const navigate = useNavigate();
   const token = useAuthStore((state) => state.token);
   const [tests, setTests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -271,12 +273,20 @@ export function TestSeries() {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-amber-400/20 flex items-center gap-2 transition"
-        >
-          <Plus size={16} /> Create Test Paper
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => navigate('/paper-builder?type=test_series')}
+            className="px-4 py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-neutral-950 font-black text-xs rounded-xl shadow-lg flex items-center gap-2 transition cursor-pointer"
+          >
+            <Rocket size={16} /> ⚡ Paper Builder / Upload PDF
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-extrabold text-xs rounded-xl border border-white/20 flex items-center gap-2 transition cursor-pointer"
+          >
+            <Plus size={16} /> Schedule Window
+          </button>
+        </div>
       </div>
 
       {/* Main Tests Table */}

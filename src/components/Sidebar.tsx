@@ -20,6 +20,7 @@ const navGroups = [
     label: 'TEST SERIES (paid)',
     links: [
       { to: '/test-series', icon: BookOpen, label: 'Test Series' },
+      { to: '/paper-builder?type=test_series', icon: Hammer, label: '⚡ Paper Builder (Live Mock)' },
       { to: '/pricing', icon: Tag, label: 'Pricing & Plans' },
       { to: '/test-series/calendar', icon: Calendar, label: 'Schedule Calendar' },
       { to: '/live-invigilation', icon: Activity, label: 'Live Invigilation' },
@@ -30,7 +31,7 @@ const navGroups = [
     label: 'PYQ SECTION (free)',
     links: [
       { to: '/pyq', icon: FileText, label: 'PYQ Papers' },
-      { to: '/paper-builder', icon: Hammer, label: '⚡ Paper Builder (Upload & Edit)' },
+      { to: '/paper-builder?type=pyq', icon: Hammer, label: '⚡ Upload Free PYQ' },
     ]
   },
   {

@@ -63,6 +63,17 @@ const STEPS = [
   { label: 'Publish', icon: Rocket, description: 'Go live or save as draft' },
 ];
 
+function toLocalInputString(isoStr?: string): string {
+  if (!isoStr) return '';
+  try {
+    const d = new Date(isoStr);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return '';
+  }
+}
+
 export function PaperBuilder() {
   const { testId } = useParams<{ testId?: string }>();
   const navigate = useNavigate();
@@ -71,13 +82,17 @@ export function PaperBuilder() {
   // Stepper state
   const [currentStep, setCurrentStep] = useState(0);
 
-  // Step 1: Setup
+  // Step 1: Setup & Paper Purpose
+  const [contentType, setContentType] = useState<'test_series' | 'pyq'>('test_series');
+  const [windowStart, setWindowStart] = useState('');
+  const [windowEnd, setWindowEnd] = useState('');
   const [examTitle, setExamTitle] = useState('');
   const [examType, setExamType] = useState('IAT');
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [duration, setDuration] = useState('180');
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isVisionUploading, setIsVisionUploading] = useState(false);
 
   // Step 2: Questions
   const [questions, setQuestions] = useState<ParsedQuestion[]>([]);
@@ -104,6 +119,14 @@ export function PaperBuilder() {
   const [paperStatus, setPaperStatus] = useState<string>('new'); // new | draft | ongoing | frozen
   const [loading, setLoading] = useState(false);
 
+  // Parse URL search params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const typeParam = params.get('type');
+    if (typeParam === 'pyq') setContentType('pyq');
+    else if (typeParam === 'test_series') setContentType('test_series');
+  }, []);
+
   // Load existing test or restore LocalStorage draft on mount
   useEffect(() => {
     if (testId) {
@@ -117,7 +140,10 @@ export function PaperBuilder() {
           if (parsed && (parsed.questions?.length > 0 || parsed.examTitle)) {
             setExamTitle(parsed.examTitle || '');
             setExamType(parsed.examType || 'IAT');
+            setContentType(parsed.contentType || 'test_series');
             setYear(parsed.year || String(new Date().getFullYear()));
+            setWindowStart(parsed.windowStart || '');
+            setWindowEnd(parsed.windowEnd || '');
             setDuration(parsed.duration || '180');
             setQuestions(parsed.questions || []);
             setCurrentStep(parsed.currentStep || 0);
@@ -125,7 +151,7 @@ export function PaperBuilder() {
             if (parsed.activeTab) setActiveTab(parsed.activeTab);
             setMessage({
               type: 'info',
-              text: `⚡ Restored working draft from your last session (${parsed.questions?.length || 0} questions). You can continue editing safely without losing progress!`
+              text: `⚡ Restored working draft (${parsed.questions?.length || 0} questions) for ${parsed.contentType === 'pyq' ? 'Free PYQ' : 'Paid Test Series'}. You can continue editing safely!`
             });
           }
         }
@@ -177,7 +203,10 @@ export function PaperBuilder() {
         if (test) {
           setExamTitle(test.title || '');
           setExamType(test.exam_type || 'IAT');
+          setContentType(test.content_type === 'pyq' ? 'pyq' : 'test_series');
           setYear(test.pyq_year ? String(test.pyq_year) : String(new Date().getFullYear()));
+          setWindowStart(toLocalInputString(test.window_start));
+          setWindowEnd(toLocalInputString(test.window_end));
           setDuration(String(test.duration_minutes || 180));
           setPaperStatus(test.status || 'draft');
           setSavedTestId(id);
@@ -264,8 +293,6 @@ export function PaperBuilder() {
       setIsUploading(false);
     }
   };
-
-  const [isVisionUploading, setIsVisionUploading] = useState(false);
 
   const handleUploadAndParseVision = async () => {
     if (!file) return;
@@ -501,6 +528,9 @@ export function PaperBuilder() {
           examType,
           year,
           durationMinutes: parseInt(duration) || 180,
+          contentType,
+          windowStart: contentType === 'test_series' && windowStart ? new Date(windowStart).toISOString() : null,
+          windowEnd: contentType === 'test_series' && windowEnd ? new Date(windowEnd).toISOString() : null,
           questions: questions.map(q => ({
             section: q.section,
             question_number: q.questionNumber,
@@ -516,7 +546,10 @@ export function PaperBuilder() {
       if (!response.ok) throw new Error(data.error || data.message || 'Failed to save');
       setSavedTestId(data.testId);
       setPaperStatus('draft');
-      setMessage({ type: 'success', text: `Paper saved as draft with ${data.insertedCount || questions.length} questions. Not yet visible to students.` });
+      setMessage({
+        type: 'success',
+        text: `Paper saved as draft for ${contentType === 'test_series' ? 'Paid Live Test Series' : 'Free PYQ Practice'} with ${data.insertedCount || questions.length} questions.`
+      });
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     } finally {
@@ -541,11 +574,46 @@ export function PaperBuilder() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to publish');
       setPaperStatus('ongoing');
-      setMessage({ type: 'success', text: '🎉 Paper is now LIVE and visible to students on vigyanprep.com/pyq!' });
+      setMessage({
+        type: 'success',
+        text: contentType === 'test_series'
+          ? '🎉 Paper is now LIVE in Paid Test Series (visible to paid students in CBT Portal)!'
+          : '🎉 Paper is now LIVE in Free Practice on vigyanprep.com/pyq!'
+      });
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const handleSwitchPaperCategory = async (targetType: 'test_series' | 'pyq') => {
+    if (!savedTestId) {
+      setContentType(targetType);
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/pyq/switch-type/${savedTestId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          contentType: targetType,
+          windowStart: targetType === 'test_series' && windowStart ? new Date(windowStart).toISOString() : null,
+          windowEnd: targetType === 'test_series' && windowEnd ? new Date(windowEnd).toISOString() : null,
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to switch category');
+      setContentType(targetType);
+      setMessage({
+        type: 'success',
+        text: `✅ Category changed to ${targetType === 'test_series' ? 'Paid Live Test Series (CBT Portal)' : 'Free PYQ Practice (vigyanprep.com/pyq)'}`
+      });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message });
     }
   };
 
@@ -690,18 +758,72 @@ export function PaperBuilder() {
       {currentStep === 0 && (
         <div className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl p-6 space-y-6 shadow-sm">
           <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-            <Settings2 size={20} className="text-amber-500" /> Paper Details
+            <Settings2 size={20} className="text-amber-500" /> Paper Destination & Details
           </h2>
 
+          {/* Paper Purpose / Destination Selector */}
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-neutral-800/80 border-2 border-slate-200 dark:border-white/10 space-y-3">
+            <label className="block text-xs font-black text-slate-700 dark:text-neutral-300 uppercase tracking-wider">
+              Choose Paper Category & Target Audience *
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => handleSwitchPaperCategory('test_series')}
+                className={`p-4 rounded-xl border-2 text-left flex items-start gap-3 transition cursor-pointer ${
+                  contentType === 'test_series'
+                    ? 'bg-amber-400/10 border-amber-400 text-slate-900 dark:text-white shadow-md'
+                    : 'bg-white/40 dark:bg-neutral-900/40 border-slate-200 dark:border-white/10 text-slate-500 dark:text-neutral-400 hover:border-slate-300'
+                }`}
+              >
+                <div className={`p-2.5 rounded-xl ${contentType === 'test_series' ? 'bg-amber-400 text-neutral-950 font-black' : 'bg-neutral-800 text-neutral-400'}`}>
+                  <Rocket size={20} />
+                </div>
+                <div>
+                  <div className="font-extrabold text-sm flex items-center gap-2">
+                    <span>🚀 Paid Live Test Series (CBT Mock)</span>
+                    {contentType === 'test_series' && <span className="px-2 py-0.5 rounded text-[10px] bg-amber-400 text-black font-black">SELECTED</span>}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-neutral-400 mt-1 leading-relaxed">
+                    Accessible <strong>only to enrolled/paid students</strong> in their CBT Test Portal with timer, live proctoring & merit list.
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSwitchPaperCategory('pyq')}
+                className={`p-4 rounded-xl border-2 text-left flex items-start gap-3 transition cursor-pointer ${
+                  contentType === 'pyq'
+                    ? 'bg-amber-400/10 border-amber-400 text-slate-900 dark:text-white shadow-md'
+                    : 'bg-white/40 dark:bg-neutral-900/40 border-slate-200 dark:border-white/10 text-slate-500 dark:text-neutral-400 hover:border-slate-300'
+                }`}
+              >
+                <div className={`p-2.5 rounded-xl ${contentType === 'pyq' ? 'bg-amber-400 text-neutral-950 font-black' : 'bg-neutral-800 text-neutral-400'}`}>
+                  <BookOpen size={20} />
+                </div>
+                <div>
+                  <div className="font-extrabold text-sm flex items-center gap-2">
+                    <span>📜 Free PYQ Paper (Public Archive)</span>
+                    {contentType === 'pyq' && <span className="px-2 py-0.5 rounded text-[10px] bg-amber-400 text-black font-black">SELECTED</span>}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-neutral-400 mt-1 leading-relaxed">
+                    Freely available on <strong>vigyanprep.com/pyq</strong> for all public visitors to practice without login gating.
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
+            <div className="lg:col-span-2">
               <label className="block text-xs font-semibold text-slate-600 dark:text-neutral-400 mb-1.5">Paper Title *</label>
               <input
                 type="text"
                 value={examTitle}
                 onChange={(e) => setExamTitle(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-amber-400 transition"
-                placeholder="IISER IAT 2025 Official Paper"
+                className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-amber-400 transition font-medium"
+                placeholder={contentType === 'test_series' ? 'e.g., IAT Mock 01 (Full Syllabus)' : 'e.g., IISER IAT 2025 Official Paper'}
               />
             </div>
             <div>
@@ -709,7 +831,7 @@ export function PaperBuilder() {
               <select
                 value={examType}
                 onChange={(e) => setExamType(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-amber-400"
+                className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-amber-400 font-medium"
               >
                 <option value="IAT">IISER IAT</option>
                 <option value="NEST">NISER NEST</option>
@@ -718,20 +840,47 @@ export function PaperBuilder() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 dark:text-neutral-400 mb-1.5">Year</label>
-              <input
-                type="text" value={year} onChange={(e) => setYear(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-amber-400"
-              />
-            </div>
-            <div>
               <label className="block text-xs font-semibold text-slate-600 dark:text-neutral-400 mb-1.5">Duration (mins)</label>
               <input
                 type="number" value={duration} onChange={(e) => setDuration(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-amber-400"
+                className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-amber-400 font-medium"
               />
             </div>
           </div>
+
+          {contentType === 'test_series' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+              <div>
+                <label className="block text-xs font-bold text-amber-500 mb-1.5">Live Exam Window Start (IST)</label>
+                <input
+                  type="datetime-local"
+                  value={windowStart}
+                  onChange={(e) => setWindowStart(e.target.value)}
+                  className="w-full bg-white dark:bg-neutral-800 border border-amber-500/30 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-amber-400 font-medium"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-amber-500 mb-1.5">Live Exam Window End (IST)</label>
+                <input
+                  type="datetime-local"
+                  value={windowEnd}
+                  onChange={(e) => setWindowEnd(e.target.value)}
+                  className="w-full bg-white dark:bg-neutral-800 border border-amber-500/30 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-amber-400 font-medium"
+                />
+              </div>
+            </div>
+          )}
+
+          {contentType === 'pyq' && (
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-neutral-800/50 border border-slate-200 dark:border-white/10">
+              <label className="block text-xs font-semibold text-slate-600 dark:text-neutral-400 mb-1.5">Exam Year</label>
+              <input
+                type="text" value={year} onChange={(e) => setYear(e.target.value)}
+                placeholder="2025"
+                className="w-full max-w-xs bg-white dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-amber-400 font-medium"
+              />
+            </div>
+          )}
 
           {/* PDF Upload Zone */}
           <div className="border-t border-slate-100 dark:border-white/5 pt-6">
@@ -1195,7 +1344,17 @@ export function PaperBuilder() {
               })}
             </div>
 
-            <div className="bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-xl p-4 space-y-2">
+            <div className="bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-xl p-4 space-y-2.5">
+              <div className="flex justify-between text-sm items-center">
+                <span className="text-slate-500 dark:text-neutral-400">Destination:</span>
+                <span className={`font-black text-xs px-3 py-1 rounded-full border ${
+                  contentType === 'test_series'
+                    ? 'bg-amber-400/20 text-amber-400 border-amber-400/40'
+                    : 'bg-blue-400/20 text-blue-400 border-blue-400/40'
+                }`}>
+                  {contentType === 'test_series' ? '🚀 PAID LIVE TEST SERIES (CBT Portal)' : '📜 FREE PRACTICE PYQ (vigyanprep.com/pyq)'}
+                </span>
+              </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500 dark:text-neutral-400">Title:</span>
                 <span className="font-semibold text-slate-800 dark:text-white">{examTitle || '(untitled)'}</span>
@@ -1204,22 +1363,64 @@ export function PaperBuilder() {
                 <span className="text-slate-500 dark:text-neutral-400">Exam Type:</span>
                 <span className="font-semibold text-slate-800 dark:text-white">{examType}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500 dark:text-neutral-400">Year:</span>
-                <span className="font-semibold text-slate-800 dark:text-white">{year}</span>
-              </div>
+              {contentType === 'test_series' ? (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500 dark:text-neutral-400">Window Start:</span>
+                    <span className="font-mono text-xs text-amber-400 font-semibold">{windowStart ? new Date(windowStart).toLocaleString('en-IN') : 'Immediate'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500 dark:text-neutral-400">Window End:</span>
+                    <span className="font-mono text-xs text-amber-400 font-semibold">{windowEnd ? new Date(windowEnd).toLocaleString('en-IN') : 'No expiry'}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500 dark:text-neutral-400">PYQ Year:</span>
+                  <span className="font-semibold text-slate-800 dark:text-white">{year}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500 dark:text-neutral-400">Duration:</span>
                 <span className="font-semibold text-slate-800 dark:text-white">{duration} minutes</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-sm items-center">
                 <span className="text-slate-500 dark:text-neutral-400">Status:</span>
-                <span className={`font-bold text-xs px-2 py-0.5 rounded-full ${
+                <span className={`font-bold text-xs px-2.5 py-0.5 rounded-full ${
                   paperStatus === 'ongoing' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
                   'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
                 }`}>
                   {paperStatus === 'ongoing' ? '🟢 LIVE' : paperStatus === 'draft' ? '📝 DRAFT' : '🆕 NEW'}
                 </span>
+              </div>
+            </div>
+
+            {/* Switch Category 1-Click Action */}
+            <div className="p-4 rounded-xl bg-slate-100 dark:bg-neutral-800/50 border border-slate-200 dark:border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-bold text-slate-800 dark:text-white">Change Paper Category</div>
+                <div className="text-[11px] text-slate-500 dark:text-neutral-400">
+                  Currently assigned to: <strong>{contentType === 'test_series' ? 'Paid Test Series' : 'Free PYQ Practice'}</strong>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {contentType === 'pyq' ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchPaperCategory('test_series')}
+                    className="px-3.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-black text-xs font-bold transition shadow-sm"
+                  >
+                    🚀 Switch to Paid Test Series
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchPaperCategory('pyq')}
+                    className="px-3.5 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-bold transition shadow-sm"
+                  >
+                    📜 Switch to Free PYQ
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1252,7 +1453,7 @@ export function PaperBuilder() {
                   className="w-full py-4 bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 transition shadow-lg disabled:opacity-50"
                 >
                   {isPublishing ? <Loader2 className="animate-spin" size={18} /> : <Rocket size={18} />}
-                  {isPublishing ? 'Publishing...' : '🚀 Go Live — Publish to Students'}
+                  {isPublishing ? 'Publishing...' : `🚀 Go Live — Publish to ${contentType === 'test_series' ? 'Paid Test Series' : 'Free PYQ'}`}
                 </button>
               )}
             </div>
