@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, X, Eye, Lock, CheckCircle2, AlertCircle, Trash2,
-  BarChart3, Send, Hammer, Edit3, BookOpen, Rocket
+  BarChart3, Send, Hammer, Edit3, BookOpen, Rocket, Trophy, Activity, ShieldCheck
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
@@ -49,14 +49,19 @@ export function TestSeries() {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/admin/test-series`, {
-        headers: { Authorization: token ? `Bearer ${token}` : '' }
+        headers: {
+          Authorization: token ? `Bearer ${token}` : ''
+        }
       });
       const data = await res.json();
-      if (data.tests) {
-        setTests(data.tests);
+      if (res.ok && data.success) {
+        setTests(data.tests || []);
+      } else {
+        setTests([]);
       }
     } catch (err) {
-      console.error('Failed to fetch test series:', err);
+      console.error('Failed to load test series:', err);
+      setTests([]);
     } finally {
       setLoading(false);
     }
@@ -74,6 +79,11 @@ export function TestSeries() {
 
   const handleCreateTest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title || !startDate || !endDate) {
+      alert('Please fill all required fields');
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch(`${API_BASE}/api/admin/test-series`, {
@@ -86,10 +96,10 @@ export function TestSeries() {
           title,
           name: title,
           exam_type: examType,
-          window_start: startDate ? new Date(startDate + ':00+05:30').toISOString() : undefined,
-          window_end: endDate ? new Date(endDate + ':00+05:30').toISOString() : undefined,
+          window_start: new Date(startDate + ':00+05:30').toISOString(),
+          window_end: new Date(endDate + ':00+05:30').toISOString(),
           duration_minutes: parseInt(duration, 10) || 180,
-          description: description || `${title} Scheduled Paper`
+          description
         })
       });
       const data = await res.json();
@@ -178,58 +188,59 @@ export function TestSeries() {
   };
 
   const handleDeleteTest = async (test: any) => {
-    if (window.confirm('Are you sure you want to delete this test? This cannot be undone.')) {
-      try {
-        const res = await fetch(`${API_BASE}/api/admin/test-series/${test.id}`, {
-          method: 'DELETE',
-          headers: { Authorization: token ? `Bearer ${token}` : '' }
-        });
-        if (res.ok) {
-          fetchTests();
-        } else {
-          alert('Failed to delete test');
-        }
-      } catch (err: any) {
-        alert('Error deleting test: ' + err.message);
-      }
-    }
-  };
+    if (!window.confirm(`Are you sure you want to delete "${test.title || test.name}"? This will delete all questions and cannot be undone.`)) return;
 
-  const handleCalculateRankings = async (test: any) => {
-    if (!window.confirm(`Calculate rankings for "${test.title || test.name}"?\n\nThis computes All-India Ranks for all submitted attempts.`)) return;
     try {
-      const res = await fetch(`${API_BASE}/api/admin/results/calculate/${test.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' }
+      const res = await fetch(`${API_BASE}/api/admin/test-series/${test.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
       const data = await res.json();
+
       if (res.ok && data.success) {
-        alert(`✅ Rankings calculated for ${data.count || 0} students!\nNow click "Release Results" to notify students.`);
         fetchTests();
       } else {
         alert('Failed: ' + (data.error || 'Server error'));
+      }
+    } catch (err: any) { alert('Error: ' + err.message); }
+  };
+
+  const handleCalculateRankings = async (test: any) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/results/calculate/${test.id}`, {
+        method: 'POST',
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`✅ Rankings calculated for ${data.count || 0} students!`);
+        fetchTests();
+      } else {
+        alert('Failed to calculate rankings: ' + (data.error || 'Server error'));
       }
     } catch (err: any) { alert('Error: ' + err.message); }
   };
 
   const handleReleaseResults = async (test: any) => {
-    if (!window.confirm(`Release results for "${test.title || test.name}"?\n\n✓ Students can immediately see rank, score & answers\n✓ Email sent to all participants\n\nThis cannot be undone.`)) return;
+    if (!window.confirm(`Release results for "${test.title || test.name}"?\n\nThis will allow students to see their scorecards, solutions, and All-India Rankings.`)) return;
+
     try {
       const res = await fetch(`${API_BASE}/api/admin/results/release/${test.id}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' }
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        alert(`✅ Results Released! ${data.notified || 0} students notified via email.`);
+        alert(`✅ Results released! ${data.notified || 0} students notified.`);
         fetchTests();
       } else {
-        alert('Failed: ' + (data.error || 'Server error'));
+        alert('Failed to release results: ' + (data.error || 'Server error'));
       }
     } catch (err: any) { alert('Error: ' + err.message); }
   };
 
   const getTestStatus = (test: any) => {
+    if (test.status === 'draft') return 'draft';
     const now = new Date();
     const start = new Date(test.window_start);
     const end = new Date(test.window_end);
@@ -241,9 +252,10 @@ export function TestSeries() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'upcoming': return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
-      case 'live': return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-      case 'expired': return 'bg-zinc-800 text-zinc-400 border border-zinc-700';
+      case 'draft': return 'bg-zinc-800 text-zinc-400 border border-zinc-700';
+      case 'upcoming': return 'bg-blue-500/15 text-blue-400 border border-blue-500/30';
+      case 'live': return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse';
+      case 'expired': return 'bg-zinc-800/80 text-zinc-400 border border-zinc-700/60';
       default: return 'bg-zinc-800 text-zinc-400 border border-zinc-700';
     }
   };
@@ -343,18 +355,22 @@ export function TestSeries() {
                       </td>
                       <td className="px-4 py-4 text-center">
                         {t.preview_status === 'valid' ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                             <CheckCircle2 size={11} /> Validated
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                            <AlertCircle size={11} /> Preview Gate
-                          </span>
+                          <a
+                            href={`/preview/${t.id}`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 transition cursor-pointer"
+                            title="Click to perform quick preview verification"
+                          >
+                            <AlertCircle size={11} /> Needs Preview
+                          </a>
                         )}
                       </td>
                       <td className="px-4 py-4 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${getStatusColor(status)}`}>
-                          {status}
+                          {status === 'live' ? '🟢 LIVE NOW' : status === 'expired' ? 'ENDED' : status}
                         </span>
                       </td>
 
@@ -368,14 +384,14 @@ export function TestSeries() {
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => handleCalculateRankings(t)}
-                              className="px-2 py-1 bg-blue-500/10 hover:bg-blue-500 hover:text-white text-blue-400 border border-blue-500/20 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                              className="px-2 py-1 bg-blue-500/10 hover:bg-blue-500 hover:text-white text-blue-400 border border-blue-500/20 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
                               title="Calculate Rankings & Percentiles"
                             >
                               <BarChart3 size={11} /> Calc
                             </button>
                             <button
                               onClick={() => handleReleaseResults(t)}
-                              className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                              className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
                               title="Release Results to Students"
                             >
                               <Send size={11} /> Release
@@ -386,55 +402,104 @@ export function TestSeries() {
                         )}
                       </td>
 
-                      {/* Actions Column (Clean Icon Toolbar) */}
+                      {/* Actions Column (Context-Aware Production Lifecycle Toolbar) */}
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {/* Assemble Paper Link */}
-                          <a
-                            href={`/paper-builder/${t.id}`}
-                            className="p-2 rounded-xl bg-amber-400/10 hover:bg-amber-400 hover:text-black text-amber-400 border border-amber-400/30 transition shadow-sm"
-                            title="Assemble & Edit Questions in Paper Builder"
-                          >
-                            <Hammer size={14} />
-                          </a>
+                          {isReleased ? (
+                            /* Finalized & Released Test Actions (Edits Protected) */
+                            <>
+                              <a
+                                href="/results"
+                                className="px-2.5 py-1.5 rounded-xl bg-amber-400/10 hover:bg-amber-400 hover:text-black text-amber-400 border border-amber-400/30 transition shadow-sm text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                                title="View Complete All-India Merit List & Scorecards"
+                              >
+                                <Trophy size={13} /> Merit List
+                              </a>
+                              <a
+                                href={`/preview/${t.id}`}
+                                className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500 hover:text-white text-blue-400 border border-blue-500/30 transition shadow-sm cursor-pointer"
+                                title="View Question Paper & Master Solutions"
+                              >
+                                <Eye size={14} />
+                              </a>
+                              <div
+                                className="p-2 rounded-xl bg-zinc-800 text-zinc-500 border border-zinc-700/60 cursor-not-allowed"
+                                title="Scores Declared — Raw Question Modifications are Locked to Prevent Score Corruption"
+                              >
+                                <ShieldCheck size={14} className="text-emerald-500/80" />
+                              </div>
+                            </>
+                          ) : status === 'live' ? (
+                            /* Live Exam in Progress Actions */
+                            <>
+                              <a
+                                href="/live-invigilation"
+                                className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500 hover:text-black text-emerald-400 border border-emerald-500/30 transition shadow-sm text-xs font-black flex items-center gap-1.5 cursor-pointer animate-pulse"
+                                title="Open Live Proctoring & Invigilation Monitor"
+                              >
+                                <Activity size={13} /> Invigilation
+                              </a>
+                              <a
+                                href={`/preview/${t.id}`}
+                                className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500 hover:text-white text-blue-400 border border-blue-500/30 transition shadow-sm cursor-pointer"
+                                title="Student CBT Preview Mode"
+                              >
+                                <Eye size={14} />
+                              </a>
+                              <button
+                                onClick={() => openEditModal(t)}
+                                className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition shadow-sm cursor-pointer"
+                                title="Extend Live Window End Time"
+                              >
+                                <Edit3 size={14} />
+                              </button>
+                            </>
+                          ) : (
+                            /* Setup & Upcoming Exam Actions */
+                            <>
+                              <a
+                                href={`/paper-builder/${t.id}`}
+                                className="p-2 rounded-xl bg-amber-400/10 hover:bg-amber-400 hover:text-black text-amber-400 border border-amber-400/30 transition shadow-sm cursor-pointer"
+                                title="Assemble & Edit Questions in Paper Builder"
+                              >
+                                <Hammer size={14} />
+                              </a>
 
-                          {/* Student CBT Preview */}
-                          <a
-                            href={`/preview/${t.id}`}
-                            className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500 hover:text-white text-blue-400 border border-blue-500/30 transition shadow-sm"
-                            title="Student CBT Preview Mode"
-                          >
-                            <Eye size={14} />
-                          </a>
+                              <a
+                                href={`/preview/${t.id}`}
+                                className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500 hover:text-white text-blue-400 border border-blue-500/30 transition shadow-sm cursor-pointer"
+                                title="Student CBT Preview Mode"
+                              >
+                                <Eye size={14} />
+                              </a>
 
-                          {/* Edit Details Button */}
-                          <button
-                            onClick={() => openEditModal(t)}
-                            className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition shadow-sm"
-                            title="Edit Test Details (Name, Timings, Dates)"
-                          >
-                            <Edit3 size={14} />
-                          </button>
+                              <button
+                                onClick={() => openEditModal(t)}
+                                className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition shadow-sm cursor-pointer"
+                                title="Edit Test Details (Name, Timings, Dates)"
+                              >
+                                <Edit3 size={14} />
+                              </button>
 
-                          {/* Freeze Button (if not frozen) */}
-                          {t.status !== 'frozen' && (
-                            <button
-                              onClick={() => handleFreezeTest(t)}
-                              className="p-2 rounded-xl bg-yellow-500/10 hover:bg-yellow-500 hover:text-black text-yellow-400 border border-yellow-500/30 transition shadow-sm"
-                              title="Freeze Test Paper (Lock Edits)"
-                            >
-                              <Lock size={14} />
-                            </button>
+                              {t.status !== 'frozen' && (
+                                <button
+                                  onClick={() => handleFreezeTest(t)}
+                                  className="p-2 rounded-xl bg-yellow-500/10 hover:bg-yellow-500 hover:text-black text-yellow-400 border border-yellow-500/30 transition shadow-sm cursor-pointer"
+                                  title="Freeze Test Paper (Lock Edits Before Exam)"
+                                >
+                                  <Lock size={14} />
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => handleDeleteTest(t)}
+                                className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 border border-red-500/30 transition shadow-sm cursor-pointer"
+                                title="Delete Test Paper"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </>
                           )}
-
-                          {/* Delete Button */}
-                          <button
-                            onClick={() => handleDeleteTest(t)}
-                            className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 border border-red-500/30 transition shadow-sm"
-                            title="Delete Test Paper"
-                          >
-                            <Trash2 size={14} />
-                          </button>
                         </div>
                       </td>
                     </tr>
