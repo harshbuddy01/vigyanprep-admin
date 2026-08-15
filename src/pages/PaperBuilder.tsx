@@ -1297,6 +1297,7 @@ export function PaperBuilder() {
           isOpen={bankImportOpen}
           onClose={() => setBankImportOpen(false)}
           testId={savedTestId}
+          existingQuestions={questions}
           onSuccess={() => {
             loadExistingPaper(savedTestId);
             setMessage({ type: 'success', text: '✅ Questions imported from Question Bank successfully!' });
