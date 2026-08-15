@@ -1,23 +1,47 @@
-import { useState, useEffect } from 'react';
-import { Plus, X, Eye, Lock, CheckCircle2, AlertCircle, Trash2, BarChart3, Send, Hammer } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  Plus, X, Eye, Lock, CheckCircle2, AlertCircle, Trash2,
+  BarChart3, Send, Hammer, Edit3, BookOpen
+} from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
+
+function toLocalInputString(isoStr?: string): string {
+  if (!isoStr) return '';
+  try {
+    const d = new Date(isoStr);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return '';
+  }
+}
 
 export function TestSeries() {
   const token = useAuthStore((state) => state.token);
   const [tests, setTests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedTest, setSelectedTest] = useState<any | null>(null);
 
-  // Form state
+  // Create Form state
   const [title, setTitle] = useState('');
   const [examType, setExamType] = useState('IAT');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [duration, setDuration] = useState('180');
   const [description, setDescription] = useState('');
+
+  // Edit Form state
+  const [editTitle, setEditTitle] = useState('');
+  const [editExamType, setEditExamType] = useState('IAT');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editDuration, setEditDuration] = useState('180');
+  const [editDescription, setEditDescription] = useState('');
 
   const fetchTests = async () => {
     setLoading(true);
@@ -62,14 +86,14 @@ export function TestSeries() {
           exam_type: examType,
           window_start: startDate ? new Date(startDate + ':00+05:30').toISOString() : undefined,
           window_end: endDate ? new Date(endDate + ':00+05:30').toISOString() : undefined,
-          duration_minutes: parseInt(duration) || 180,
+          duration_minutes: parseInt(duration, 10) || 180,
           description: description || `${title} Scheduled Paper`
         })
       });
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setShowModal(false);
+        setShowCreateModal(false);
         fetchTests();
         setTitle(''); setExamType('IAT'); setStartDate(''); setEndDate(''); setDuration('180'); setDescription('');
       } else {
@@ -77,6 +101,53 @@ export function TestSeries() {
       }
     } catch (err: any) {
       alert('Error creating test series paper: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openEditModal = (t: any) => {
+    setSelectedTest(t);
+    setEditTitle(t.title || t.name || '');
+    setEditExamType(t.exam_type || 'IAT');
+    setEditStartDate(toLocalInputString(t.window_start));
+    setEditEndDate(toLocalInputString(t.window_end));
+    setEditDuration(String(t.duration_minutes || 180));
+    setEditDescription(t.description || '');
+    setShowEditModal(true);
+  };
+
+  const handleUpdateTest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTest) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/test-series/${selectedTest.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({
+          title: editTitle,
+          name: editTitle,
+          exam_type: editExamType,
+          window_start: editStartDate ? new Date(editStartDate + ':00+05:30').toISOString() : undefined,
+          window_end: editEndDate ? new Date(editEndDate + ':00+05:30').toISOString() : undefined,
+          duration_minutes: parseInt(editDuration, 10) || 180,
+          description: editDescription
+        })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setShowEditModal(false);
+        fetchTests();
+      } else {
+        alert('Error updating test details: ' + (data.error || 'Server error'));
+      }
+    } catch (err: any) {
+      alert('Error updating test details: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -122,7 +193,6 @@ export function TestSeries() {
     }
   };
 
-  // 🏆 Calculate Rankings
   const handleCalculateRankings = async (test: any) => {
     if (!window.confirm(`Calculate rankings for "${test.title || test.name}"?\n\nThis computes All-India Ranks for all submitted attempts.`)) return;
     try {
@@ -140,7 +210,6 @@ export function TestSeries() {
     } catch (err: any) { alert('Error: ' + err.message); }
   };
 
-  // 📢 Release Results — sets result_released_at and emails all students
   const handleReleaseResults = async (test: any) => {
     if (!window.confirm(`Release results for "${test.title || test.name}"?\n\n✓ Students can immediately see rank, score & answers\n✓ Email sent to all participants\n\nThis cannot be undone.`)) return;
     try {
@@ -158,23 +227,24 @@ export function TestSeries() {
     } catch (err: any) { alert('Error: ' + err.message); }
   };
 
-  function getTestStatus(test: any) {
+  const getTestStatus = (test: any) => {
     const now = new Date();
-    if (test.window_end && new Date(test.window_end) < now) return 'expired';
-    if (test.window_start && new Date(test.window_start) > now) return 'upcoming';
-    if (test.window_start && test.window_end && 
-        new Date(test.window_start) <= now && new Date(test.window_end) >= now) return 'live';
-    return test.status || 'draft';
-  }
+    const start = new Date(test.window_start);
+    const end = new Date(test.window_end);
 
-  function getStatusColor(status: string) {
+    if (now < start) return 'upcoming';
+    if (now >= start && now <= end) return 'live';
+    return 'expired';
+  };
+
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'expired': return 'bg-gray-500/15 text-gray-700 dark:text-gray-300';
-      case 'upcoming': return 'bg-blue-500/15 text-blue-700 dark:text-blue-400';
-      case 'live': return 'bg-green-500/15 text-green-700 dark:text-green-400';
-      default: return 'bg-yellow-500/15 text-yellow-800 dark:text-yellow-400';
+      case 'upcoming': return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+      case 'live': return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+      case 'expired': return 'bg-zinc-800 text-zinc-400 border border-zinc-700';
+      default: return 'bg-zinc-800 text-zinc-400 border border-zinc-700';
     }
-  }
+  };
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return 'Not Scheduled';
@@ -185,170 +255,387 @@ export function TestSeries() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-fade-in text-zinc-100 font-sans">
+      
+      {/* Top Banner Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Test Series Management (Paid)</h1>
-          <p className="text-sm text-slate-500 dark:text-neutral-400">24-Hour Allen Model Schedule & Server-Enforced Preview Gate</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-black text-white tracking-tight">Paid Test Series Management</h1>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400/10 border border-amber-400/30 text-amber-400 uppercase tracking-wider">
+              Allen 24h Model
+            </span>
+          </div>
+          <p className="text-xs text-zinc-400 mt-1">
+            Schedule live test windows, assemble papers from Question Bank, and release All-India rankings
+          </p>
         </div>
+
         <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-amber-400 text-neutral-950 px-4 py-2 rounded-lg font-bold hover:bg-amber-500 transition-colors shadow"
+          onClick={() => setShowCreateModal(true)}
+          className="px-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-amber-400/20 flex items-center gap-2 transition"
         >
-          <Plus size={20} />
-          Create Test Series Paper
+          <Plus size={16} /> Create Test Paper
         </button>
       </div>
 
+      {/* Main Tests Table */}
       {loading ? (
-        <div className="text-slate-600 dark:text-white">Loading test series papers...</div>
+        <div className="p-16 text-center text-zinc-500 space-y-3 bg-[#121215] border border-white/10 rounded-2xl">
+          <div className="w-8 h-8 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-xs font-semibold text-zinc-400">Loading test series...</p>
+        </div>
+      ) : tests.length === 0 ? (
+        <div className="p-16 text-center text-zinc-500 space-y-3 bg-[#121215] border border-white/10 rounded-2xl">
+          <BookOpen size={40} className="mx-auto text-zinc-600" />
+          <p className="text-sm font-bold text-white">No Test Series Created Yet</p>
+          <p className="text-xs text-zinc-500">Click &quot;Create Test Paper&quot; above to schedule your first test.</p>
+        </div>
       ) : (
-        <div className="bg-white dark:bg-neutral-800/50 border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden shadow-sm">
-          <table className="w-full text-left text-sm text-slate-700 dark:text-neutral-300">
-            <thead className="bg-slate-50 dark:bg-neutral-900/50 text-xs uppercase text-slate-500 dark:text-neutral-400 border-b border-slate-200 dark:border-white/10">
-              <tr>
-                <th className="px-6 py-4 font-semibold">Title</th>
-                <th className="px-6 py-4 font-semibold">Exam Type</th>
-                <th className="px-6 py-4 font-semibold">Window Start</th>
-                <th className="px-6 py-4 font-semibold">Window End</th>
-                <th className="px-6 py-4 font-semibold">Duration</th>
-                <th className="px-6 py-4 font-semibold">Preview Gate</th>
-                <th className="px-6 py-4 font-semibold">Status</th>
-                <th className="px-6 py-4 font-semibold">Results</th>
-                <th className="px-6 py-4 font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-              {tests.map((t) => (
-                <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition">
-                  <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{t.title || t.name}</td>
-                  <td className="px-6 py-4 font-semibold text-slate-700 dark:text-neutral-300">{t.exam_type || 'IAT'}</td>
-                  <td className="px-6 py-4 text-xs font-mono text-slate-600 dark:text-neutral-400">{formatDate(t.window_start)}</td>
-                  <td className="px-6 py-4 text-xs font-mono text-slate-600 dark:text-neutral-400">{formatDate(t.window_end)}</td>
-                  <td className="px-6 py-4 text-slate-700 dark:text-neutral-300">{t.duration_minutes || 180} mins</td>
-                  <td className="px-6 py-4">
-                    {t.preview_status === 'valid' ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
-                        <CheckCircle2 size={13} /> Validated
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-500/30">
-                        <AlertCircle size={13} /> Preview Needed
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-mono uppercase ${getStatusColor(getTestStatus(t))}`}>
-                      {getTestStatus(t)}
-                    </span>
-                  </td>
-                  {/* Results Release Column */}
-                  <td className="px-6 py-4">
-                    {getTestStatus(t) === 'expired' || getTestStatus(t) === 'live' ? (
-                      t.result_released_at ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
-                          <CheckCircle2 size={12} /> Released
+        <div className="bg-[#121215] border border-white/10 rounded-2xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-zinc-300">
+              <thead className="bg-[#18181c] text-[10px] uppercase tracking-wider text-zinc-400 border-b border-white/10">
+                <tr>
+                  <th className="px-5 py-3.5 font-bold">Paper Title</th>
+                  <th className="px-4 py-3.5 font-bold">Type</th>
+                  <th className="px-5 py-3.5 font-bold">Window Start (IST)</th>
+                  <th className="px-5 py-3.5 font-bold">Window End (IST)</th>
+                  <th className="px-4 py-3.5 font-bold">Duration</th>
+                  <th className="px-4 py-3.5 font-bold text-center">Quality Gate</th>
+                  <th className="px-4 py-3.5 font-bold text-center">Status</th>
+                  <th className="px-5 py-3.5 font-bold text-center">Results</th>
+                  <th className="px-5 py-3.5 font-bold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800/80">
+                {tests.map((t) => {
+                  const status = getTestStatus(t);
+                  const isReleased = !!t.result_released_at;
+                  return (
+                    <tr key={t.id} className="hover:bg-zinc-800/30 transition">
+                      <td className="px-5 py-4 font-bold text-white max-w-xs truncate">
+                        {t.title || t.name}
+                      </td>
+                      <td className="px-4 py-4 font-semibold text-zinc-300">
+                        <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-200 border border-zinc-700 text-[11px]">
+                          {t.exam_type || 'IAT'}
                         </span>
-                      ) : (
-                        <div className="flex flex-col gap-1.5">
-                          <button
-                            onClick={() => handleCalculateRankings(t)}
-                            className="px-2.5 py-1 bg-blue-500/15 text-blue-800 dark:text-blue-400 border border-blue-500/30 rounded-lg text-[11px] font-bold hover:bg-blue-500 hover:text-white transition inline-flex items-center gap-1"
+                      </td>
+                      <td className="px-5 py-4 font-mono text-[11px] text-zinc-400">
+                        {formatDate(t.window_start)}
+                      </td>
+                      <td className="px-5 py-4 font-mono text-[11px] text-zinc-400">
+                        {formatDate(t.window_end)}
+                      </td>
+                      <td className="px-4 py-4 font-medium text-zinc-300">
+                        {t.duration_minutes || 180}m
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        {t.preview_status === 'valid' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <CheckCircle2 size={11} /> Validated
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <AlertCircle size={11} /> Preview Gate
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${getStatusColor(status)}`}>
+                          {status}
+                        </span>
+                      </td>
+
+                      {/* Results Column (Compact & Clean) */}
+                      <td className="px-5 py-4 text-center">
+                        {isReleased ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                            <CheckCircle2 size={11} /> Released
+                          </span>
+                        ) : (status === 'expired' || status === 'live') ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => handleCalculateRankings(t)}
+                              className="px-2 py-1 bg-blue-500/10 hover:bg-blue-500 hover:text-white text-blue-400 border border-blue-500/20 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                              title="Calculate Rankings & Percentiles"
+                            >
+                              <BarChart3 size={11} /> Calc
+                            </button>
+                            <button
+                              onClick={() => handleReleaseResults(t)}
+                              className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                              title="Release Results to Students"
+                            >
+                              <Send size={11} /> Release
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-zinc-600 text-xs">—</span>
+                        )}
+                      </td>
+
+                      {/* Actions Column (Clean Icon Toolbar) */}
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Assemble Paper Link */}
+                          <a
+                            href={`/paper-builder/${t.id}`}
+                            className="p-2 rounded-xl bg-amber-400/10 hover:bg-amber-400 hover:text-black text-amber-400 border border-amber-400/30 transition shadow-sm"
+                            title="Assemble & Edit Questions in Paper Builder"
                           >
-                            <BarChart3 size={11} /> Calc Ranks
+                            <Hammer size={14} />
+                          </a>
+
+                          {/* Student CBT Preview */}
+                          <a
+                            href={`/preview/${t.id}`}
+                            className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500 hover:text-white text-blue-400 border border-blue-500/30 transition shadow-sm"
+                            title="Student CBT Preview Mode"
+                          >
+                            <Eye size={14} />
+                          </a>
+
+                          {/* Edit Details Button */}
+                          <button
+                            onClick={() => openEditModal(t)}
+                            className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition shadow-sm"
+                            title="Edit Test Details (Name, Timings, Dates)"
+                          >
+                            <Edit3 size={14} />
                           </button>
+
+                          {/* Freeze Button (if not frozen) */}
+                          {t.status !== 'frozen' && (
+                            <button
+                              onClick={() => handleFreezeTest(t)}
+                              className="p-2 rounded-xl bg-yellow-500/10 hover:bg-yellow-500 hover:text-black text-yellow-400 border border-yellow-500/30 transition shadow-sm"
+                              title="Freeze Test Paper (Lock Edits)"
+                            >
+                              <Lock size={14} />
+                            </button>
+                          )}
+
+                          {/* Delete Button */}
                           <button
-                            onClick={() => handleReleaseResults(t)}
-                            className="px-2.5 py-1 bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30 rounded-lg text-[11px] font-bold hover:bg-emerald-500 hover:text-white transition inline-flex items-center gap-1"
+                            onClick={() => handleDeleteTest(t)}
+                            className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 border border-red-500/30 transition shadow-sm"
+                            title="Delete Test Paper"
                           >
-                            <Send size={11} /> Release Results
+                            <Trash2 size={14} />
                           </button>
                         </div>
-                      )
-                    ) : (
-                      <span className="text-xs text-gray-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 space-x-2">
-                    <a
-                      href={`/paper-builder/${t.id}`}
-                      className="px-3 py-1.5 bg-amber-400/20 text-amber-900 dark:text-amber-300 border border-amber-400/40 rounded-lg text-xs font-bold hover:bg-amber-400 hover:text-neutral-950 transition inline-flex items-center gap-1.5 shadow-sm"
-                      title="Assemble & edit paper questions in Paper Builder"
-                    >
-                      <Hammer size={13} /> Assemble Paper
-                    </a>
-                    <a
-                      href={`/preview/${t.id}`}
-                      className="px-3 py-1.5 bg-blue-500/15 text-blue-800 dark:text-blue-400 border border-blue-500/30 rounded-lg text-xs font-bold hover:bg-blue-500 hover:text-white transition inline-flex items-center gap-1 shadow-sm"
-                    >
-                      <Eye size={13} /> Preview
-                    </a>
-                    {t.status !== 'frozen' && (
-                      <button
-                        onClick={() => handleFreezeTest(t)}
-                        className="px-3 py-1.5 bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-500/30 rounded-lg text-xs font-bold hover:bg-amber-400 hover:text-neutral-950 transition inline-flex items-center gap-1 shadow-sm"
-                      >
-                        <Lock size={13} /> Freeze
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDeleteTest(t)}
-                      className="px-3 py-1.5 bg-red-500/15 text-red-800 dark:text-red-400 border border-red-500/30 rounded-lg text-xs font-bold hover:bg-red-500 hover:text-white transition inline-flex items-center gap-1 shadow-sm"
-                    >
-                      <Trash2 size={13} /> Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {tests.length === 0 && (
-                <tr><td colSpan={8} className="p-4 text-center text-slate-500 dark:text-neutral-400">No scheduled test series papers found.</td></tr>
-              )}
-            </tbody>
-          </table>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-xl w-full max-w-md p-6 shadow-2xl">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Create Test Series Paper</h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white">
-                <X size={20} />
-              </button>
+      {/* CREATE MODAL */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-[#121215] text-zinc-100 border border-zinc-700/60 rounded-2xl w-full max-w-lg shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-base font-bold text-white">Create Test Series Paper</h3>
+              <button onClick={() => setShowCreateModal(false)} className="text-zinc-400 hover:text-white"><X size={18} /></button>
             </div>
+
             <form onSubmit={handleCreateTest} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-1">Title</label>
-                <input required type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-white" />
+                <label className="block text-xs font-bold text-zinc-400 mb-1">Paper Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. IISER IAT 2026 Full Length Mock 01"
+                  className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-400"
+                />
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1">Exam Type</label>
+                  <select
+                    value={examType}
+                    onChange={(e) => handleExamTypeChange(e.target.value)}
+                    className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                  >
+                    <option value="IAT">IISER IAT</option>
+                    <option value="NEST">NISER NEST</option>
+                    <option value="CMI">CMI Entrance</option>
+                    <option value="IISc">IISc Entrance</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1">Duration (minutes)</label>
+                  <input
+                    type="number"
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1">Window Start (IST) *</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1">Window End (IST) *</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-1">Exam Type</label>
-                <select required value={examType} onChange={e => handleExamTypeChange(e.target.value)} className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-white">
-                  <option value="IAT">IAT</option>
-                  <option value="NEST">NEST</option>
-                  <option value="CMI">CMI</option>
-                </select>
+                <label className="block text-xs font-bold text-zinc-400 mb-1">Description / Instructions</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={2}
+                  placeholder="Official 24-hour test window instructions..."
+                  className="w-full bg-[#18181c] border border-zinc-800 rounded-xl p-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-none"
+                />
               </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-5 py-2 bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-amber-400/20 transition disabled:opacity-50"
+                >
+                  {saving ? 'Creating...' : 'Create Test Paper'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT MODAL (Name, Timings, Dates) */}
+      {showEditModal && selectedTest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-[#121215] text-zinc-100 border border-zinc-700/60 rounded-2xl w-full max-w-lg shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit3 size={16} className="text-amber-400" />
+                <h3 className="text-base font-bold text-white">Edit Test Details & Timings</h3>
+              </div>
+              <button onClick={() => setShowEditModal(false)} className="text-zinc-400 hover:text-white"><X size={18} /></button>
+            </div>
+
+            <form onSubmit={handleUpdateTest} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-1">Window Open Time (Start)</label>
-                <input required type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-white" />
+                <label className="block text-xs font-bold text-zinc-400 mb-1">Paper Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-400"
+                />
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1">Exam Type</label>
+                  <select
+                    value={editExamType}
+                    onChange={(e) => setEditExamType(e.target.value)}
+                    className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                  >
+                    <option value="IAT">IISER IAT</option>
+                    <option value="NEST">NISER NEST</option>
+                    <option value="CMI">CMI Entrance</option>
+                    <option value="IISc">IISc Entrance</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1">Duration (minutes)</label>
+                  <input
+                    type="number"
+                    value={editDuration}
+                    onChange={(e) => setEditDuration(e.target.value)}
+                    className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1">Window Start (IST) *</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={editStartDate}
+                    onChange={(e) => setEditStartDate(e.target.value)}
+                    className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 mb-1">Window End (IST) *</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={editEndDate}
+                    onChange={(e) => setEditEndDate(e.target.value)}
+                    className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-1">Window Close Time (End)</label>
-                <input required type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-white" />
+                <label className="block text-xs font-bold text-zinc-400 mb-1">Description / Instructions</label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  rows={2}
+                  className="w-full bg-[#18181c] border border-zinc-800 rounded-xl p-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-none"
+                />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-1">Duration (mins)</label>
-                <input required type="number" value={duration} onChange={e => setDuration(e.target.value)} className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-white" />
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-5 py-2 bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-amber-400/20 transition disabled:opacity-50"
+                >
+                  {saving ? 'Updating...' : 'Save Changes'}
+                </button>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-1">Description</label>
-                <textarea required value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-white h-24" />
-              </div>
-              <button type="submit" disabled={saving} className="w-full bg-amber-400 text-neutral-950 font-bold py-2.5 rounded-lg hover:bg-amber-500 transition-colors disabled:opacity-50 shadow">
-                {saving ? 'Saving...' : 'Save Scheduled Test'}
-              </button>
             </form>
           </div>
         </div>
