@@ -311,7 +311,7 @@ export function TestSeries() {
               <tbody className="divide-y divide-zinc-800/80">
                 {tests.map((t) => {
                   const status = getTestStatus(t);
-                  const isReleased = !!t.result_released_at;
+                  const isReleased = !!(t.response_released_at || t.result_released_at || t.status === 'completed');
                   return (
                     <tr key={t.id} className="hover:bg-zinc-800/30 transition">
                       <td className="px-5 py-4 font-bold text-white max-w-xs truncate">
