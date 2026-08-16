@@ -44,20 +44,88 @@ interface QuestionStudioModalProps {
 }
 
 const MATH_SNIPPETS = [
-  { label: 'Fraction', tex: '\\frac{a}{b}' },
-  { label: 'Square Root', tex: '\\sqrt{x}' },
-  { label: 'Integral', tex: '\\int_{a}^{b} f(x) dx' },
-  { label: 'Vector', tex: '\\vec{v}' },
-  { label: 'Delta', tex: '\\Delta' },
-  { label: 'Theta', tex: '\\theta' },
-  { label: 'Lambda', tex: '\\lambda' },
-  { label: 'Pi', tex: '\\pi' },
-  { label: 'Plus-Minus', tex: '\\pm' },
-  { label: 'Infinity', tex: '\\infty' },
-  { label: 'Summation', tex: '\\sum_{i=1}^{n}' },
-  { label: 'Subscript', tex: 'x_{1}' },
-  { label: 'Superscript', tex: 'x^{2}' },
+  { label: '√x (Square Root)', tex: '\\sqrt{x}' },
+  { label: '√2 (Root 2)', tex: '\\sqrt{2}' },
+  { label: 'a/b (Fraction)', tex: '\\frac{a}{b}' },
+  { label: 'x² (Power)', tex: 'x^{2}' },
+  { label: 'x₁ (Subscript)', tex: 'x_{1}' },
+  { label: 'N₂²⁺ (Ion)', tex: 'N_2^{2+}' },
+  { label: 'SO₄²⁻ (Ion)', tex: 'SO_4^{2-}' },
+  { label: '10⁻⁵ (Exp)', tex: '10^{-5}' },
+  { label: '×10⁸ (Sci)', tex: '\\times 10^{8}' },
+  { label: '∫ (Integral)', tex: '\\int_{a}^{b} f(x) dx' },
+  { label: 'v⃗ (Vector)', tex: '\\vec{v}' },
+  { label: '⇌ (Equilibrium)', tex: '\\rightleftharpoons' },
+  { label: '→ (Arrow)', tex: '\\rightarrow' },
+  { label: 'Δ (Delta)', tex: '\\Delta' },
+  { label: 'θ (Theta)', tex: '\\theta' },
+  { label: 'λ (Lambda)', tex: '\\lambda' },
+  { label: 'π (Pi)', tex: '\\pi' },
+  { label: '± (Plus-Minus)', tex: '\\pm' },
+  { label: '∞ (Infinity)', tex: '\\infty' },
+  { label: '∑ (Sum)', tex: '\\sum_{i=1}^{n}' },
 ];
+
+function autoFormatMathTextClient(raw: string): string {
+  if (!raw) return '';
+  let str = raw;
+
+  // 1. Unicode superscripts & subscripts
+  const superMap: Record<string, string> = { '⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9','⁺':'+','⁻':'-' };
+  const subMap: Record<string, string> = { '₀':'0','₁':'1','₂':'2','₃':'3','₄':'4','₅':'5','₆':'6','₇':'7','₈':'8','₉':'9','₊':'+','₋':'-' };
+  str = str.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+/g, (m) => `^{${[...m].map(c => superMap[c] || c).join('')}}`);
+  str = str.replace(/[₀₁₂₃₄₅₆₇₈₉₊₋]+/g, (m) => `_{${[...m].map(c => subMap[c] || c).join('')}}`);
+
+  // 2. Square roots: √2, root 2, sqrt(2)
+  str = str
+    .replace(/(?:\\u221A|√)\s*\((.*?)\)/g, ' \\sqrt{$1} ')
+    .replace(/(?:\\u221A|√)\s*([a-zA-Z0-9]+)/g, ' \\sqrt{$1} ')
+    .replace(/\b(?:sqrt|root)\s*\((.*?)\)/gi, ' \\sqrt{$1} ')
+    .replace(/\b(?:sqrt|root)\s*([a-zA-Z0-9]+)\b/gi, ' \\sqrt{$1} ')
+    .replace(/[√\u221A]/g, ' \\sqrt ');
+
+  // 3. Chemistry ions: N2 2+, SO4 2-, O2-, H3O+
+  str = str.replace(/\[([A-Za-z0-9\(\)]+)\]\s*(\d+)?([\+\-])/g, ' [$1]^{$2$3} ');
+  str = str.replace(/\b([A-Z][a-z]?)(\d+)\s+(\d*)([\+\-])\b/g, ' $1_{$2}^{$3$4} ');
+  str = str.replace(/\b([A-Z][a-z]?)(\d+)\s*\^\s*(\d*)([\+\-])\b/g, ' $1_{$2}^{$3$4} ');
+  str = str.replace(/\b([A-Z][a-z]?)(\d+)([\+\-])\b/g, ' $1_{$2}^{$3} ');
+  str = str.replace(/\b([A-Z][a-z]?)\s*(\d*)([\+\-])\b/g, ' $1^{$2$3} ');
+  str = str.replace(/\b(H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Fe|Cu|Zn|Br|Ag|I|Ba|Pt|Au|Hg|Pb|U)(\d+)/g, '$1_{$2}');
+
+  // 4. Powers & Scientific: 3 x 10^8, 10^-5
+  str = str
+    .replace(/(\d+(?:\.\d+)?)\s*[xX\*×]\s*10\s*\^?\s*(-?\d+)/g, ' $1 \\times 10^{$2} ')
+    .replace(/\b10\s*\^\s*(-?\d+)/g, ' 10^{$1} ')
+    .replace(/\b([a-zA-Z0-9\)])\s*\^\s*([a-zA-Z0-9\-\+]+)/g, ' $1^{$2} ')
+    .replace(/\b([a-zA-Z])\s*_\s*([a-zA-Z0-9\-\+]+)/g, ' $1_{$2} ');
+
+  // 5. Fractions: 1/2, a/b
+  str = str
+    .replace(/\b(\d+)\s*\/\s*(\d+)\b/g, ' \\frac{$1}{$2} ')
+    .replace(/\b([a-zA-Z])\s*\/\s*([a-zA-Z0-9]+)\b/g, ' \\frac{$1}{$2} ');
+
+  // 6. Symbols
+  str = str
+    .replace(/[\u00F7]/g, ' \\div ')
+    .replace(/[\u00D7\u2A2F]/g, ' \\times ')
+    .replace(/[\u2264]/g, ' \\le ')
+    .replace(/[\u2265]/g, ' \\ge ')
+    .replace(/[\u2260]/g, ' \\neq ')
+    .replace(/[\u00B1]/g, ' \\pm ')
+    .replace(/[\u2192\u27F6]/g, ' \\rightarrow ')
+    .replace(/[\u21CC\u21C4]/g, ' \\rightleftharpoons ');
+
+  str = str.replace(/\s+/g, ' ').trim();
+  if (
+    /\\(frac|int|vec|sqrt|sum|prod|times|div|alpha|beta|gamma|Delta|theta|pi|lambda|mu|le|ge|neq|pm|infty|rightleftharpoons|rightarrow)/.test(str) ||
+    /(\w+_\{\w+\}|\w+\^\{\w+\})/.test(str)
+  ) {
+    if (!str.includes('$')) {
+      str = `$${str}$`;
+    }
+  }
+  return str;
+}
 
 export function QuestionStudioModal({
   isOpen,
@@ -355,17 +423,31 @@ export function QuestionStudioModal({
               </div>
 
               {/* Quick Math Snippet Bar */}
-              <div className="flex flex-wrap gap-1 p-2 bg-[#18181c] border border-zinc-800 rounded-t-xl overflow-x-auto">
-                {MATH_SNIPPETS.map(snip => (
-                  <button
-                    key={snip.label}
-                    type="button"
-                    onClick={() => insertSnippet(snip.tex)}
-                    className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-amber-300 rounded text-[10px] font-mono border border-zinc-700 transition"
-                  >
-                    {snip.label}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center justify-between gap-1 p-2 bg-[#18181c] border border-zinc-800 rounded-t-xl overflow-x-auto">
+                <div className="flex flex-wrap gap-1 items-center">
+                  {MATH_SNIPPETS.map(snip => (
+                    <button
+                      key={snip.label}
+                      type="button"
+                      onClick={() => insertSnippet(snip.tex)}
+                      className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-amber-300 rounded text-[10px] font-mono border border-zinc-700 transition"
+                    >
+                      {snip.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (questionText) setQuestionText(autoFormatMathTextClient(questionText));
+                    setOptions(prev => prev.map(o => autoFormatMathTextClient(o)));
+                  }}
+                  className="px-2.5 py-1 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 rounded text-[10px] font-bold font-mono transition flex items-center gap-1 shrink-0 ml-auto"
+                  title="Auto-detect and wrap formulas, roots, chemical ions, and powers into KaTeX format"
+                >
+                  <Zap size={11} />
+                  ⚡ Auto-Format Math &amp; Chem
+                </button>
               </div>
 
               <textarea
