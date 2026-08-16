@@ -569,14 +569,17 @@ export function Results() {
                   {/* Subject Tabs */}
                   <div className="flex border-b border-zinc-800 pb-2 gap-2 overflow-x-auto">
                     {subjects.map(sec => {
-                      const secQs = attemptDetail.questions.filter((q: any) => q.section === sec || (!subjects.includes(q.section) && sec === 'Physics'));
+                      const secQs = attemptDetail.questions.filter((q: any) => 
+                        (q.section || '').toLowerCase() === sec.toLowerCase() ||
+                        (!subjects.map(s => s.toLowerCase()).includes((q.section || '').toLowerCase()) && sec === 'Physics')
+                      );
                       const ansCount = secQs.filter((q: any) => q.studentAnswer).length;
                       return (
                         <button
                           key={sec}
                           onClick={() => setModalSubject(sec)}
                           className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                            modalSubject === sec
+                            modalSubject.toLowerCase() === sec.toLowerCase()
                               ? 'bg-[#1e1e24] text-amber-400 border border-amber-400/30'
                               : 'text-zinc-400 hover:text-zinc-200'
                           }`}
@@ -590,7 +593,10 @@ export function Results() {
                   {/* Question Rows */}
                   <div className="space-y-4">
                     {attemptDetail.questions
-                      .filter((q: any) => q.section === modalSubject || (!subjects.includes(q.section) && modalSubject === 'Physics'))
+                      .filter((q: any) => 
+                        (q.section || '').toLowerCase() === modalSubject.toLowerCase() ||
+                        (!subjects.map(s => s.toLowerCase()).includes((q.section || '').toLowerCase()) && modalSubject === 'Physics')
+                      )
                       .map((q: any, idx: number) => {
                         const studentAns = q.studentAnswer;
                         const correctAns = q.correct_answer;
