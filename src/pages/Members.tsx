@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Shield, UserPlus, CheckCircle } from 'lucide-react';
+import { useAuthStore } from '../stores/authStore';
 
 type Member = {
   id: string;
@@ -13,6 +14,7 @@ type Member = {
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
 export function Members() {
+  const token = useAuthStore((state) => state.token);
   const [members, setMembers] = useState<Member[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [email, setEmail] = useState('');
@@ -23,11 +25,13 @@ export function Members() {
 
   useEffect(() => {
     fetchMembers();
-  }, []);
+  }, [token]);
 
   const fetchMembers = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/members`);
+      const res = await fetch(`${API_BASE}/api/admin/members`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      });
       const data = await res.json();
       if (data.members) setMembers(data.members);
     } catch (err) {
@@ -42,7 +46,10 @@ export function Members() {
     try {
       const res = await fetch(`${API_BASE}/api/admin/members`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify({ email, full_name: fullName, role })
       });
       const data = await res.json();
