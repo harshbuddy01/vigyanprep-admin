@@ -89,7 +89,7 @@ export function Results() {
 
   const fetchAttempts = async (testId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/results/admin/attempts/${testId}?cb=${Date.now()}`, {
+      const res = await fetch(`${API_BASE}/api/admin/results/attempts/${testId}?cb=${Date.now()}`, {
         headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
       if (res.ok) {
@@ -124,7 +124,7 @@ export function Results() {
     setDetailLoading(true);
     setAttemptDetail(null);
     try {
-      const res = await fetch(`${API_BASE}/api/results/admin/attempt-detail/${attemptId}`, {
+      const res = await fetch(`${API_BASE}/api/admin/results/attempt-detail/${attemptId}?cb=${Date.now()}`, {
         headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
       if (res.ok) {
