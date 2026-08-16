@@ -53,11 +53,11 @@ export function PyqPapers() {
           <p className="text-sm text-slate-500 dark:text-neutral-400">Past Year Papers — Unlimited Free Practice</p>
         </div>
         <a
-          href="/paper-builder"
+          href="/paper-builder?type=pyq"
           className="flex items-center gap-2 bg-amber-400 text-neutral-950 px-4 py-2 rounded-lg font-bold hover:bg-amber-500 transition-colors shadow text-xs"
         >
           <FileUp size={18} />
-          ⚡ Upload & Build Paper
+          ⚡ Upload & Build PYQ Paper
         </a>
       </div>
 
