@@ -73,9 +73,23 @@ export function Results() {
     }
   }, [selectedTestId, tests]);
 
+  // 🔄 Silent Live 10-Second Auto-Refresh Polling for Real-Time Proctoring & Submissions
+  useEffect(() => {
+    if (!selectedTestId) return;
+
+    const interval = setInterval(() => {
+      fetchAttempts(selectedTestId);
+      if (activeTab === 'merit') {
+        fetchMeritList(selectedTestId);
+      }
+    }, 10000); // 10 seconds
+
+    return () => clearInterval(interval);
+  }, [selectedTestId, activeTab]);
+
   const fetchAttempts = async (testId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/results/admin/attempts/${testId}`, {
+      const res = await fetch(`${API_BASE}/api/results/admin/attempts/${testId}?cb=${Date.now()}`, {
         headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
       if (res.ok) {
@@ -91,7 +105,7 @@ export function Results() {
 
   const fetchMeritList = async (testId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/results/merit-list/${testId}`, {
+      const res = await fetch(`${API_BASE}/api/admin/results/merit-list/${testId}?cb=${Date.now()}`, {
         headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
       if (res.ok) {
@@ -205,12 +219,17 @@ export function Results() {
           </p>
         </div>
 
-        {/* Test Selector Dropdown */}
+        {/* Test Selector Dropdown & Live Status */}
         <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-bold text-emerald-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Live 10s Sync</span>
+          </div>
+
           <select
             value={selectedTestId}
             onChange={(e) => setSelectedTestId(e.target.value)}
-            className="bg-[#18181c] border border-zinc-700 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-amber-400 min-w-[240px]"
+            className="bg-[#18181c] border border-zinc-700 rounded-xl px-4 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-amber-400 min-w-[220px]"
           >
             {tests.length === 0 ? (
               <option value="">No tests available</option>
