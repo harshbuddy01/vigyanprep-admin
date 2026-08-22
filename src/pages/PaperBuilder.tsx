@@ -15,7 +15,7 @@ import { ImportFromBankModal } from '../components/ImportFromBankModal';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
-function formatImageUrl(url: string): string {
+function formatImageUrl(url?: string): string {
   if (!url) return '';
   const trimmed = url.trim();
   const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
@@ -1263,9 +1263,17 @@ export function PaperBuilder() {
                   <MathRenderer text={currentPreviewQ.text || currentPreviewQ.question_text || ''} />
                 </div>
 
-                {(currentPreviewQ.imageUrl || currentPreviewQ.image_url) && (
-                  <div className="p-3 bg-neutral-950 rounded-xl border border-white/10 text-center">
-                    <img src={currentPreviewQ.imageUrl || currentPreviewQ.image_url} alt="Diagram" className="max-h-48 mx-auto object-contain rounded" />
+                {(currentPreviewQ.imageUrl || currentPreviewQ.image_url) && formatImageUrl(currentPreviewQ.imageUrl || currentPreviewQ.image_url) && (
+                  <div className="p-3 bg-neutral-950 rounded-xl border border-white/10 text-center max-w-lg mx-auto">
+                    <img
+                      src={formatImageUrl(currentPreviewQ.imageUrl || currentPreviewQ.image_url || '')}
+                      alt="Question Diagram"
+                      className="max-h-64 mx-auto object-contain rounded-lg"
+                      onError={(e) => {
+                        const parent = (e.target as HTMLElement).parentElement;
+                        if (parent) parent.style.display = 'none';
+                      }}
+                    />
                   </div>
                 )}
 

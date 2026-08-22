@@ -377,14 +377,17 @@ function formatImageUrl(url: string): string {
                     className="w-full bg-neutral-950 border border-white/10 rounded-md px-3 py-1.5 text-white text-xs focus:outline-none focus:border-amber-400"
                     placeholder="Paste image URL (e.g. https://domain.com/diagram.png or upload image link)"
                   />
-                  {q.imageUrl && (
+                  {q.imageUrl && formatImageUrl(q.imageUrl) && (
                     <div className="mt-2 p-2 bg-neutral-950 rounded border border-white/10 text-center">
                       <p className="text-[10px] text-neutral-500 mb-1">Image Preview:</p>
                       <img
-                        src={q.imageUrl}
+                        src={formatImageUrl(q.imageUrl)}
                         alt="Question Diagram"
                         className="max-h-40 mx-auto object-contain rounded"
-                        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                        onError={(e) => {
+                          const parent = (e.target as HTMLElement).parentElement;
+                          if (parent) parent.style.display = 'none';
+                        }}
                       />
                     </div>
                   )}
