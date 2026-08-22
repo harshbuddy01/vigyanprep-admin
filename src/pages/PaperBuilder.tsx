@@ -435,11 +435,11 @@ export function PaperBuilder() {
   const handleOpenStudioForEdit = (q: ParsedQuestion) => {
     setStudioQuestion({
       id: q.id || q.tempId,
-      test_id: savedTestId || testId || null,
+      test_id: savedTestId || testId || undefined,
       section: q.section || activeTab,
       question_number: q.questionNumber || q.question_number || 1,
       question_text: q.text || q.question_text || '',
-      type: q.type || 'MCQ',
+      type: (q.type as any) || 'MCQ',
       options: q.options || ['Option A', 'Option B', 'Option C', 'Option D'],
       correct_answer: q.correctAnswer || q.correct_answer || 'A',
       image_url: q.imageUrl || q.image_url || '',
@@ -448,14 +448,14 @@ export function PaperBuilder() {
     setStudioOpen(true);
   };
 
-  const handleSaveFromStudio = async (qData: QuestionData) => {
+  const handleSaveFromStudio = async (qData: QuestionData, _isEdit?: boolean) => {
     if (qData.id) {
       setQuestions(prev => prev.map(q => {
         if ((q.tempId || q.id) === qData.id) {
           return {
             ...q,
             section: qData.section,
-            type: qData.type || 'MCQ',
+            type: (qData.type as any) || 'MCQ',
             text: qData.question_text,
             question_text: qData.question_text,
             options: qData.options,
@@ -478,7 +478,7 @@ export function PaperBuilder() {
           tempId: newId,
           questionNumber: nextNum,
           section: qData.section,
-          type: qData.type || 'MCQ',
+          type: (qData.type as any) || 'MCQ',
           text: qData.question_text,
           question_text: qData.question_text,
           options: qData.options,

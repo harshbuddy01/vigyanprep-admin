@@ -274,6 +274,9 @@ export function Questions() {
                 key={sec}
                 onClick={() => {
                   setActiveSection(sec);
+                  if (sec !== 'All') {
+                    localStorage.setItem('vigyan_last_section', sec);
+                  }
                   setPage(1);
                 }}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 ${
@@ -536,7 +539,7 @@ export function Questions() {
         onClose={() => setStudioOpen(false)}
         onSave={handleSaveQuestion}
         initialData={editingQuestion}
-        defaultSection={activeSection !== 'All' ? activeSection : 'Physics'}
+        defaultSection={activeSection !== 'All' ? activeSection : (localStorage.getItem('vigyan_last_section') || 'Physics')}
       />
     </div>
   );

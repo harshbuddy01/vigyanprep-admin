@@ -1,68 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  X, Image as ImageIcon, Save, CheckCircle2, AlertCircle,
-  Eye, Zap, Camera, Link2, Trash2, Layers, HelpCircle,
-  Check, ChevronDown, ChevronUp, Sparkles, BookOpen, Columns
+  X, Check, Image, AlertCircle, Save, Sparkles,
+  ChevronDown, HelpCircle, CheckCircle2, Eye, Plus, Trash2
 } from 'lucide-react';
 import { MathRenderer } from './MathRenderer';
 
-function formatImageUrl(url: string): string {
-  if (!url) return '';
-  const trimmed = url.trim();
-  const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (driveMatch && driveMatch[1]) {
-    return 'https://lh3.googleusercontent.com/d/' + driveMatch[1];
-  }
-  return trimmed;
-}
-
 export interface QuestionData {
   id?: string;
-  test_id?: string | null;
+  test_id?: string;
   section: string;
-  question_number?: number;
+  type?: string;
   question_text: string;
-  type?: 'MCQ' | 'MSQ' | 'Numerical';
   options: string[];
   correct_answer: string;
-  image_url?: string;
   marks_positive?: number;
   marks_negative?: number;
+  question_number?: number;
+  image_url?: string;
   solution_explanation?: string;
-  topic?: string;
   difficulty?: 'Easy' | 'Medium' | 'Hard';
+  topic?: string;
   exam_type?: string;
 }
 
 interface QuestionStudioModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (question: QuestionData) => Promise<void>;
+  onSave: (questionData: QuestionData, isEdit: boolean) => Promise<void>;
   initialData?: QuestionData | null;
-  defaultTestId?: string | null;
+  defaultTestId?: string;
   defaultSection?: string;
 }
 
-const COMPACT_MATH_SNIPPETS = [
-  { label: '√x', tex: '\\sqrt{x}' },
-  { label: 'a/b', tex: '\\frac{a}{b}' },
+const SECTIONS = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
+
+const QUICK_MATH_SYMBOLS = [
+  { label: '√x', tex: '\sqrt{x}' },
+  { label: 'a/b', tex: '\frac{a}{b}' },
   { label: 'x²', tex: 'x^{2}' },
   { label: 'x₁', tex: 'x_{1}' },
   { label: '10⁻⁵', tex: '10^{-5}' },
-  { label: '∫', tex: '\\int ' },
-  { label: 'v⃗', tex: '\\vec{v}' },
-  { label: '→', tex: '\\rightarrow' },
-  { label: '⇌', tex: '\\rightleftharpoons' },
-  { label: 'Δ', tex: '\\Delta' },
-  { label: 'θ', tex: '\\theta' },
-  { label: 'π', tex: '\\pi' },
-  { label: '±', tex: '\\pm' },
-  { label: '∞', tex: '\\infty' },
-  { label: '∑', tex: '\\sum_{i=1}^{n}' },
+  { label: '∫', tex: '\int ' },
+  { label: 'v⃗', tex: '\vec{v}' },
+  { label: '→', tex: '\rightarrow' },
+  { label: '⇌', tex: '\rightleftharpoons' },
+  { label: 'Δ', tex: '\Delta' },
+  { label: 'θ', tex: '\theta' },
+  { label: 'π', tex: '\pi' },
+  { label: '±', tex: '\pm' },
+  { label: '∞', tex: '\infty' },
+  { label: '∑', tex: '\sum_{i=1}^{n}' },
 ];
 
-type QuestionTemplate = 'standard' | 'statement' | 'assertion_reason' | 'match_column';
+type QuestionTemplate = 'standard' | 'multi_statement' | 'statement' | 'assertion_reason' | 'match_column';
+
+function formatImageUrl(url?: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (driveMatch && driveMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+  }
+  return trimmed;
+}
 
 function autoFormatMathTextClient(raw: string): string {
   if (!raw) return '';
@@ -74,11 +74,11 @@ function autoFormatMathTextClient(raw: string): string {
   str = str.replace(/[₀₁₂₃₄₅₆₇₈₉₊₋]+/g, (m) => '_{' + [...m].map(c => subMap[c] || c).join('') + '}');
 
   str = str
-    .replace(/(?:\\u221A|√)\s*\((.*?)\)/g, ' $\\sqrt{$1}$ ')
-    .replace(/(?:\\u221A|√)\s*([a-zA-Z0-9]+)/g, ' $\\sqrt{$1}$ ')
+    .replace(/(?:\u221A|√)\s*\((.*?)\)/g, ' $\\sqrt{$1}$ ')
+    .replace(/(?:\u221A|√)\s*([a-zA-Z0-9]+)/g, ' $\\sqrt{$1}$ ')
     .replace(/\b(?:sqrt|root)\s*\((.*?)\)/gi, ' $\\sqrt{$1}$ ')
     .replace(/\b(?:sqrt|root)\s*([a-zA-Z0-9]+)\b/gi, ' $\\sqrt{$1}$ ')
-    .replace(/[√\\u221A]/g, ' \\sqrt ');
+    .replace(/[√\u221A]/g, ' \\sqrt ');
 
   const chemTokens = /\b(N2O|NO2|NO3|H2O|CO2|SO2|SO3|SO4|NH3|NH4|BH4|H3O|CH4|C2H6|C6H6|C6H12O6|H2SO4|HNO3|HCl|NaOH|KOH|KMnO4|O3|O2|N2|H2|Cl2|Br2|I2|F2)\b/g;
   str = str.replace(chemTokens, (_m, token) => {
@@ -118,7 +118,11 @@ export function QuestionStudioModal({
   defaultTestId,
   defaultSection = 'Physics'
 }: QuestionStudioModalProps) {
-  const [section, setSection] = useState(defaultSection);
+  // Persist subject across questions in localStorage
+  const savedSection = typeof window !== 'undefined' ? localStorage.getItem('vigyan_last_section') : null;
+  const initialSection = savedSection || defaultSection || 'Physics';
+
+  const [section, setSection] = useState(initialSection);
   const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
   const [examType, setExamType] = useState('IAT');
   const [topic, setTopic] = useState('');
@@ -131,6 +135,8 @@ export function QuestionStudioModal({
   const [contextText, setContextText] = useState('');
   const [statement1, setStatement1] = useState('');
   const [statement2, setStatement2] = useState('');
+  const [multiStatements, setMultiStatements] = useState<string[]>(['', '', '']);
+  const [followUpText, setFollowUpText] = useState('');
   const [rawQuestionText, setRawQuestionText] = useState('');
   const [imageUrl, setImageUrl] = useState('');
 
@@ -152,18 +158,40 @@ export function QuestionStudioModal({
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const activeInputRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
+
+  const handleSectionSelect = (s: string) => {
+    setSection(s);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vigyan_last_section', s);
+    }
+  };
+
   const computedQuestionText = React.useMemo(() => {
-    if (template === 'statement') {
+    if (template === 'multi_statement') {
+      const parts: string[] = [];
+      if (contextText.trim()) parts.push(contextText.trim());
+      multiStatements.forEach((st, idx) => {
+        const cleanSt = st.replace(/^[0-9ivxIVX]+[\.\)]\s*/i, '').trim();
+        if (cleanSt) {
+          parts.push(`${idx + 1}. ${cleanSt}`);
+        }
+      });
+      if (followUpText.trim()) parts.push(followUpText.trim());
+      return parts.join('\n\n');
+    } else if (template === 'statement') {
       const parts: string[] = [];
       if (contextText.trim()) parts.push(contextText.trim());
       if (statement1.trim()) parts.push('Statement I: ' + statement1.trim());
       if (statement2.trim()) parts.push('Statement II: ' + statement2.trim());
+      if (followUpText.trim()) parts.push(followUpText.trim());
       return parts.join('\n\n');
     } else if (template === 'assertion_reason') {
       const parts: string[] = [];
       if (contextText.trim()) parts.push(contextText.trim());
       if (statement1.trim()) parts.push('Assertion (A): ' + statement1.trim());
       if (statement2.trim()) parts.push('Reason (R): ' + statement2.trim());
+      if (followUpText.trim()) parts.push(followUpText.trim());
       return parts.join('\n\n');
     } else if (template === 'match_column') {
       const parts: string[] = [];
@@ -184,18 +212,24 @@ export function QuestionStudioModal({
       if (tableLines.length > 2) {
         parts.push(tableLines.join('\n'));
       }
+      if (followUpText.trim()) parts.push(followUpText.trim());
       return parts.join('\n\n');
     }
-    return rawQuestionText;
-  }, [template, contextText, statement1, statement2, rawQuestionText, col1Name, col2Name, col1Items, col2Items]);
+    
+    // Standard template
+    const parts: string[] = [];
+    if (rawQuestionText.trim()) parts.push(rawQuestionText.trim());
+    if (followUpText.trim()) parts.push(followUpText.trim());
+    return parts.join('\n\n');
+  }, [template, contextText, statement1, statement2, multiStatements, followUpText, rawQuestionText, col1Name, col2Name, col1Items, col2Items]);
 
   useEffect(() => {
     if (initialData) {
-      setSection(initialData.section || defaultSection);
+      setSection(initialData.section || initialSection);
       setDifficulty(initialData.difficulty || 'Medium');
       setExamType(initialData.exam_type || 'IAT');
       setTopic(initialData.topic || '');
-      setQType(initialData.type || 'MCQ');
+      setQType((initialData.type as any) || 'MCQ');
       setMarksPositive(initialData.marks_positive ?? 4);
       setMarksNegative(initialData.marks_negative ?? 1);
       setImageUrl(initialData.image_url || '');
@@ -251,40 +285,28 @@ export function QuestionStudioModal({
         setTemplate('standard');
       }
 
-      const rawOpts = Array.isArray(initialData.options) && initialData.options.length === 4
-        ? initialData.options
-        : ['', '', '', ''];
-      
-      const parsedTexts: string[] = [];
-      const parsedImgs: string[] = [];
-      const openImgs: Record<number, boolean> = {};
+      if (initialData.options && Array.isArray(initialData.options)) {
+        const newOpts = ['', '', '', ''];
+        const newOptImgs = ['', '', '', ''];
+        const newShowOptImg: Record<number, boolean> = {};
 
-      rawOpts.forEach((optStr, i) => {
-        const strVal = typeof optStr === 'string'
-          ? optStr
-          : (typeof optStr === 'object' && optStr !== null ? ((optStr as any).text || JSON.stringify(optStr)) : String(optStr || ''));
-        const mdImgMatch = strVal.match(/!\[.*?\]\((https?:\/\/.*?)\)/);
-        const bareImgMatch = strVal.match(/^(https?:\/\/[^\s]+)$/);
-        
-        if (mdImgMatch) {
-          parsedImgs.push(mdImgMatch[1]);
-          parsedTexts.push(strVal.replace(mdImgMatch[0], '').trim());
-          openImgs[i] = true;
-        } else if (bareImgMatch) {
-          parsedImgs.push(bareImgMatch[1]);
-          parsedTexts.push('');
-          openImgs[i] = true;
-        } else {
-          parsedImgs.push('');
-          parsedTexts.push(strVal);
-        }
-      });
-
-      setOptions(parsedTexts);
-      setOptionImages(parsedImgs);
-      setShowOptionImage(openImgs);
+        initialData.options.forEach((opt: string, i: number) => {
+          if (i < 4) {
+            if (/^https?:\/\//i.test(opt.trim())) {
+              newOptImgs[i] = opt.trim();
+              newShowOptImg[i] = true;
+            } else {
+              newOpts[i] = opt;
+            }
+          }
+        });
+        setOptions(newOpts);
+        setOptionImages(newOptImgs);
+        setShowOptionImage(newShowOptImg);
+      }
     } else {
-      setSection(defaultSection);
+      // Reset for New Question but keep remembered section
+      setSection(savedSection || defaultSection || 'Physics');
       setDifficulty('Medium');
       setExamType('IAT');
       setTopic('');
@@ -295,231 +317,257 @@ export function QuestionStudioModal({
       setContextText('');
       setStatement1('');
       setStatement2('');
+      setMultiStatements(['', '', '']);
+      setFollowUpText('');
+      setRawQuestionText('');
+      setImageUrl('');
       setCol1Name('Column-I');
       setCol2Name('Column-II');
       setCol1Items(['', '', '', '']);
       setCol2Items(['', '', '', '']);
-      setRawQuestionText('');
-      setImageUrl('');
       setOptions(['', '', '', '']);
       setOptionImages(['', '', '', '']);
       setShowOptionImage({});
       setCorrectAnswer('A');
       setSolution('');
       setShowSolutionSection(false);
+      setErrorMsg(null);
     }
-    setErrorMsg(null);
   }, [initialData, defaultSection, isOpen]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault();
-        handleSaveForm();
+  // Insert math symbol at cursor
+  const insertMath = (tex: string) => {
+    const el = activeInputRef.current;
+    if (!el) {
+      if (template === 'standard') {
+        setRawQuestionText(prev => prev + ' $' + tex + '$ ');
+      } else if (template === 'multi_statement') {
+        setFollowUpText(prev => prev + ' $' + tex + '$ ');
+      } else {
+        setStatement1(prev => prev + ' $' + tex + '$ ');
       }
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, computedQuestionText, options, optionImages, correctAnswer, section, difficulty, examType]);
-
-  if (!isOpen) return null;
-
-  const handleInsertSnippet = (snippet: string) => {
-    if (template === 'statement' || template === 'assertion_reason' || template === 'match_column') {
-      setContextText(prev => prev + ' $' + snippet + '$ ');
-    } else {
-      setRawQuestionText(prev => prev + ' $' + snippet + '$ ');
-    }
-  };
-
-  const handlePreFillStatementOptions = () => {
-    if (template === 'assertion_reason') {
-      setOptions([
-        'Both (A) and (R) are true, and (R) is the correct explanation of (A).',
-        'Both (A) and (R) are true, but (R) is NOT the correct explanation of (A).',
-        '(A) is true, but (R) is false.',
-        '(A) is false, but (R) is true.'
-      ]);
-    } else if (template === 'match_column') {
-      setOptions([
-        'A → P, B → Q, C → R, D → S',
-        'A → Q, B → P, C → S, D → R',
-        'A → R, B → S, C → P, D → Q',
-        'A → S, B → R, C → Q, D → P'
-      ]);
-    } else {
-      setOptions([
-        'Both Statement I and Statement II are correct.',
-        'Both Statement I and Statement II are incorrect.',
-        'Statement I is correct but Statement II is incorrect.',
-        'Statement I is incorrect but Statement II is correct.'
-      ]);
-    }
-  };
-
-  const handleOptionChange = (idx: number, val: string) => {
-    const updated = [...options];
-    updated[idx] = val;
-    setOptions(updated);
-  };
-
-  const handleOptionImageChange = (idx: number, val: string) => {
-    const updated = [...optionImages];
-    updated[idx] = val;
-    setOptionImages(updated);
-  };
-
-  const toggleOptionImageInput = (idx: number) => {
-    setShowOptionImage(prev => ({ ...prev, [idx]: !prev[idx] }));
-  };
-
-  const handleSaveForm = async () => {
-    const finalText = computedQuestionText.trim();
-    if (!finalText) {
-      setErrorMsg('Please enter question text or table items.');
       return;
     }
 
-    const finalOptions = options.map((optText, i) => {
-      const img = optionImages[i]?.trim();
-      const text = optText.trim();
-      if (img && text) {
-        return text + ' ![Option ' + ['A', 'B', 'C', 'D'][i] + '](' + img + ')';
-      } else if (img) {
-        return img;
-      }
-      return text;
-    });
-
-    if (qType === 'MCQ') {
-      const hasEmpty = finalOptions.some(opt => !opt.trim());
-      if (hasEmpty) {
-        setErrorMsg('Please fill in all 4 options (or attach diagram images).');
-        return;
-      }
+    const start = el.selectionStart || 0;
+    const end = el.selectionEnd || 0;
+    const val = el.value || '';
+    const insertion = `$${tex}$`;
+    const newVal = val.substring(0, start) + insertion + val.substring(end);
+    
+    // Update appropriate state
+    if (el.dataset.field === 'raw') setRawQuestionText(newVal);
+    else if (el.dataset.field === 'context') setContextText(newVal);
+    else if (el.dataset.field === 'st1') setStatement1(newVal);
+    else if (el.dataset.field === 'st2') setStatement2(newVal);
+    else if (el.dataset.field === 'followup') setFollowUpText(newVal);
+    else if (el.dataset.field === 'solution') setSolution(newVal);
+    else if (el.dataset.field?.startsWith('opt_')) {
+      const idx = parseInt(el.dataset.field.split('_')[1], 10);
+      setOptions(prev => {
+        const copy = [...prev];
+        copy[idx] = newVal;
+        return copy;
+      });
     }
 
-    setSaving(true);
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(start + insertion.length, start + insertion.length);
+    }, 50);
+  };
+
+  const handlePreFillMultiStatementOptions = () => {
+    setOptions([
+      '1 and 2 only',
+      '2 and 3 only',
+      '1 and 3 only',
+      '1, 2 and 3'
+    ]);
+  };
+
+  const handlePreFillStatementOptions = () => {
+    setOptions([
+      'Both Statement I and Statement II are correct',
+      'Both Statement I and Statement II are incorrect',
+      'Statement I is correct but Statement II is incorrect',
+      'Statement I is incorrect but Statement II is correct'
+    ]);
+  };
+
+  const handlePreFillAssertionOptions = () => {
+    setOptions([
+      'Both (A) and (R) are true and (R) is the correct explanation of (A)',
+      'Both (A) and (R) are true but (R) is NOT the correct explanation of (A)',
+      '(A) is true but (R) is false',
+      '(A) is false but (R) is true'
+    ]);
+  };
+
+  const handlePreFillMatchOptions = () => {
+    setOptions([
+      'A → P,  B → Q,  C → R,  D → S',
+      'A → Q,  B → P,  C → S,  D → R',
+      'A → R,  B → S,  C → P,  D → Q',
+      'A → S,  B → R,  C → Q,  D → P'
+    ]);
+  };
+
+  const handleSave = async () => {
+    const finalQText = computedQuestionText.trim();
+    if (!finalQText) {
+      setErrorMsg('Please enter question text or statements before saving.');
+      return;
+    }
+
+    const finalOptions = options.map((opt, i) => {
+      if (showOptionImage[i] && optionImages[i]?.trim()) {
+        return optionImages[i].trim();
+      }
+      return opt.trim();
+    });
+
+    const hasFilledOptions = finalOptions.some(o => o.length > 0);
+    if (!hasFilledOptions && qType !== 'Numerical') {
+      setErrorMsg('Please provide at least one answer option.');
+      return;
+    }
+
     setErrorMsg(null);
+    setSaving(true);
+
     try {
       await onSave({
         id: initialData?.id,
-        test_id: initialData?.test_id || defaultTestId || null,
+        test_id: initialData?.test_id || defaultTestId,
         section,
-        question_number: initialData?.question_number,
-        question_text: finalText,
+        difficulty,
+        exam_type: examType,
+        topic: topic.trim(),
         type: qType,
+        marks_positive: marksPositive,
+        marks_negative: marksNegative,
+        question_text: finalQText,
         options: finalOptions,
         correct_answer: correctAnswer,
         image_url: imageUrl.trim() || undefined,
-        marks_positive: marksPositive,
-        marks_negative: marksNegative,
-        solution_explanation: solution.trim() || undefined,
-        topic: topic.trim() || undefined,
-        difficulty,
-        exam_type: examType
-      });
+        solution_explanation: solution.trim() || undefined
+      } as QuestionData, !!initialData?.id);
+
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to save question.');
+      setErrorMsg(err.message || 'Failed to save question');
     } finally {
       setSaving(false);
     }
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
-      <div className="w-full max-w-[1440px] h-[92vh] max-h-[940px] bg-[#0e0f12] border border-zinc-800/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-zinc-100">
+  // Keyboard shortcut Cmd/Ctrl + Enter to save
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isOpen) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSave();
+      } else if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, computedQuestionText, options, optionImages, showOptionImage, correctAnswer, section, difficulty, examType]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in font-sans text-zinc-100">
+      <div className="bg-[#121216] border border-zinc-800 rounded-2xl w-full max-w-7xl h-[94vh] flex flex-col shadow-2xl overflow-hidden">
         
-        {/* ================= TOP COMPACT HEADER ================= */}
-        <div className="h-14 px-5 border-b border-zinc-800/80 bg-[#14151a] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400">
+        {/* TOP BAR: Header, Subject, Meta & Close */}
+        <div className="px-5 py-3.5 bg-[#17181f] border-b border-zinc-800 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400">
               <Sparkles size={16} />
             </div>
             <div>
-              <h2 className="text-xs sm:text-sm font-bold text-white tracking-wide flex items-center gap-2">
-                {initialData?.id ? 'Edit Question' : 'Question Authoring Studio'}
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-800 text-zinc-400 border border-zinc-700">
+              <h2 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+                Question Authoring Studio
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
                   Production Minimal
                 </span>
               </h2>
             </div>
           </div>
 
+          {/* Quick Meta Selectors */}
           <div className="flex items-center gap-2">
-            <div className="flex items-center bg-[#1c1d24] border border-zinc-800 rounded-lg p-0.5 text-xs font-semibold">
-              {(['Physics', 'Chemistry', 'Mathematics', 'Biology'] as const).map(s => (
+            {/* Subject Selector (Preserved in memory) */}
+            <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
+              {SECTIONS.map((sec) => (
                 <button
-                  key={s}
+                  key={sec}
                   type="button"
-                  onClick={() => setSection(s)}
-                  className={'px-2.5 py-1 rounded-md text-[11px] transition ' + (
-                    section === s
-                      ? 'bg-amber-400 text-black font-bold shadow-sm'
+                  onClick={() => handleSectionSelect(sec)}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
+                    section === sec
+                      ? 'bg-amber-400 text-black shadow-xs'
                       : 'text-zinc-400 hover:text-white'
-                  )}
+                  }`}
                 >
-                  {s.slice(0, 4)}
+                  {sec.slice(0, 4)}
                 </button>
               ))}
             </div>
 
+            {/* Difficulty */}
             <select
               value={difficulty}
               onChange={(e) => setDifficulty(e.target.value as any)}
-              className="bg-[#1c1d24] border border-zinc-800 rounded-lg px-2.5 py-1 text-xs font-semibold text-zinc-300 focus:outline-none focus:border-amber-400 cursor-pointer"
+              className="bg-zinc-900 border border-zinc-800 text-xs font-bold text-zinc-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-400"
             >
               <option value="Easy">🟢 Easy</option>
               <option value="Medium">🟡 Medium</option>
               <option value="Hard">🔴 Hard</option>
             </select>
 
+            {/* Close Button */}
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-lg bg-zinc-800/60 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition ml-1"
+              className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 transition ml-1"
             >
               <X size={16} />
             </button>
           </div>
         </div>
 
-        {/* ================= MAIN SPLIT CANVAS ================= */}
-        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+        {/* WORKSPACE: Left = Authoring Form (55%), Right = Live Student CBT View (45%) */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
           
-          {/* LEFT PANE: Authoring Studio (7 Columns) */}
-          <div className="lg:col-span-7 h-full min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[#0e0f12] border-r border-zinc-800/80">
-            {errorMsg && (
-              <div className="p-3 bg-red-950/40 border border-red-500/40 rounded-xl text-red-300 text-xs flex items-center gap-2 animate-in fade-in">
-                <AlertCircle size={15} className="text-red-400 shrink-0" />
-                <span>{errorMsg}</span>
-              </div>
-            )}
-
-            {/* 1. QUESTION TEMPLATE SELECTOR */}
-            <div className="flex items-center justify-between p-1 bg-[#14151a] border border-zinc-800 rounded-xl">
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider px-3 flex items-center gap-1.5">
-                <Layers size={13} className="text-amber-400" /> Format:
+          {/* LEFT: Authoring Inputs (7 Cols) */}
+          <div className="lg:col-span-7 border-r border-zinc-800/80 flex flex-col h-full overflow-y-auto p-4 sm:p-5 space-y-4 bg-[#14151b]">
+            
+            {/* Template Selector Bar */}
+            <div className="flex items-center justify-between pb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                <HelpCircle size={13} className="text-amber-400" /> Structure:
               </span>
-              <div className="flex items-center gap-1 overflow-x-auto">
+              <div className="flex flex-wrap gap-1 bg-zinc-900/90 border border-zinc-800/80 p-1 rounded-xl">
                 {[
                   { id: 'standard', label: 'Standard MCQ' },
+                  { id: 'multi_statement', label: 'Numbered (1,2,3)' },
                   { id: 'statement', label: 'Statement I & II' },
                   { id: 'assertion_reason', label: 'Assertion & Reason' },
-                  { id: 'match_column', label: 'Match Columns (Matrix)' },
-                ].map(t => (
+                  { id: 'match_column', label: 'Match Columns' }
+                ].map((t) => (
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setTemplate(t.id as QuestionTemplate)}
-                    className={'px-3 py-1 rounded-lg text-xs font-semibold transition shrink-0 ' + (
+                    onClick={() => setTemplate(t.id as any)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
                       template === t.id
-                        ? 'bg-zinc-800 text-amber-300 font-bold border border-amber-500/30 shadow-sm'
-                        : 'text-zinc-400 hover:text-white'
-                    )}
+                        ? 'bg-amber-400 text-black shadow-xs'
+                        : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
                   >
                     {t.label}
                   </button>
@@ -527,554 +575,666 @@ export function QuestionStudioModal({
               </div>
             </div>
 
-            {/* 2. QUESTION STATEMENT CARD */}
-            <div className="bg-[#14151a] border border-zinc-800 rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <BookOpen size={13} className="text-amber-400" />
-                  {template === 'match_column' ? 'Match the Columns Matrix' : template === 'statement' ? 'Context & Statements' : template === 'assertion_reason' ? 'Assertion & Reason' : 'Question Statement'}
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (template === 'statement' || template === 'assertion_reason' || template === 'match_column') {
-                        setContextText(autoFormatMathTextClient(contextText));
-                        setStatement1(autoFormatMathTextClient(statement1));
-                        setStatement2(autoFormatMathTextClient(statement2));
-                        setCol1Items(prev => prev.map(o => autoFormatMathTextClient(o)));
-                        setCol2Items(prev => prev.map(o => autoFormatMathTextClient(o)));
-                      } else {
-                        setRawQuestionText(autoFormatMathTextClient(rawQuestionText));
-                      }
-                      setOptions(prev => prev.map(o => autoFormatMathTextClient(o)));
-                    }}
-                    className="px-2.5 py-0.5 bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/30 rounded-md text-[10px] font-bold font-mono transition flex items-center gap-1"
-                    title="Auto-detect & wrap formulas into KaTeX"
-                  >
-                    <Zap size={11} /> ⚡ Auto-Format Math
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowMathBar(!showMathBar)}
-                    className="text-[10px] text-zinc-400 hover:text-zinc-200 flex items-center gap-0.5"
-                  >
-                    Math Keys {showMathBar ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                  </button>
-                </div>
+            {/* Compact Collapsible Math Toolbar */}
+            <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-xl p-2 space-y-1.5">
+              <div className="flex items-center justify-between text-[10px] text-zinc-400 font-bold uppercase tracking-wider px-1">
+                <span className="flex items-center gap-1 text-amber-400">
+                  <Sparkles size={11} /> 1-Click Formula Insert
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowMathBar(prev => !prev)}
+                  className="text-zinc-500 hover:text-zinc-300 text-[10px] flex items-center gap-1"
+                >
+                  {showMathBar ? 'Hide Math Bar' : 'Show Math Bar'} <ChevronDown size={11} className={showMathBar ? 'rotate-180 transition' : 'transition'} />
+                </button>
               </div>
 
               {showMathBar && (
-                <div className="flex flex-wrap gap-1 p-1.5 bg-[#1c1d24] border border-zinc-800 rounded-lg">
-                  {COMPACT_MATH_SNIPPETS.map(snip => (
+                <div className="flex flex-wrap gap-1 pt-0.5">
+                  {QUICK_MATH_SYMBOLS.map((s) => (
                     <button
-                      key={snip.label}
+                      key={s.label}
                       type="button"
-                      onClick={() => handleInsertSnippet(snip.tex)}
-                      className="px-2 py-0.5 bg-[#252630] hover:bg-zinc-700 text-zinc-300 hover:text-amber-300 rounded text-[11px] font-mono border border-zinc-700/60 transition"
+                      onClick={() => insertMath(s.tex)}
+                      className="px-2 py-1 bg-zinc-800 hover:bg-amber-400 hover:text-black border border-zinc-700/80 rounded-lg text-xs font-mono font-bold text-zinc-200 transition"
+                      title={s.tex}
                     >
-                      {snip.label}
+                      {s.label}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (template === 'standard') setRawQuestionText(prev => autoFormatMathTextClient(prev));
+                      else if (template === 'multi_statement') {
+                        setContextText(prev => autoFormatMathTextClient(prev));
+                        setMultiStatements(prev => prev.map(st => autoFormatMathTextClient(st)));
+                        setFollowUpText(prev => autoFormatMathTextClient(prev));
+                      } else {
+                        setContextText(prev => autoFormatMathTextClient(prev));
+                        setStatement1(prev => autoFormatMathTextClient(prev));
+                        setStatement2(prev => autoFormatMathTextClient(prev));
+                        setFollowUpText(prev => autoFormatMathTextClient(prev));
+                      }
+                    }}
+                    className="px-2 py-1 bg-amber-400/15 hover:bg-amber-400 hover:text-black text-amber-300 border border-amber-400/30 rounded-lg text-xs font-bold transition ml-auto flex items-center gap-1"
+                    title="Auto-detect clean LaTeX exponents, fractions and chemical formulas"
+                  >
+                    ⚡ Auto-Format Math
+                  </button>
                 </div>
               )}
+            </div>
 
-              {/* TEMPLATE: STANDARD MCQ */}
-              {template === 'standard' && (
+            {/* DYNAMIC TEMPLATE INPUTS */}
+
+            {/* TEMPLATE 1: STANDARD MCQ (Intro + Diagram + Follow-up) */}
+            {template === 'standard' && (
+              <div className="space-y-3 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                    Question Text / Introductory Statement
+                  </label>
+                </div>
                 <textarea
+                  data-field="raw"
+                  ref={el => { if (el) activeInputRef.current = el; }}
                   value={rawQuestionText}
                   onChange={(e) => setRawQuestionText(e.target.value)}
+                  placeholder="Type or paste question statement... (supports $LaTeX$ math e.g. $\frac{1}{2}mv^2$ and numbered lists)"
                   rows={4}
-                  placeholder="Type question statement here. Press Enter to create natural paragraph breaks. E.g. What is the value of $\\int_{0}^{\\pi} \\sin(x) dx$?"
-                  className="w-full bg-[#1b1c22] border border-zinc-800 rounded-lg p-3 text-xs text-white font-mono leading-relaxed placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-y"
+                  className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl p-3 text-xs text-zinc-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400 transition"
                 />
-              )}
 
-              {/* TEMPLATE: STATEMENT I & II */}
-              {template === 'statement' && (
-                <div className="space-y-2.5">
-                  <div>
-                    <span className="text-[10px] font-semibold text-zinc-400 block mb-1">Introductory Setup / Context (Optional):</span>
-                    <textarea
-                      value={contextText}
-                      onChange={(e) => setContextText(e.target.value)}
-                      rows={2}
-                      placeholder="e.g. Consider a setup on a smooth horizontal floor where three blocks are connected..."
-                      className="w-full bg-[#1b1c22] border border-zinc-800 rounded-lg p-2.5 text-xs text-white font-mono leading-relaxed placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-y"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-amber-400 block mb-1">Statement I:</span>
-                    <input
-                      type="text"
-                      value={statement1}
-                      onChange={(e) => setStatement1(e.target.value)}
-                      placeholder="e.g. If block A is pulled by force F, the acceleration is 4 m/s²."
-                      className="w-full bg-[#1b1c22] border border-amber-500/30 rounded-lg px-3 py-2 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-amber-400"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-amber-400 block mb-1">Statement II:</span>
-                    <input
-                      type="text"
-                      value={statement2}
-                      onChange={(e) => setStatement2(e.target.value)}
-                      placeholder="e.g. The magnitude of the tension T1 in the string is 16 N."
-                      className="w-full bg-[#1b1c22] border border-amber-500/30 rounded-lg px-3 py-2 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-amber-400"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* TEMPLATE: ASSERTION & REASON */}
-              {template === 'assertion_reason' && (
-                <div className="space-y-2.5">
-                  <div>
-                    <span className="text-[10px] font-semibold text-zinc-400 block mb-1">Context / Background (Optional):</span>
-                    <textarea
-                      value={contextText}
-                      onChange={(e) => setContextText(e.target.value)}
-                      rows={2}
-                      placeholder="Optional introductory background..."
-                      className="w-full bg-[#1b1c22] border border-zinc-800 rounded-lg p-2.5 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-y"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-emerald-400 block mb-1">Assertion (A):</span>
-                    <input
-                      type="text"
-                      value={statement1}
-                      onChange={(e) => setStatement1(e.target.value)}
-                      placeholder="Type the Assertion statement..."
-                      className="w-full bg-[#1b1c22] border border-emerald-500/30 rounded-lg px-3 py-2 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-emerald-400"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-blue-400 block mb-1">Reason (R):</span>
-                    <input
-                      type="text"
-                      value={statement2}
-                      onChange={(e) => setStatement2(e.target.value)}
-                      placeholder="Type the Reason statement..."
-                      className="w-full bg-[#1b1c22] border border-blue-500/30 rounded-lg px-3 py-2 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-blue-400"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* TEMPLATE: MATCH THE COLUMNS (MATRIX MATCH) */}
-              {template === 'match_column' && (
-                <div className="space-y-3">
-                  <div>
-                    <span className="text-[10px] font-semibold text-zinc-400 block mb-1">Instructions / Setup (e.g. Match Column-I with Column-II):</span>
-                    <textarea
-                      value={contextText}
-                      onChange={(e) => setContextText(e.target.value)}
-                      rows={2}
-                      placeholder="e.g. Match the physical situations described in Column-I with their properties in Column-II:"
-                      className="w-full bg-[#1b1c22] border border-zinc-800 rounded-lg p-2.5 text-xs text-white font-mono leading-relaxed placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-y"
-                    />
-                  </div>
-
-                  {/* Dual Column Inputs */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                    {/* Column I */}
-                    <div className="space-y-2 bg-[#171820] border border-zinc-800 rounded-xl p-3">
-                      <div className="flex items-center gap-2">
-                        <Columns size={12} className="text-amber-400" />
-                        <input
-                          type="text"
-                          value={col1Name}
-                          onChange={(e) => setCol1Name(e.target.value)}
-                          placeholder="Column-I"
-                          className="bg-transparent border-b border-zinc-700 text-xs font-bold text-amber-400 focus:outline-none focus:border-amber-400 py-0.5 w-28"
-                        />
-                      </div>
-                      {['A', 'B', 'C', 'D'].map((lbl, i) => (
-                        <div key={lbl} className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-full bg-zinc-800 text-amber-300 font-bold text-[10px] flex items-center justify-center shrink-0">
-                            {lbl}
-                          </span>
-                          <input
-                            type="text"
-                            value={col1Items[i]}
-                            onChange={(e) => {
-                              const updated = [...col1Items];
-                              updated[i] = e.target.value;
-                              setCol1Items(updated);
-                            }}
-                            placeholder={'Item (' + lbl + ') description...'}
-                            className="flex-1 bg-[#121318] border border-zinc-800 rounded-md px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
-                          />
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Column II */}
-                    <div className="space-y-2 bg-[#171820] border border-zinc-800 rounded-xl p-3">
-                      <div className="flex items-center gap-2">
-                        <Columns size={12} className="text-blue-400" />
-                        <input
-                          type="text"
-                          value={col2Name}
-                          onChange={(e) => setCol2Name(e.target.value)}
-                          placeholder="Column-II"
-                          className="bg-transparent border-b border-zinc-700 text-xs font-bold text-blue-400 focus:outline-none focus:border-blue-400 py-0.5 w-28"
-                        />
-                      </div>
-                      {['P', 'Q', 'R', 'S'].map((lbl, i) => (
-                        <div key={lbl} className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-full bg-zinc-800 text-blue-300 font-bold text-[10px] flex items-center justify-center shrink-0">
-                            {lbl}
-                          </span>
-                          <input
-                            type="text"
-                            value={col2Items[i]}
-                            onChange={(e) => {
-                              const updated = [...col2Items];
-                              updated[i] = e.target.value;
-                              setCol2Items(updated);
-                            }}
-                            placeholder={'Item (' + lbl + ') description...'}
-                            className="flex-1 bg-[#121318] border border-zinc-800 rounded-md px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-blue-400"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 3. MAIN DIAGRAM UPLOADER */}
-            <div className="bg-[#14151a] border border-zinc-800 rounded-xl p-3.5 space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <ImageIcon size={13} className="text-amber-400" />
-                  Main Question Diagram (Optional)
-                </label>
-                {imageUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setImageUrl('')}
-                    className="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-1"
-                  >
-                    <Trash2 size={11} /> Remove
-                  </button>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
-                    <Link2 size={13} />
-                  </span>
+                {/* Follow-up question prompt (Below diagram/statements) */}
+                <div>
+                  <label className="text-[11px] font-bold text-zinc-400 mb-1 block">
+                    Follow-Up Prompt / Question Line (Optional — placed below intro/diagram):
+                  </label>
                   <input
                     type="text"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder="Paste Google Drive share link or Image URL..."
-                    className="w-full bg-[#1b1c22] border border-zinc-800 rounded-lg pl-8 pr-3 py-2 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-amber-400"
+                    data-field="followup"
+                    value={followUpText}
+                    onChange={(e) => setFollowUpText(e.target.value)}
+                    placeholder="e.g. Determine the elongation in the spring x and acceleration a₁..."
+                    className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400 font-mono"
                   />
                 </div>
               </div>
+            )}
 
-              {imageUrl && (
-                <div className="p-2 bg-black/40 border border-zinc-800 rounded-lg flex items-center gap-3">
+            {/* TEMPLATE 2: NUMBERED STATEMENTS (1, 2, 3...) */}
+            {template === 'multi_statement' && (
+              <div className="space-y-3 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                    Introductory Context / Setup
+                  </label>
+                </div>
+                <input
+                  type="text"
+                  data-field="context"
+                  value={contextText}
+                  onChange={(e) => setContextText(e.target.value)}
+                  placeholder="e.g. Consider the following statements regarding electrophoretic separation:"
+                  className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                />
+
+                {/* Numbered statements list */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                      Numbered Statements (1, 2, 3...)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setMultiStatements(prev => [...prev, ''])}
+                      className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1"
+                    >
+                      <Plus size={13} /> Add Statement
+                    </button>
+                  </div>
+
+                  {multiStatements.map((st, sIdx) => (
+                    <div key={sIdx} className="flex items-start gap-2">
+                      <span className="w-6 h-7 rounded-lg bg-amber-500/20 text-amber-300 font-bold font-mono text-xs flex items-center justify-center shrink-0 border border-amber-500/30">
+                        {sIdx + 1}
+                      </span>
+                      <textarea
+                        value={st}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setMultiStatements(prev => {
+                            const copy = [...prev];
+                            copy[sIdx] = val;
+                            return copy;
+                          });
+                        }}
+                        placeholder={`Statement ${sIdx + 1} description...`}
+                        rows={2}
+                        className="flex-1 bg-[#0d0e12] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
+                      />
+                      {multiStatements.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => setMultiStatements(prev => prev.filter((_, idx) => idx !== sIdx))}
+                          className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition"
+                          title="Remove statement"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Question Line */}
+                <div>
+                  <label className="text-[11px] font-bold text-zinc-400 mb-1 block">
+                    Concluding Question:
+                  </label>
+                  <input
+                    type="text"
+                    data-field="followup"
+                    value={followUpText}
+                    onChange={(e) => setFollowUpText(e.target.value)}
+                    placeholder="e.g. Which of the statements given above is/are correct?"
+                    className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400 font-mono"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* TEMPLATE 3: STATEMENT I & II */}
+            {template === 'statement' && (
+              <div className="space-y-3 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3.5">
+                <input
+                  type="text"
+                  data-field="context"
+                  value={contextText}
+                  onChange={(e) => setContextText(e.target.value)}
+                  placeholder="Optional context (e.g. In light of the given statements, choose the correct answer):"
+                  className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                />
+                <div>
+                  <label className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block mb-1">
+                    Statement I:
+                  </label>
+                  <textarea
+                    data-field="st1"
+                    value={statement1}
+                    onChange={(e) => setStatement1(e.target.value)}
+                    placeholder="Enter Statement I text..."
+                    rows={2}
+                    className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block mb-1">
+                    Statement II:
+                  </label>
+                  <textarea
+                    data-field="st2"
+                    value={statement2}
+                    onChange={(e) => setStatement2(e.target.value)}
+                    placeholder="Enter Statement II text..."
+                    rows={2}
+                    className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* TEMPLATE 4: ASSERTION & REASON */}
+            {template === 'assertion_reason' && (
+              <div className="space-y-3 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3.5">
+                <input
+                  type="text"
+                  data-field="context"
+                  value={contextText}
+                  onChange={(e) => setContextText(e.target.value)}
+                  placeholder="Optional context setup:"
+                  className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                />
+                <div>
+                  <label className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block mb-1">
+                    Assertion (A):
+                  </label>
+                  <textarea
+                    data-field="st1"
+                    value={statement1}
+                    onChange={(e) => setStatement1(e.target.value)}
+                    placeholder="Enter Assertion (A) statement..."
+                    rows={2}
+                    className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block mb-1">
+                    Reason (R):
+                  </label>
+                  <textarea
+                    data-field="st2"
+                    value={statement2}
+                    onChange={(e) => setStatement2(e.target.value)}
+                    placeholder="Enter Reason (R) statement..."
+                    rows={2}
+                    className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* TEMPLATE 5: MATCH THE COLUMNS */}
+            {template === 'match_column' && (
+              <div className="space-y-3 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3.5">
+                <input
+                  type="text"
+                  data-field="context"
+                  value={contextText}
+                  onChange={(e) => setContextText(e.target.value)}
+                  placeholder="Instructions (e.g. Match Column-I with Column-II):"
+                  className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Column 1 */}
+                  <div className="space-y-2 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800/60">
+                    <input
+                      type="text"
+                      value={col1Name}
+                      onChange={(e) => setCol1Name(e.target.value)}
+                      className="w-full bg-transparent text-xs font-bold text-amber-400 border-b border-zinc-800 pb-1 focus:outline-none"
+                    />
+                    {['A', 'B', 'C', 'D'].map((label, idx) => (
+                      <div key={label} className="flex items-center gap-1.5">
+                        <span className="w-5 h-6 rounded bg-amber-500/20 text-amber-300 font-bold font-mono text-[10px] flex items-center justify-center shrink-0">
+                          {label}
+                        </span>
+                        <input
+                          type="text"
+                          value={col1Items[idx]}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCol1Items(prev => {
+                              const copy = [...prev];
+                              copy[idx] = val;
+                              return copy;
+                            });
+                          }}
+                          placeholder={`Item (${label}) description...`}
+                          className="w-full bg-[#0d0e12] border border-zinc-800/80 rounded-lg px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-amber-400 font-mono"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Column 2 */}
+                  <div className="space-y-2 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800/60">
+                    <input
+                      type="text"
+                      value={col2Name}
+                      onChange={(e) => setCol2Name(e.target.value)}
+                      className="w-full bg-transparent text-xs font-bold text-blue-400 border-b border-zinc-800 pb-1 focus:outline-none"
+                    />
+                    {['P', 'Q', 'R', 'S'].map((label, idx) => (
+                      <div key={label} className="flex items-center gap-1.5">
+                        <span className="w-5 h-6 rounded bg-blue-500/20 text-blue-300 font-bold font-mono text-[10px] flex items-center justify-center shrink-0">
+                          {label}
+                        </span>
+                        <input
+                          type="text"
+                          value={col2Items[idx]}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCol2Items(prev => {
+                              const copy = [...prev];
+                              copy[idx] = val;
+                              return copy;
+                            });
+                          }}
+                          placeholder={`Item (${label}) description...`}
+                          className="w-full bg-[#0d0e12] border border-zinc-800/80 rounded-lg px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-blue-400 font-mono"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* DIAGRAM IMAGE URL */}
+            <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3 space-y-2">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <Image size={13} /> Main Question Diagram (Optional)
+              </label>
+              <input
+                type="url"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="Paste Google Drive share link or direct Image URL..."
+                className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400 font-mono"
+              />
+              {imageUrl && formatImageUrl(imageUrl) && (
+                <div className="p-2 bg-black/40 rounded-xl border border-zinc-800 text-center">
                   <img
                     src={formatImageUrl(imageUrl)}
-                    alt="Diagram Thumbnail"
-                    className="h-12 w-20 object-contain rounded bg-white/5 border border-zinc-700"
+                    alt="Diagram Preview"
+                    className="max-h-36 mx-auto object-contain rounded"
                     onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                   />
-                  <div className="text-[11px] text-zinc-400 truncate">
-                    <span className="text-emerald-400 font-bold block">✓ Diagram Attached</span>
-                    Renders centered between question setup and statements
-                  </div>
                 </div>
               )}
             </div>
 
-            {/* 4. ANSWER OPTIONS */}
-            <div className="bg-[#14151a] border border-zinc-800 rounded-xl p-4 space-y-3">
+            {/* ANSWER OPTIONS & 1-CLICK PRE-FILL */}
+            <div className="space-y-3 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3.5">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <CheckCircle2 size={13} className="text-emerald-400" />
-                  Answer Options &amp; Correct Key
+                <label className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                  <CheckCircle2 size={14} /> Answer Options & Correct Key
                 </label>
                 
-                {(template === 'statement' || template === 'assertion_reason' || template === 'match_column') && (
+                {/* 1-Click Pre-Fill Button */}
+                {template === 'multi_statement' ? (
                   <button
                     type="button"
-                    onClick={handlePreFillStatementOptions}
-                    className="px-2.5 py-0.5 bg-blue-950/60 hover:bg-blue-900/60 text-blue-300 border border-blue-500/40 rounded text-[10px] font-bold transition"
+                    onClick={handlePreFillMultiStatementOptions}
+                    className="px-2.5 py-1 bg-amber-400/10 hover:bg-amber-400 hover:text-black text-amber-400 border border-amber-400/30 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
                   >
                     ⚡ Pre-Fill Standard 4 Options
                   </button>
-                )}
+                ) : template === 'statement' ? (
+                  <button
+                    type="button"
+                    onClick={handlePreFillStatementOptions}
+                    className="px-2.5 py-1 bg-amber-400/10 hover:bg-amber-400 hover:text-black text-amber-400 border border-amber-400/30 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                  >
+                    ⚡ Pre-Fill Standard 4 Options
+                  </button>
+                ) : template === 'assertion_reason' ? (
+                  <button
+                    type="button"
+                    onClick={handlePreFillAssertionOptions}
+                    className="px-2.5 py-1 bg-amber-400/10 hover:bg-amber-400 hover:text-black text-amber-400 border border-amber-400/30 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                  >
+                    ⚡ Pre-Fill Standard 4 Options
+                  </button>
+                ) : template === 'match_column' ? (
+                  <button
+                    type="button"
+                    onClick={handlePreFillMatchOptions}
+                    className="px-2.5 py-1 bg-blue-500/10 hover:bg-blue-500 hover:text-white text-blue-400 border border-blue-500/30 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                  >
+                    ⚡ Pre-Fill Match Options
+                  </button>
+                ) : null}
               </div>
 
               <div className="space-y-2">
-                {['A', 'B', 'C', 'D'].map((label, idx) => {
-                  const isCorrect = correctAnswer === label;
-                  const hasImg = !!optionImages[idx];
-                  const isImgInputOpen = showOptionImage[idx] || hasImg;
+                {['A', 'B', 'C', 'D'].map((optKey, idx) => {
+                  const isCorrect = correctAnswer === optKey;
+                  const isImgMode = showOptionImage[idx];
 
                   return (
                     <div
-                      key={label}
-                      className={'p-2.5 rounded-xl border transition ' + (
+                      key={optKey}
+                      className={`p-2.5 rounded-xl border transition ${
                         isCorrect
-                          ? 'border-emerald-500/80 bg-emerald-950/20 shadow-sm shadow-emerald-500/10'
-                          : 'border-zinc-800/80 bg-[#1b1c22]'
-                      )}
+                          ? 'bg-emerald-500/10 border-emerald-500/40 shadow-xs'
+                          : 'bg-zinc-950/60 border-zinc-800/80 hover:border-zinc-700'
+                      }`}
                     >
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2">
+                        {/* 1-Click Key Button */}
                         <button
                           type="button"
-                          onClick={() => setCorrectAnswer(label)}
-                          className={'w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 transition ' + (
+                          onClick={() => setCorrectAnswer(optKey)}
+                          className={`w-7 h-7 rounded-full text-xs font-bold shrink-0 flex items-center justify-center transition cursor-pointer ${
                             isCorrect
-                              ? 'bg-emerald-500 text-black font-extrabold shadow-md'
+                              ? 'bg-emerald-400 text-black shadow-md'
                               : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
-                          )}
-                          title={'Click to mark Option ' + label + ' as correct'}
+                          }`}
+                          title={`Click to set Option ${optKey} as Correct Answer`}
                         >
-                          {label}
+                          {optKey}
                         </button>
 
-                        <input
-                          type="text"
-                          value={options[idx]}
-                          onChange={(e) => handleOptionChange(idx, e.target.value)}
-                          placeholder={'Option ' + label + ' text (e.g. A → P, B → Q, C → R, D → S)...'}
-                          className="flex-1 bg-transparent border-none text-xs text-white font-mono placeholder-zinc-600 focus:outline-none"
-                        />
+                        {/* Text / Image input */}
+                        {isImgMode ? (
+                          <input
+                            type="url"
+                            value={optionImages[idx]}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setOptionImages(prev => {
+                                const copy = [...prev];
+                                copy[idx] = val;
+                                return copy;
+                              });
+                            }}
+                            placeholder={`Option ${optKey} diagram URL...`}
+                            className="flex-1 bg-[#0d0e12] border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-400 font-mono"
+                          />
+                        ) : (
+                          <input
+                            type="text"
+                            data-field={`opt_${idx}`}
+                            value={options[idx]}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setOptions(prev => {
+                                const copy = [...prev];
+                                copy[idx] = val;
+                                return copy;
+                              });
+                            }}
+                            placeholder={`Option ${optKey} text (supports $LaTeX$)...`}
+                            className="flex-1 bg-[#0d0e12] border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-400 font-mono"
+                          />
+                        )}
 
+                        {/* Image toggle */}
                         <button
                           type="button"
-                          onClick={() => toggleOptionImageInput(idx)}
-                          className={'px-2 py-1 rounded-md text-[10px] font-semibold border flex items-center gap-1 transition shrink-0 ' + (
-                            hasImg
-                              ? 'bg-amber-400/20 border-amber-400/40 text-amber-300'
-                              : 'bg-zinc-800/60 border-zinc-700/60 text-zinc-400 hover:text-white'
-                          )}
+                          onClick={() => setShowOptionImage(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                          className={`p-1.5 rounded-lg border text-[10px] font-bold transition flex items-center gap-1 ${
+                            isImgMode
+                              ? 'bg-amber-400/20 text-amber-300 border-amber-400/40'
+                              : 'bg-zinc-900 text-zinc-500 border-zinc-800 hover:text-zinc-300'
+                          }`}
+                          title="Toggle Image Mode"
                         >
-                          <Camera size={11} /> {hasImg ? 'Img Attached' : '+ Img'}
+                          <Image size={12} /> {isImgMode ? 'Text' : '+ Img'}
                         </button>
 
+                        {/* Correct Key indicator */}
                         {isCorrect && (
-                          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-950/50 border border-emerald-500/30 shrink-0">
-                            Key
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-400/20 text-emerald-300 text-[10px] font-extrabold border border-emerald-400/30">
+                            KEY
                           </span>
                         )}
                       </div>
-
-                      {isImgInputOpen && (
-                        <div className="flex items-center gap-2 pl-8 pt-2 mt-2 border-t border-zinc-800">
-                          <Link2 size={12} className="text-zinc-500 shrink-0" />
-                          <input
-                            type="text"
-                            value={optionImages[idx]}
-                            onChange={(e) => handleOptionImageChange(idx, e.target.value)}
-                            placeholder="Paste Google Drive / image link for this option..."
-                            className="flex-1 bg-black/40 border border-zinc-800 rounded px-2 py-1 text-[11px] text-zinc-300 font-mono focus:outline-none focus:border-amber-400"
-                          />
-                          {hasImg && (
-                            <button
-                              type="button"
-                              onClick={() => handleOptionImageChange(idx, '')}
-                              className="text-red-400 hover:text-red-300 p-1"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          )}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* 5. SOLUTION & DERIVATION */}
-            <div className="bg-[#14151a] border border-zinc-800 rounded-xl overflow-hidden">
+            {/* SOLUTION & EXPLANATION (Optional) */}
+            <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3 space-y-2">
               <button
                 type="button"
-                onClick={() => setShowSolutionSection(!showSolutionSection)}
-                className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-zinc-800/40 transition"
+                onClick={() => setShowSolutionSection(prev => !prev)}
+                className="w-full flex items-center justify-between text-xs font-bold text-zinc-400 hover:text-white"
               >
-                <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <HelpCircle size={13} />
-                  Step-by-Step Solution &amp; Explanation (Optional)
-                </span>
-                <span className="text-xs text-zinc-400">
-                  {showSolutionSection ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                </span>
+                <span>+ Master Solution & Explanation (Optional)</span>
+                <ChevronDown size={14} className={showSolutionSection ? 'rotate-180 transition' : 'transition'} />
               </button>
 
               {showSolutionSection && (
-                <div className="p-4 pt-0 space-y-2 border-t border-zinc-800/80 mt-1">
-                  <div className="flex items-center justify-end gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setSolution(prev => prev + '\n\n**Step 1:** ')}
-                      className="px-2 py-0.5 bg-blue-950/40 text-blue-300 border border-blue-800/40 rounded text-[10px] font-mono"
-                    >
-                      + Step
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSolution(autoFormatMathTextClient(solution))}
-                      className="px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded text-[10px] font-bold"
-                    >
-                      ⚡ Format Math
-                    </button>
-                  </div>
-                  <textarea
-                    value={solution}
-                    onChange={(e) => setSolution(e.target.value)}
-                    rows={4}
-                    placeholder="Explain the step-by-step mathematical derivation so students learn from their mistakes..."
-                    className="w-full bg-[#1b1c22] border border-zinc-800 rounded-lg p-3 text-xs text-white font-mono leading-relaxed placeholder-zinc-600 focus:outline-none focus:border-blue-400 resize-y"
-                  />
-                </div>
+                <textarea
+                  data-field="solution"
+                  value={solution}
+                  onChange={(e) => setSolution(e.target.value)}
+                  placeholder="Provide step-by-step solution derivation (supports KaTeX $math$)..."
+                  rows={3}
+                  className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
+                />
               )}
             </div>
+
           </div>
 
-          {/* RIGHT PANE: Live Student CBT Screen Simulator (5 Columns) */}
-          <div className="lg:col-span-5 h-full min-h-0 overflow-y-auto p-4 sm:p-6 bg-[#090a0d] flex flex-col justify-between space-y-4">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
-                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Eye size={14} /> Live Student CBT View
-                </span>
-                <span className="px-2 py-0.5 bg-zinc-800 rounded-full text-[10px] font-bold text-zinc-300">
-                  +{marksPositive} | -{marksNegative}
-                </span>
+          {/* RIGHT: Live Student CBT View (5 Cols) */}
+          <div className="lg:col-span-5 bg-[#0e0f13] flex flex-col h-full overflow-y-auto p-4 sm:p-5 border-t lg:border-t-0 border-zinc-800">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
+                <Eye size={14} /> Live Student CBT View
               </div>
+              <div className="flex items-center gap-1.5 text-[11px] font-mono font-bold bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md text-zinc-400">
+                <span>+4</span>
+                <span>|</span>
+                <span className="text-red-400">-1</span>
+              </div>
+            </div>
 
-              {/* Rendered Question Card */}
-              <div className="p-4 bg-[#121318] border border-zinc-800 rounded-xl text-zinc-100 text-xs sm:text-sm leading-relaxed space-y-3 min-h-[120px]">
+            {/* Rendered Student Question Card */}
+            <div className="flex-1 py-4 space-y-4">
+              
+              {/* Question Text with Math & Statement formatting */}
+              <div className="text-sm text-zinc-100 font-medium leading-relaxed">
                 {computedQuestionText ? (
                   <MathRenderer text={computedQuestionText} />
                 ) : (
-                  <span className="text-zinc-600 text-xs italic">
-                    Question text will render live here in real-time KaTeX math...
-                  </span>
-                )}
-
-                {/* Main Diagram */}
-                {imageUrl && (
-                  <div className="p-2 bg-white/5 rounded-lg border border-zinc-800 text-center">
-                    <img
-                      src={formatImageUrl(imageUrl)}
-                      alt="Question Diagram"
-                      className="max-h-48 mx-auto object-contain rounded"
-                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                    />
-                  </div>
+                  <span className="text-zinc-600 italic">Start typing question text to preview live rendering...</span>
                 )}
               </div>
 
+              {/* Main Diagram */}
+              {imageUrl && formatImageUrl(imageUrl) && (
+                <div className="my-3 p-2 bg-black/40 rounded-xl border border-zinc-800 text-center">
+                  <img
+                    src={formatImageUrl(imageUrl)}
+                    alt="Diagram"
+                    className="max-h-52 mx-auto object-contain rounded-lg shadow"
+                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                  />
+                </div>
+              )}
+
               {/* Rendered Options */}
-              <div className="space-y-2">
-                {['A', 'B', 'C', 'D'].map((label, idx) => {
-                  const isCorrect = correctAnswer === label;
-                  const optText = options[idx];
-                  const optImg = optionImages[idx];
+              <div className="space-y-2.5 pt-2">
+                {['A', 'B', 'C', 'D'].map((optKey, idx) => {
+                  const isCorrect = correctAnswer === optKey;
+                  const isImg = showOptionImage[idx];
+                  const optVal = isImg ? optionImages[idx] : options[idx];
 
                   return (
                     <div
-                      key={label}
-                      className={'p-3 rounded-xl border text-xs flex items-start gap-3 transition ' + (
+                      key={optKey}
+                      className={`p-3 rounded-xl border flex items-center justify-between transition ${
                         isCorrect
-                          ? 'border-emerald-500/60 bg-emerald-950/30 text-emerald-100 shadow-sm'
-                          : 'border-zinc-800 bg-[#121318] text-zinc-300'
-                      )}
+                          ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-100'
+                          : 'bg-[#13141a] border-zinc-800/90 text-zinc-300'
+                      }`}
                     >
-                      <span className={'w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 ' + (
-                        isCorrect ? 'bg-emerald-500 text-black font-extrabold' : 'bg-zinc-800 text-zinc-400'
-                      )}>
-                        {label}
-                      </span>
-                      <div className="flex-1 font-medium space-y-2">
-                        {optText && <MathRenderer text={optText} />}
-                        {optImg && (
-                          <div className="p-1 bg-white/5 rounded border border-zinc-700/60 inline-block">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <span className={`w-6 h-6 rounded-full text-xs font-bold shrink-0 flex items-center justify-center ${
+                          isCorrect
+                            ? 'bg-emerald-400 text-black font-black'
+                            : 'bg-zinc-800 text-zinc-400'
+                        }`}>
+                          {optKey}
+                        </span>
+
+                        <div className="text-xs leading-relaxed flex-1 min-w-0">
+                          {isImg && optVal ? (
                             <img
-                              src={formatImageUrl(optImg)}
-                              alt={'Option ' + label + ' diagram'}
-                              className="max-h-28 object-contain rounded"
+                              src={formatImageUrl(optVal)}
+                              alt={`Option ${optKey}`}
+                              className="max-h-24 object-contain rounded border border-zinc-700 bg-black/30 p-1"
                               onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                             />
-                          </div>
-                        )}
-                        {!optText && !optImg && (
-                          <span className="text-zinc-600 italic">Option {label} content</span>
-                        )}
+                          ) : optVal ? (
+                            <MathRenderer text={optVal} />
+                          ) : (
+                            <span className="text-zinc-600 italic">Option {optKey} content</span>
+                          )}
+                        </div>
                       </div>
+
                       {isCorrect && (
-                        <CheckCircle2 size={14} className="text-emerald-400 shrink-0 ml-auto" />
+                        <span className="text-emerald-400 ml-2 shrink-0">
+                          <Check size={14} />
+                        </span>
                       )}
                     </div>
                   );
                 })}
               </div>
 
-              {/* Rendered Solution */}
+              {/* Solution Preview */}
               {solution && (
-                <div className="p-3.5 bg-blue-950/20 border border-blue-800/30 rounded-xl text-blue-200 text-xs space-y-1">
-                  <p className="font-bold text-blue-400 text-[10px] uppercase tracking-wider">Solution Explanation:</p>
-                  <MathRenderer text={solution} />
+                <div className="mt-4 p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-1">
+                  <div className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">Solution Explanation:</div>
+                  <div className="text-xs text-zinc-300 leading-relaxed">
+                    <MathRenderer text={solution} />
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Quality Pre-flight Checklist */}
-            <div className="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-500">
-              <span>Template: <strong className="text-zinc-300 capitalize">{template.replace('_', ' ')}</strong></span>
-              <span>Key: <strong className="text-emerald-400 font-bold">{correctAnswer}</strong></span>
-              <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                <Check size={12} /> Ready
-              </span>
+            {/* Student Preview Footer Metadata */}
+            <div className="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
+              <span>Template: <strong className="text-zinc-300">{template}</strong></span>
+              <span>Key: <strong className="text-emerald-400">{correctAnswer}</strong></span>
+              <span>Subject: <strong className="text-amber-400">{section}</strong></span>
             </div>
           </div>
+
         </div>
 
-        {/* ================= FOOTER CONTROLS ================= */}
-        <div className="h-16 px-6 border-t border-zinc-800/80 bg-[#14151a] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
-            <kbd className="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-zinc-300 font-mono">
-              Cmd + Enter
-            </kbd>
-            <span>to save question</span>
+        {/* BOTTOM ACTION BAR */}
+        <div className="px-5 py-3 bg-[#17181f] border-t border-zinc-800 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            {errorMsg && (
+              <div className="text-xs text-red-400 flex items-center gap-1.5 font-medium">
+                <AlertCircle size={14} className="shrink-0" /> {errorMsg}
+              </div>
+            )}
+            {!errorMsg && (
+              <div className="text-[11px] text-zinc-500 hidden sm:block">
+                Press <kbd className="px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">Cmd + Enter</kbd> to save question
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold rounded-xl transition"
+              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl text-xs transition"
             >
               Cancel
             </button>
-
             <button
               type="button"
-              onClick={handleSaveForm}
               disabled={saving}
-              className="px-6 py-2.5 bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-amber-400/20 flex items-center gap-2 transition disabled:opacity-50"
+              onClick={handleSave}
+              className="px-5 py-2 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-neutral-950 font-black rounded-xl text-xs shadow-lg flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
             >
-              <Save size={15} />
-              {saving ? 'Saving...' : initialData?.id ? 'Update Question' : 'Save to Question Bank'}
+              {saving ? (
+                <>Saving...</>
+              ) : (
+                <>
+                  <Save size={14} /> Save to Question Bank
+                </>
+              )}
             </button>
           </div>
         </div>
 
       </div>
-    </div>,
-    document.body
+    </div>
   );
 }
