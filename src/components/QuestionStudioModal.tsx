@@ -480,41 +480,41 @@ export function QuestionStudioModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in font-sans text-zinc-100">
-      <div className="bg-[#121216] border border-zinc-800 rounded-2xl w-full max-w-7xl h-[94vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in font-sans text-zinc-100">
+      <div className="bg-[#14151f] border border-zinc-700/80 rounded-2xl w-full max-w-7xl h-[94vh] flex flex-col shadow-2xl overflow-hidden ring-1 ring-white/10">
         
         {/* TOP BAR: Header, Subject, Meta & Close */}
-        <div className="px-5 py-3.5 bg-[#17181f] border-b border-zinc-800 flex flex-wrap items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400">
-              <Sparkles size={16} />
+        <div className="px-5 py-3.5 bg-[#1a1c28] border-b border-zinc-700/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-400/15 border border-amber-400/40 flex items-center justify-center text-amber-400 shadow-xs">
+              <Sparkles size={17} />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+              <h2 className="text-sm font-extrabold text-white tracking-tight flex items-center gap-2">
                 Question Authoring Studio
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
-                  Production Minimal
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                  v2.0 Pro
                 </span>
               </h2>
             </div>
           </div>
 
           {/* Quick Meta Selectors */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {/* Subject Selector (Preserved in memory) */}
-            <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
+            <div className="flex bg-[#0f1017] border border-zinc-700/80 rounded-xl p-1 shadow-inner">
               {SECTIONS.map((sec) => (
                 <button
                   key={sec}
                   type="button"
                   onClick={() => handleSectionSelect(sec)}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition ${
+                  className={`px-3 py-1 text-xs font-black rounded-lg transition ${
                     section === sec
-                      ? 'bg-amber-400 text-black shadow-xs'
-                      : 'text-zinc-400 hover:text-white'
+                      ? 'bg-amber-400 text-black shadow-md'
+                      : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
                   }`}
                 >
-                  {sec.slice(0, 4)}
+                  {sec}
                 </button>
               ))}
             </div>
@@ -523,7 +523,7 @@ export function QuestionStudioModal({
             <select
               value={difficulty}
               onChange={(e) => setDifficulty(e.target.value as any)}
-              className="bg-zinc-900 border border-zinc-800 text-xs font-bold text-zinc-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-400"
+              className="bg-[#0f1017] border border-zinc-700/80 text-xs font-bold text-zinc-100 rounded-xl px-3 py-1.5 focus:outline-none focus:border-amber-400 shadow-inner cursor-pointer"
             >
               <option value="Easy">🟢 Easy</option>
               <option value="Medium">🟡 Medium</option>
@@ -533,7 +533,8 @@ export function QuestionStudioModal({
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 transition ml-1"
+              className="p-1.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 transition ml-1 cursor-pointer"
+              title="Close (Esc)"
             >
               <X size={16} />
             </button>
@@ -544,14 +545,14 @@ export function QuestionStudioModal({
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
           
           {/* LEFT: Authoring Inputs (7 Cols) */}
-          <div className="lg:col-span-7 border-r border-zinc-800/80 flex flex-col h-full overflow-y-auto p-4 sm:p-5 space-y-4 bg-[#14151b]">
+          <div className="lg:col-span-7 border-r border-zinc-700/80 flex flex-col h-full overflow-y-auto p-4 sm:p-5 space-y-4 bg-[#14151f]">
             
             {/* Template Selector Bar */}
             <div className="flex items-center justify-between pb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-                <HelpCircle size={13} className="text-amber-400" /> Structure:
+              <span className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <HelpCircle size={14} className="text-amber-400" /> Question Structure:
               </span>
-              <div className="flex flex-wrap gap-1 bg-zinc-900/90 border border-zinc-800/80 p-1 rounded-xl">
+              <div className="flex flex-wrap gap-1 bg-[#0f1017] border border-zinc-700/80 p-1 rounded-xl shadow-inner">
                 {[
                   { id: 'standard', label: 'Standard MCQ' },
                   { id: 'multi_statement', label: 'Numbered (1,2,3)' },
@@ -563,10 +564,10 @@ export function QuestionStudioModal({
                     key={t.id}
                     type="button"
                     onClick={() => setTemplate(t.id as any)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer ${
                       template === t.id
-                        ? 'bg-amber-400 text-black shadow-xs'
-                        : 'text-zinc-400 hover:text-zinc-200'
+                        ? 'bg-amber-400 text-black shadow-md'
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
                     }`}
                   >
                     {t.label}
@@ -576,28 +577,28 @@ export function QuestionStudioModal({
             </div>
 
             {/* Compact Collapsible Math Toolbar */}
-            <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-xl p-2 space-y-1.5">
-              <div className="flex items-center justify-between text-[10px] text-zinc-400 font-bold uppercase tracking-wider px-1">
-                <span className="flex items-center gap-1 text-amber-400">
-                  <Sparkles size={11} /> 1-Click Formula Insert
+            <div className="bg-[#1a1c28] border border-zinc-700/80 rounded-xl p-2.5 space-y-2 shadow-sm">
+              <div className="flex items-center justify-between text-[11px] text-zinc-300 font-bold uppercase tracking-wider px-1">
+                <span className="flex items-center gap-1.5 text-amber-400 font-black">
+                  <Sparkles size={13} /> 1-Click Formula Insert
                 </span>
                 <button
                   type="button"
                   onClick={() => setShowMathBar(prev => !prev)}
-                  className="text-zinc-500 hover:text-zinc-300 text-[10px] flex items-center gap-1"
+                  className="text-zinc-400 hover:text-zinc-200 text-xs flex items-center gap-1 cursor-pointer"
                 >
-                  {showMathBar ? 'Hide Math Bar' : 'Show Math Bar'} <ChevronDown size={11} className={showMathBar ? 'rotate-180 transition' : 'transition'} />
+                  {showMathBar ? 'Hide Math Bar' : 'Show Math Bar'} <ChevronDown size={13} className={showMathBar ? 'rotate-180 transition' : 'transition'} />
                 </button>
               </div>
 
               {showMathBar && (
-                <div className="flex flex-wrap gap-1 pt-0.5">
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
                   {QUICK_MATH_SYMBOLS.map((s) => (
                     <button
                       key={s.label}
                       type="button"
                       onClick={() => insertMath(s.tex)}
-                      className="px-2 py-1 bg-zinc-800 hover:bg-amber-400 hover:text-black border border-zinc-700/80 rounded-lg text-xs font-mono font-bold text-zinc-200 transition"
+                      className="px-2.5 py-1 bg-[#0f1017] hover:bg-amber-400 hover:text-black border border-zinc-700 rounded-lg text-xs font-mono font-bold text-zinc-200 transition cursor-pointer shadow-xs"
                       title={s.tex}
                     >
                       {s.label}
@@ -618,7 +619,7 @@ export function QuestionStudioModal({
                         setFollowUpText(prev => autoFormatMathTextClient(prev));
                       }
                     }}
-                    className="px-2 py-1 bg-amber-400/15 hover:bg-amber-400 hover:text-black text-amber-300 border border-amber-400/30 rounded-lg text-xs font-bold transition ml-auto flex items-center gap-1"
+                    className="px-2.5 py-1 bg-amber-400/20 hover:bg-amber-400 hover:text-black text-amber-300 border border-amber-400/40 rounded-lg text-xs font-bold transition ml-auto flex items-center gap-1 cursor-pointer"
                     title="Auto-detect clean LaTeX exponents, fractions and chemical formulas"
                   >
                     ⚡ Auto-Format Math
@@ -631,9 +632,9 @@ export function QuestionStudioModal({
 
             {/* TEMPLATE 1: STANDARD MCQ (Intro + Diagram + Follow-up) */}
             {template === 'standard' && (
-              <div className="space-y-3 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3.5">
+              <div className="space-y-3 bg-[#1a1c28] border border-zinc-700/80 rounded-2xl p-4 shadow-md">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                  <label className="text-xs font-extrabold uppercase tracking-wider text-amber-400">
                     Question Text / Introductory Statement
                   </label>
                 </div>
@@ -644,12 +645,12 @@ export function QuestionStudioModal({
                   onChange={(e) => setRawQuestionText(e.target.value)}
                   placeholder="Type or paste question statement... (supports $LaTeX$ math e.g. $\frac{1}{2}mv^2$ and numbered lists)"
                   rows={4}
-                  className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl p-3 text-xs text-zinc-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400 transition"
+                  className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl p-3 text-xs text-white placeholder:text-zinc-500 font-mono leading-relaxed focus:outline-none focus:border-amber-400 transition"
                 />
 
                 {/* Follow-up question prompt (Below diagram/statements) */}
                 <div>
-                  <label className="text-[11px] font-bold text-zinc-400 mb-1 block">
+                  <label className="text-[11px] font-bold text-zinc-300 mb-1 block">
                     Follow-Up Prompt / Question Line (Optional — placed below intro/diagram):
                   </label>
                   <input
@@ -658,7 +659,7 @@ export function QuestionStudioModal({
                     value={followUpText}
                     onChange={(e) => setFollowUpText(e.target.value)}
                     placeholder="e.g. Determine the elongation in the spring x and acceleration a₁..."
-                    className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400 font-mono"
+                    className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 font-mono"
                   />
                 </div>
               </div>
@@ -666,9 +667,9 @@ export function QuestionStudioModal({
 
             {/* TEMPLATE 2: NUMBERED STATEMENTS (1, 2, 3...) */}
             {template === 'multi_statement' && (
-              <div className="space-y-3 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3.5">
+              <div className="space-y-3 bg-[#1a1c28] border border-zinc-700/80 rounded-2xl p-4 shadow-md">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                  <label className="text-xs font-extrabold uppercase tracking-wider text-amber-400">
                     Introductory Context / Setup
                   </label>
                 </div>
@@ -678,27 +679,27 @@ export function QuestionStudioModal({
                   value={contextText}
                   onChange={(e) => setContextText(e.target.value)}
                   placeholder="e.g. Consider the following statements regarding electrophoretic separation:"
-                  className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                  className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 font-medium"
                 />
 
                 {/* Numbered statements list */}
-                <div className="space-y-2 pt-1">
+                <div className="space-y-2.5 pt-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-300">
                       Numbered Statements (1, 2, 3...)
                     </label>
                     <button
                       type="button"
                       onClick={() => setMultiStatements(prev => [...prev, ''])}
-                      className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1"
+                      className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 cursor-pointer"
                     >
-                      <Plus size={13} /> Add Statement
+                      <Plus size={14} /> Add Statement
                     </button>
                   </div>
 
                   {multiStatements.map((st, sIdx) => (
                     <div key={sIdx} className="flex items-start gap-2">
-                      <span className="w-6 h-7 rounded-lg bg-amber-500/20 text-amber-300 font-bold font-mono text-xs flex items-center justify-center shrink-0 border border-amber-500/30">
+                      <span className="w-7 h-7 rounded-lg bg-amber-500/25 text-amber-300 font-black font-mono text-xs flex items-center justify-center shrink-0 border border-amber-500/40 shadow-xs">
                         {sIdx + 1}
                       </span>
                       <textarea
@@ -711,18 +712,18 @@ export function QuestionStudioModal({
                             return copy;
                           });
                         }}
-                        placeholder={`Statement ${sIdx + 1} description...`}
+                        placeholder={`Statement ${sIdx + 1} description (supports $math$)...`}
                         rows={2}
-                        className="flex-1 bg-[#0d0e12] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
+                        className="flex-1 bg-[#0f1017] border border-zinc-700 rounded-xl p-2.5 text-xs text-white placeholder:text-zinc-500 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
                       />
                       {multiStatements.length > 2 && (
                         <button
                           type="button"
                           onClick={() => setMultiStatements(prev => prev.filter((_, idx) => idx !== sIdx))}
-                          className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition"
+                          className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition cursor-pointer"
                           title="Remove statement"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={15} />
                         </button>
                       )}
                     </div>
@@ -731,7 +732,7 @@ export function QuestionStudioModal({
 
                 {/* Question Line */}
                 <div>
-                  <label className="text-[11px] font-bold text-zinc-400 mb-1 block">
+                  <label className="text-[11px] font-bold text-zinc-300 mb-1 block">
                     Concluding Question:
                   </label>
                   <input
@@ -740,7 +741,7 @@ export function QuestionStudioModal({
                     value={followUpText}
                     onChange={(e) => setFollowUpText(e.target.value)}
                     placeholder="e.g. Which of the statements given above is/are correct?"
-                    className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400 font-mono"
+                    className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 font-mono"
                   />
                 </div>
               </div>
@@ -748,14 +749,14 @@ export function QuestionStudioModal({
 
             {/* TEMPLATE 3: STATEMENT I & II */}
             {template === 'statement' && (
-              <div className="space-y-3 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3.5">
+              <div className="space-y-3 bg-[#1a1c28] border border-zinc-700/80 rounded-2xl p-4 shadow-md">
                 <input
                   type="text"
                   data-field="context"
                   value={contextText}
                   onChange={(e) => setContextText(e.target.value)}
                   placeholder="Optional context (e.g. In light of the given statements, choose the correct answer):"
-                  className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                  className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400"
                 />
                 <div>
                   <label className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block mb-1">
@@ -767,7 +768,7 @@ export function QuestionStudioModal({
                     onChange={(e) => setStatement1(e.target.value)}
                     placeholder="Enter Statement I text..."
                     rows={2}
-                    className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
+                    className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl p-2.5 text-xs text-white placeholder:text-zinc-500 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
                   />
                 </div>
                 <div>
@@ -780,7 +781,7 @@ export function QuestionStudioModal({
                     onChange={(e) => setStatement2(e.target.value)}
                     placeholder="Enter Statement II text..."
                     rows={2}
-                    className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
+                    className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl p-2.5 text-xs text-white placeholder:text-zinc-500 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
                   />
                 </div>
               </div>
@@ -788,14 +789,14 @@ export function QuestionStudioModal({
 
             {/* TEMPLATE 4: ASSERTION & REASON */}
             {template === 'assertion_reason' && (
-              <div className="space-y-3 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3.5">
+              <div className="space-y-3 bg-[#1a1c28] border border-zinc-700/80 rounded-2xl p-4 shadow-md">
                 <input
                   type="text"
                   data-field="context"
                   value={contextText}
                   onChange={(e) => setContextText(e.target.value)}
                   placeholder="Optional context setup:"
-                  className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                  className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400"
                 />
                 <div>
                   <label className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block mb-1">
@@ -807,7 +808,7 @@ export function QuestionStudioModal({
                     onChange={(e) => setStatement1(e.target.value)}
                     placeholder="Enter Assertion (A) statement..."
                     rows={2}
-                    className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
+                    className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl p-2.5 text-xs text-white placeholder:text-zinc-500 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
                   />
                 </div>
                 <div>
@@ -820,7 +821,7 @@ export function QuestionStudioModal({
                     onChange={(e) => setStatement2(e.target.value)}
                     placeholder="Enter Reason (R) statement..."
                     rows={2}
-                    className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
+                    className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl p-2.5 text-xs text-white placeholder:text-zinc-500 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
                   />
                 </div>
               </div>
@@ -828,27 +829,27 @@ export function QuestionStudioModal({
 
             {/* TEMPLATE 5: MATCH THE COLUMNS */}
             {template === 'match_column' && (
-              <div className="space-y-3 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3.5">
+              <div className="space-y-3 bg-[#1a1c28] border border-zinc-700/80 rounded-2xl p-4 shadow-md">
                 <input
                   type="text"
                   data-field="context"
                   value={contextText}
                   onChange={(e) => setContextText(e.target.value)}
                   placeholder="Instructions (e.g. Match Column-I with Column-II):"
-                  className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                  className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400"
                 />
                 <div className="grid grid-cols-2 gap-3">
                   {/* Column 1 */}
-                  <div className="space-y-2 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800/60">
+                  <div className="space-y-2 bg-[#0f1017] p-3 rounded-xl border border-zinc-700/80">
                     <input
                       type="text"
                       value={col1Name}
                       onChange={(e) => setCol1Name(e.target.value)}
-                      className="w-full bg-transparent text-xs font-bold text-amber-400 border-b border-zinc-800 pb-1 focus:outline-none"
+                      className="w-full bg-transparent text-xs font-black text-amber-400 border-b border-zinc-700 pb-1 focus:outline-none"
                     />
                     {['A', 'B', 'C', 'D'].map((label, idx) => (
                       <div key={label} className="flex items-center gap-1.5">
-                        <span className="w-5 h-6 rounded bg-amber-500/20 text-amber-300 font-bold font-mono text-[10px] flex items-center justify-center shrink-0">
+                        <span className="w-6 h-6 rounded bg-amber-500/20 text-amber-300 font-black font-mono text-[11px] flex items-center justify-center shrink-0 border border-amber-500/30">
                           {label}
                         </span>
                         <input
@@ -863,23 +864,23 @@ export function QuestionStudioModal({
                             });
                           }}
                           placeholder={`Item (${label}) description...`}
-                          className="w-full bg-[#0d0e12] border border-zinc-800/80 rounded-lg px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-amber-400 font-mono"
+                          className="w-full bg-[#1a1c28] border border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 font-mono"
                         />
                       </div>
                     ))}
                   </div>
 
                   {/* Column 2 */}
-                  <div className="space-y-2 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800/60">
+                  <div className="space-y-2 bg-[#0f1017] p-3 rounded-xl border border-zinc-700/80">
                     <input
                       type="text"
                       value={col2Name}
                       onChange={(e) => setCol2Name(e.target.value)}
-                      className="w-full bg-transparent text-xs font-bold text-blue-400 border-b border-zinc-800 pb-1 focus:outline-none"
+                      className="w-full bg-transparent text-xs font-black text-blue-400 border-b border-zinc-700 pb-1 focus:outline-none"
                     />
                     {['P', 'Q', 'R', 'S'].map((label, idx) => (
                       <div key={label} className="flex items-center gap-1.5">
-                        <span className="w-5 h-6 rounded bg-blue-500/20 text-blue-300 font-bold font-mono text-[10px] flex items-center justify-center shrink-0">
+                        <span className="w-6 h-6 rounded bg-blue-500/20 text-blue-300 font-black font-mono text-[11px] flex items-center justify-center shrink-0 border border-blue-500/30">
                           {label}
                         </span>
                         <input
@@ -894,7 +895,7 @@ export function QuestionStudioModal({
                             });
                           }}
                           placeholder={`Item (${label}) description...`}
-                          className="w-full bg-[#0d0e12] border border-zinc-800/80 rounded-lg px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-blue-400 font-mono"
+                          className="w-full bg-[#1a1c28] border border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-blue-400 font-mono"
                         />
                       </div>
                     ))}
@@ -904,23 +905,23 @@ export function QuestionStudioModal({
             )}
 
             {/* DIAGRAM IMAGE URL */}
-            <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3 space-y-2">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                <Image size={13} /> Main Question Diagram (Optional)
+            <div className="bg-[#1a1c28] border border-zinc-700/80 rounded-2xl p-4 space-y-2.5 shadow-md">
+              <label className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <Image size={14} /> Main Question Diagram (Optional)
               </label>
               <input
                 type="url"
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
                 placeholder="Paste Google Drive share link or direct Image URL..."
-                className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400 font-mono"
+                className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 font-mono"
               />
               {imageUrl && formatImageUrl(imageUrl) && (
-                <div className="p-2 bg-black/40 rounded-xl border border-zinc-800 text-center">
+                <div className="p-3 bg-[#0f1017] rounded-xl border border-zinc-700 text-center">
                   <img
                     src={formatImageUrl(imageUrl)}
                     alt="Diagram Preview"
-                    className="max-h-36 mx-auto object-contain rounded"
+                    className="max-h-40 mx-auto object-contain rounded"
                     onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                   />
                 </div>
@@ -928,10 +929,10 @@ export function QuestionStudioModal({
             </div>
 
             {/* ANSWER OPTIONS & 1-CLICK PRE-FILL */}
-            <div className="space-y-3 bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3.5">
+            <div className="space-y-3 bg-[#1a1c28] border border-zinc-700/80 rounded-2xl p-4 shadow-md">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                  <CheckCircle2 size={14} /> Answer Options & Correct Key
+                <label className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                  <CheckCircle2 size={15} /> Answer Options & Correct Key
                 </label>
                 
                 {/* 1-Click Pre-Fill Button */}
@@ -939,7 +940,7 @@ export function QuestionStudioModal({
                   <button
                     type="button"
                     onClick={handlePreFillMultiStatementOptions}
-                    className="px-2.5 py-1 bg-amber-400/10 hover:bg-amber-400 hover:text-black text-amber-400 border border-amber-400/30 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                    className="px-2.5 py-1 bg-amber-400/20 hover:bg-amber-400 hover:text-black text-amber-300 border border-amber-400/40 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 cursor-pointer"
                   >
                     ⚡ Pre-Fill Standard 4 Options
                   </button>
@@ -947,7 +948,7 @@ export function QuestionStudioModal({
                   <button
                     type="button"
                     onClick={handlePreFillStatementOptions}
-                    className="px-2.5 py-1 bg-amber-400/10 hover:bg-amber-400 hover:text-black text-amber-400 border border-amber-400/30 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                    className="px-2.5 py-1 bg-amber-400/20 hover:bg-amber-400 hover:text-black text-amber-300 border border-amber-400/40 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 cursor-pointer"
                   >
                     ⚡ Pre-Fill Standard 4 Options
                   </button>
@@ -955,7 +956,7 @@ export function QuestionStudioModal({
                   <button
                     type="button"
                     onClick={handlePreFillAssertionOptions}
-                    className="px-2.5 py-1 bg-amber-400/10 hover:bg-amber-400 hover:text-black text-amber-400 border border-amber-400/30 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                    className="px-2.5 py-1 bg-amber-400/20 hover:bg-amber-400 hover:text-black text-amber-300 border border-amber-400/40 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 cursor-pointer"
                   >
                     ⚡ Pre-Fill Standard 4 Options
                   </button>
@@ -963,14 +964,14 @@ export function QuestionStudioModal({
                   <button
                     type="button"
                     onClick={handlePreFillMatchOptions}
-                    className="px-2.5 py-1 bg-blue-500/10 hover:bg-blue-500 hover:text-white text-blue-400 border border-blue-500/30 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                    className="px-2.5 py-1 bg-blue-500/20 hover:bg-blue-500 hover:text-white text-blue-300 border border-blue-500/40 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 cursor-pointer"
                   >
                     ⚡ Pre-Fill Match Options
                   </button>
                 ) : null}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {['A', 'B', 'C', 'D'].map((optKey, idx) => {
                   const isCorrect = correctAnswer === optKey;
                   const isImgMode = showOptionImage[idx];
@@ -978,21 +979,21 @@ export function QuestionStudioModal({
                   return (
                     <div
                       key={optKey}
-                      className={`p-2.5 rounded-xl border transition ${
+                      className={`p-3 rounded-xl border transition ${
                         isCorrect
-                          ? 'bg-emerald-500/10 border-emerald-500/40 shadow-xs'
-                          : 'bg-zinc-950/60 border-zinc-800/80 hover:border-zinc-700'
+                          ? 'bg-emerald-500/15 border-emerald-500/50 shadow-md ring-1 ring-emerald-500/30'
+                          : 'bg-[#0f1017] border-zinc-700/80 hover:border-zinc-600'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2.5">
                         {/* 1-Click Key Button */}
                         <button
                           type="button"
                           onClick={() => setCorrectAnswer(optKey)}
-                          className={`w-7 h-7 rounded-full text-xs font-bold shrink-0 flex items-center justify-center transition cursor-pointer ${
+                          className={`w-7 h-7 rounded-full text-xs font-black shrink-0 flex items-center justify-center transition cursor-pointer ${
                             isCorrect
                               ? 'bg-emerald-400 text-black shadow-md'
-                              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                              : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'
                           }`}
                           title={`Click to set Option ${optKey} as Correct Answer`}
                         >
@@ -1013,7 +1014,7 @@ export function QuestionStudioModal({
                               });
                             }}
                             placeholder={`Option ${optKey} diagram URL...`}
-                            className="flex-1 bg-[#0d0e12] border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-400 font-mono"
+                            className="flex-1 bg-[#1a1c28] border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 font-mono"
                           />
                         ) : (
                           <input
@@ -1029,7 +1030,7 @@ export function QuestionStudioModal({
                               });
                             }}
                             placeholder={`Option ${optKey} text (supports $LaTeX$)...`}
-                            className="flex-1 bg-[#0d0e12] border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-400 font-mono"
+                            className="flex-1 bg-[#1a1c28] border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 font-mono"
                           />
                         )}
 
@@ -1037,10 +1038,10 @@ export function QuestionStudioModal({
                         <button
                           type="button"
                           onClick={() => setShowOptionImage(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                          className={`p-1.5 rounded-lg border text-[10px] font-bold transition flex items-center gap-1 ${
+                          className={`p-1.5 rounded-lg border text-[10px] font-bold transition flex items-center gap-1 cursor-pointer ${
                             isImgMode
-                              ? 'bg-amber-400/20 text-amber-300 border-amber-400/40'
-                              : 'bg-zinc-900 text-zinc-500 border-zinc-800 hover:text-zinc-300'
+                              ? 'bg-amber-400/25 text-amber-300 border-amber-400/50'
+                              : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-zinc-200'
                           }`}
                           title="Toggle Image Mode"
                         >
@@ -1049,7 +1050,7 @@ export function QuestionStudioModal({
 
                         {/* Correct Key indicator */}
                         {isCorrect && (
-                          <span className="px-2 py-0.5 rounded-md bg-emerald-400/20 text-emerald-300 text-[10px] font-extrabold border border-emerald-400/30">
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-400/25 text-emerald-300 text-[10px] font-black border border-emerald-400/40">
                             KEY
                           </span>
                         )}
@@ -1061,11 +1062,11 @@ export function QuestionStudioModal({
             </div>
 
             {/* SOLUTION & EXPLANATION (Optional) */}
-            <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-3 space-y-2">
+            <div className="bg-[#1a1c28] border border-zinc-700/80 rounded-2xl p-4 space-y-2 shadow-md">
               <button
                 type="button"
                 onClick={() => setShowSolutionSection(prev => !prev)}
-                className="w-full flex items-center justify-between text-xs font-bold text-zinc-400 hover:text-white"
+                className="w-full flex items-center justify-between text-xs font-bold text-zinc-300 hover:text-white cursor-pointer"
               >
                 <span>+ Master Solution & Explanation (Optional)</span>
                 <ChevronDown size={14} className={showSolutionSection ? 'rotate-180 transition' : 'transition'} />
@@ -1078,7 +1079,7 @@ export function QuestionStudioModal({
                   onChange={(e) => setSolution(e.target.value)}
                   placeholder="Provide step-by-step solution derivation (supports KaTeX $math$)..."
                   rows={3}
-                  className="w-full bg-[#0d0e12] border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
+                  className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl p-2.5 text-xs text-white placeholder:text-zinc-500 font-mono leading-relaxed focus:outline-none focus:border-amber-400"
                 />
               )}
             </div>
@@ -1086,13 +1087,13 @@ export function QuestionStudioModal({
           </div>
 
           {/* RIGHT: Live Student CBT View (5 Cols) */}
-          <div className="lg:col-span-5 bg-[#0e0f13] flex flex-col h-full overflow-y-auto p-4 sm:p-5 border-t lg:border-t-0 border-zinc-800">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
-              <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
-                <Eye size={14} /> Live Student CBT View
+          <div className="lg:col-span-5 bg-[#0f1017] flex flex-col h-full overflow-y-auto p-4 sm:p-5 border-t lg:border-t-0 border-zinc-700/80">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-700/80">
+              <div className="flex items-center gap-2 text-xs font-black text-amber-400 uppercase tracking-wider">
+                <Eye size={15} /> Live Student CBT View
               </div>
-              <div className="flex items-center gap-1.5 text-[11px] font-mono font-bold bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md text-zinc-400">
-                <span>+4</span>
+              <div className="flex items-center gap-2 text-[11px] font-mono font-black bg-[#1a1c28] border border-zinc-700 px-2.5 py-0.5 rounded-lg text-zinc-300">
+                <span className="text-emerald-400">+4</span>
                 <span>|</span>
                 <span className="text-red-400">-1</span>
               </div>
@@ -1102,17 +1103,20 @@ export function QuestionStudioModal({
             <div className="flex-1 py-4 space-y-4">
               
               {/* Question Text with Math & Statement formatting */}
-              <div className="text-sm text-zinc-100 font-medium leading-relaxed">
-                {computedQuestionText ? (
-                  <MathRenderer text={computedQuestionText} />
-                ) : (
-                  <span className="text-zinc-600 italic">Start typing question text to preview live rendering...</span>
-                )}
+              <div className="p-4 rounded-2xl bg-[#161722] border border-zinc-700/80 shadow-md">
+                <div className="text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Question Statement:</div>
+                <div className="text-sm text-zinc-100 font-medium leading-relaxed">
+                  {computedQuestionText ? (
+                    <MathRenderer text={computedQuestionText} />
+                  ) : (
+                    <span className="text-zinc-400 italic">Start typing question text on the left to preview live rendering here...</span>
+                  )}
+                </div>
               </div>
 
               {/* Main Diagram */}
               {imageUrl && formatImageUrl(imageUrl) && (
-                <div className="my-3 p-2 bg-black/40 rounded-xl border border-zinc-800 text-center">
+                <div className="my-3 p-3 bg-[#161722] rounded-2xl border border-zinc-700/80 text-center shadow-md">
                   <img
                     src={formatImageUrl(imageUrl)}
                     alt="Diagram"
@@ -1123,7 +1127,8 @@ export function QuestionStudioModal({
               )}
 
               {/* Rendered Options */}
-              <div className="space-y-2.5 pt-2">
+              <div className="space-y-2.5 pt-1">
+                <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider px-1">Options:</div>
                 {['A', 'B', 'C', 'D'].map((optKey, idx) => {
                   const isCorrect = correctAnswer === optKey;
                   const isImg = showOptionImage[idx];
@@ -1132,40 +1137,40 @@ export function QuestionStudioModal({
                   return (
                     <div
                       key={optKey}
-                      className={`p-3 rounded-xl border flex items-center justify-between transition ${
+                      className={`p-3.5 rounded-xl border flex items-center justify-between transition ${
                         isCorrect
-                          ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-100'
-                          : 'bg-[#13141a] border-zinc-800/90 text-zinc-300'
+                          ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-100 shadow-md ring-1 ring-emerald-500/20'
+                          : 'bg-[#161722] border-zinc-700/80 text-zinc-200'
                       }`}
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <span className={`w-6 h-6 rounded-full text-xs font-bold shrink-0 flex items-center justify-center ${
+                        <span className={`w-6 h-6 rounded-full text-xs font-black shrink-0 flex items-center justify-center ${
                           isCorrect
-                            ? 'bg-emerald-400 text-black font-black'
-                            : 'bg-zinc-800 text-zinc-400'
+                            ? 'bg-emerald-400 text-black shadow'
+                            : 'bg-zinc-800 text-zinc-300'
                         }`}>
                           {optKey}
                         </span>
 
-                        <div className="text-xs leading-relaxed flex-1 min-w-0">
+                        <div className="text-xs leading-relaxed flex-1 min-w-0 font-medium">
                           {isImg && optVal ? (
                             <img
                               src={formatImageUrl(optVal)}
                               alt={`Option ${optKey}`}
-                              className="max-h-24 object-contain rounded border border-zinc-700 bg-black/30 p-1"
+                              className="max-h-24 object-contain rounded border border-zinc-700 bg-black/40 p-1"
                               onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                             />
                           ) : optVal ? (
                             <MathRenderer text={optVal} />
                           ) : (
-                            <span className="text-zinc-600 italic">Option {optKey} content</span>
+                            <span className="text-zinc-500 italic">Option {optKey} content</span>
                           )}
                         </div>
                       </div>
 
                       {isCorrect && (
                         <span className="text-emerald-400 ml-2 shrink-0">
-                          <Check size={14} />
+                          <Check size={16} />
                         </span>
                       )}
                     </div>
@@ -1175,9 +1180,9 @@ export function QuestionStudioModal({
 
               {/* Solution Preview */}
               {solution && (
-                <div className="mt-4 p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-1">
-                  <div className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">Solution Explanation:</div>
-                  <div className="text-xs text-zinc-300 leading-relaxed">
+                <div className="mt-4 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-1">
+                  <div className="text-[11px] font-black text-amber-400 uppercase tracking-wider">Solution Explanation:</div>
+                  <div className="text-xs text-zinc-200 leading-relaxed font-medium">
                     <MathRenderer text={solution} />
                   </div>
                 </div>
@@ -1185,8 +1190,8 @@ export function QuestionStudioModal({
             </div>
 
             {/* Student Preview Footer Metadata */}
-            <div className="pt-3 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-500 font-mono">
-              <span>Template: <strong className="text-zinc-300">{template}</strong></span>
+            <div className="pt-3 border-t border-zinc-700/80 flex items-center justify-between text-[11px] text-zinc-400 font-mono">
+              <span>Template: <strong className="text-zinc-200">{template}</strong></span>
               <span>Key: <strong className="text-emerald-400">{correctAnswer}</strong></span>
               <span>Subject: <strong className="text-amber-400">{section}</strong></span>
             </div>
@@ -1195,16 +1200,16 @@ export function QuestionStudioModal({
         </div>
 
         {/* BOTTOM ACTION BAR */}
-        <div className="px-5 py-3 bg-[#17181f] border-t border-zinc-800 flex items-center justify-between shrink-0">
+        <div className="px-5 py-3 bg-[#1a1c28] border-t border-zinc-700/80 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             {errorMsg && (
-              <div className="text-xs text-red-400 flex items-center gap-1.5 font-medium">
-                <AlertCircle size={14} className="shrink-0" /> {errorMsg}
+              <div className="text-xs text-red-400 flex items-center gap-1.5 font-bold">
+                <AlertCircle size={15} className="shrink-0" /> {errorMsg}
               </div>
             )}
             {!errorMsg && (
-              <div className="text-[11px] text-zinc-500 hidden sm:block">
-                Press <kbd className="px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">Cmd + Enter</kbd> to save question
+              <div className="text-[11px] text-zinc-400 hidden sm:block">
+                Press <kbd className="px-1.5 py-0.5 bg-zinc-800 border border-zinc-600 rounded text-zinc-200 font-mono">Cmd + Enter</kbd> to save question
               </div>
             )}
           </div>
@@ -1213,7 +1218,7 @@ export function QuestionStudioModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl text-xs transition"
+              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold rounded-xl text-xs transition cursor-pointer"
             >
               Cancel
             </button>

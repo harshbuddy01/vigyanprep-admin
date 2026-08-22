@@ -67,12 +67,12 @@ function renderTableBlock(tableText: string, keyPrefix: string | number) {
   const dataLines = lines.filter((l, idx) => idx > 0 && !/^\|[\s\-:\|]+\|$/.test(l.trim()));
   const rows = dataLines
     .map(r => r.split('|').slice(1, -1).map(c => c.trim()))
-    .filter(row => row.some(cell => cell.replace(/^(\(\w\)|\*\*|\s)+$/g, '').trim().length > 0));
+    .filter(row => row.some(cell => cell.replace(/^(\(\w\)|[\*\s])+$/g, '').trim().length > 0));
 
   if (rows.length === 0) return null;
 
   return (
-    <div key={keyPrefix} className="my-3.5 overflow-x-auto rounded-xl border border-zinc-800 bg-[#13141a] shadow-lg">
+    <div key={keyPrefix} className="my-3.5 overflow-x-auto rounded-xl border border-zinc-700/80 bg-[#161720] shadow-lg">
       <table className="w-full text-left text-xs border-collapse min-w-[340px]">
         <thead>
           <tr className="bg-zinc-800/90 border-b border-zinc-700/80 text-amber-400 font-extrabold uppercase tracking-wider">
@@ -87,7 +87,7 @@ function renderTableBlock(tableText: string, keyPrefix: string | number) {
           {rows.map((row, rIdx) => (
             <tr key={rIdx} className={rIdx % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.02]'}>
               {row.map((cell, cIdx) => (
-                <td key={cIdx} className="py-2.5 px-4 text-zinc-200 leading-relaxed border-r border-zinc-800/50 last:border-r-0 font-medium">
+                <td key={cIdx} className="py-2.5 px-4 text-zinc-100 leading-relaxed border-r border-zinc-800/50 last:border-r-0 font-medium">
                   {renderTableCellContent(cell)}
                 </td>
               ))}
@@ -103,64 +103,70 @@ function renderTableBlock(tableText: string, keyPrefix: string | number) {
 function renderInlineContent(rawChunk: string) {
   if (!rawChunk) return null;
 
-  // Split text by math expressions ($$...$$, $...$), and bold (**...**)
-  const parts = rawChunk.split(/(\$\$.*?\$\$|\$.*?\$|\*\*.*?\*\*)/gs);
+  // Split strictly by single $ math and double $$ math without matching across $
+  const parts = rawChunk.split(/(\$\$[^\$]+\$\$|\$[^\$\n\r]+\$|\*\*[^\*\n\r]+\*\*)/g);
 
-  return parts.map((part: string, index: number) => {
-    if (part.startsWith('$$') && part.endsWith('$$')) {
-      const math = part.slice(2, -2).trim();
-      try {
-        const html = katex.renderToString(math, { displayMode: true, throwOnError: false });
-        return (
-          <span
-            key={index}
-            className="my-2 block text-center overflow-x-auto py-1"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-        );
-      } catch {
-        return <code key={index} className="text-amber-400 font-mono">{part}</code>;
-      }
-    } else if (part.startsWith('$') && part.endsWith('$')) {
-      const math = part.slice(1, -1).trim();
-      try {
-        const html = katex.renderToString(math, { displayMode: false, throwOnError: false });
-        return (
-          <span
-            key={index}
-            className="inline-block px-0.5"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-        );
-      } catch {
-        return <code key={index} className="text-amber-400 font-mono">{part}</code>;
-      }
-    } else if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
-      const boldContent = part.slice(2, -2);
-      return (
-        <strong key={index} className="font-bold text-amber-200">
-          {renderInlineContent(boldContent)}
-        </strong>
-      );
-    } else {
-      // Auto-detect math constructs even if dollar signs were omitted
-      if (/\\(frac|sqrt|vec|int|sum|alpha|beta|gamma|delta|theta|omega|pi|rho|lambda|sigma|mu|epsilon|infty|rightarrow|times|partial|mathrm|mathbf|gg|ll|left|right|pm|approx|neq|le|ge|cdot|binom|limits)/.test(part) || /\^{[^{}]*}|_\{[^{}]*\}/.test(part)) {
-        try {
-          const html = katex.renderToString(part, { displayMode: false, throwOnError: false });
+  return (
+    <>
+      {parts.map((part: string, index: number) => {
+        if (!part) return null;
+
+        if (part.startsWith('$$') && part.endsWith('$$')) {
+          const math = part.slice(2, -2).trim();
+          try {
+            const html = katex.renderToString(math, { displayMode: true, throwOnError: false });
+            return (
+              <span
+                key={index}
+                className="my-2 block text-center overflow-x-auto py-1"
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            );
+          } catch {
+            return <code key={index} className="text-amber-400 font-mono">{part}</code>;
+          }
+        } else if (part.startsWith('$') && part.endsWith('$')) {
+          const math = part.slice(1, -1).trim();
+          try {
+            const html = katex.renderToString(math, { displayMode: false, throwOnError: false });
+            return (
+              <span
+                key={index}
+                className="inline-block px-0.5"
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            );
+          } catch {
+            return <code key={index} className="text-amber-400 font-mono">{part}</code>;
+          }
+        } else if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+          const boldContent = part.slice(2, -2);
           return (
-            <span
-              key={index}
-              className="inline-block px-0.5"
-              dangerouslySetInnerHTML={{ __html: html }}
-            />
+            <strong key={index} className="font-bold text-amber-200">
+              {renderInlineContent(boldContent)}
+            </strong>
           );
-        } catch {
+        } else {
+          // Auto-detect math constructs even if dollar signs were omitted
+          if (/\\(frac|sqrt|vec|int|sum|alpha|beta|gamma|delta|theta|omega|pi|rho|lambda|sigma|mu|epsilon|infty|rightarrow|times|partial|mathrm|mathbf|gg|ll|left|right|pm|approx|neq|le|ge|cdot|binom|limits)/.test(part) || /\^{[^{}]*}|_\{[^{}]*\}/.test(part)) {
+            try {
+              const html = katex.renderToString(part, { displayMode: false, throwOnError: false });
+              return (
+                <span
+                  key={index}
+                  className="inline-block px-0.5"
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
+              );
+            } catch {
+              return <span key={index}>{part}</span>;
+            }
+          }
           return <span key={index}>{part}</span>;
         }
-      }
-      return <span key={index}>{part}</span>;
-    }
-  });
+      })}
+    </>
+  );
 }
 
 export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = '' }) => {
@@ -216,7 +222,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = ''
     const lines = rawString.split(/\r?\n/);
 
     return (
-      <div className={'space-y-2 leading-relaxed ' + className}>
+      <div className={'space-y-2.5 leading-relaxed ' + className}>
         {lines.map((line: string, lIdx: number) => {
           const trimmedLine = line.trim();
           if (!trimmedLine) {
@@ -252,10 +258,10 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = ''
             const content = statementMatch[2].trim();
             return (
               <div key={lIdx} className="flex items-start gap-3 my-2.5 pl-2 sm:pl-3.5 group">
-                <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 font-extrabold font-mono text-xs shrink-0 border border-amber-500/25 shadow-xs">
+                <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-extrabold font-mono text-xs shrink-0 border border-amber-500/30 shadow-xs">
                   {badge.endsWith(':') || badge.endsWith('.') || badge.endsWith(')') ? badge : badge + '.'}
                 </span>
-                <div className="flex-1 leading-relaxed text-zinc-200">
+                <div className="flex-1 leading-relaxed text-zinc-100 font-medium">
                   {renderInlineContent(content)}
                 </div>
               </div>
@@ -264,7 +270,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = ''
 
           // Standard paragraph line
           return (
-            <p key={lIdx} className="leading-relaxed">
+            <p key={lIdx} className="leading-relaxed text-zinc-100">
               {renderInlineContent(trimmedLine)}
             </p>
           );
