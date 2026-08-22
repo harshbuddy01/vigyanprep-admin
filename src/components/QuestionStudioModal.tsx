@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   X, Image as ImageIcon, Save, CheckCircle2, AlertCircle,
   Eye, Zap, Camera, Link2, Trash2, Layers, HelpCircle,
-  Check, ChevronDown, ChevronUp, Sparkles, BookOpen
+  Check, ChevronDown, ChevronUp, Sparkles, BookOpen, Columns
 } from 'lucide-react';
 import { MathRenderer } from './MathRenderer';
 
@@ -62,7 +62,7 @@ const COMPACT_MATH_SNIPPETS = [
   { label: '∑', tex: '\\sum_{i=1}^{n}' },
 ];
 
-type QuestionTemplate = 'standard' | 'statement' | 'assertion_reason';
+type QuestionTemplate = 'standard' | 'statement' | 'assertion_reason' | 'match_column';
 
 function autoFormatMathTextClient(raw: string): string {
   if (!raw) return '';
@@ -134,6 +134,12 @@ export function QuestionStudioModal({
   const [rawQuestionText, setRawQuestionText] = useState('');
   const [imageUrl, setImageUrl] = useState('');
 
+  // Match the Column State
+  const [col1Name, setCol1Name] = useState('Column-I');
+  const [col2Name, setCol2Name] = useState('Column-II');
+  const [col1Items, setCol1Items] = useState<string[]>(['', '', '', '']);
+  const [col2Items, setCol2Items] = useState<string[]>(['', '', '', '']);
+
   const [options, setOptions] = useState<string[]>(['', '', '', '']);
   const [optionImages, setOptionImages] = useState<string[]>(['', '', '', '']);
   const [showOptionImage, setShowOptionImage] = useState<Record<number, boolean>>({});
@@ -159,9 +165,25 @@ export function QuestionStudioModal({
       if (statement1.trim()) parts.push('Assertion (A): ' + statement1.trim());
       if (statement2.trim()) parts.push('Reason (R): ' + statement2.trim());
       return parts.join('\n\n');
+    } else if (template === 'match_column') {
+      const parts: string[] = [];
+      if (contextText.trim()) parts.push(contextText.trim());
+      const colLabels1 = ['(A)', '(B)', '(C)', '(D)'];
+      const colLabels2 = ['(P)', '(Q)', '(R)', '(S)'];
+      const tableLines = [
+        '| ' + (col1Name.trim() || 'Column-I') + ' | ' + (col2Name.trim() || 'Column-II') + ' |',
+        '| :--- | :--- |',
+      ];
+      for (let i = 0; i < 4; i++) {
+        const item1 = col1Items[i]?.trim() || '';
+        const item2 = col2Items[i]?.trim() || '';
+        tableLines.push('| **' + colLabels1[i] + '** ' + item1 + ' | **' + colLabels2[i] + '** ' + item2 + ' |');
+      }
+      parts.push(tableLines.join('\n'));
+      return parts.join('\n\n');
     }
     return rawQuestionText;
-  }, [template, contextText, statement1, statement2, rawQuestionText]);
+  }, [template, contextText, statement1, statement2, rawQuestionText, col1Name, col2Name, col1Items, col2Items]);
 
   useEffect(() => {
     if (initialData) {
@@ -180,7 +202,32 @@ export function QuestionStudioModal({
       const qText = initialData.question_text || (initialData as any).text || '';
       setRawQuestionText(qText);
 
-      if (/Statement I:/i.test(qText) && /Statement II:/i.test(qText)) {
+      // Detect table / Match the Columns
+      if (/\|[\s\-:\|]+\|/g.test(qText) && (/Column/i.test(qText) || /List/i.test(qText))) {
+        setTemplate('match_column');
+        const lines = qText.split('\n');
+        const tableLines = lines.filter((l: string) => l.trim().startsWith('|'));
+        const intro = lines.filter((l: string) => !l.trim().startsWith('|')).join('\n').trim();
+        setContextText(intro);
+
+        if (tableLines.length >= 3) {
+          const header = tableLines[0].split('|').slice(1, -1).map((c: string) => c.trim());
+          setCol1Name(header[0] || 'Column-I');
+          setCol2Name(header[1] || 'Column-II');
+
+          const dataLines = tableLines.filter((l: string, idx: number) => idx > 0 && !/^\|[\s\-:\|]+\|$/.test(l.trim()));
+          const newCol1 = ['', '', '', ''];
+          const newCol2 = ['', '', '', ''];
+
+          dataLines.slice(0, 4).forEach((rowLine: string, rIdx: number) => {
+            const cells = rowLine.split('|').slice(1, -1).map((c: string) => c.trim());
+            newCol1[rIdx] = (cells[0] || '').replace(/^\*\*\([A-D]\)\*\*\s*/, '').trim();
+            newCol2[rIdx] = (cells[1] || '').replace(/^\*\*\([P-S]\)\*\*\s*/, '').trim();
+          });
+          setCol1Items(newCol1);
+          setCol2Items(newCol2);
+        }
+      } else if (/Statement I:/i.test(qText) && /Statement II:/i.test(qText)) {
         setTemplate('statement');
         const st1Match = qText.match(/Statement I:\s*([\s\S]*?)(?=Statement II:|$)/i);
         const st2Match = qText.match(/Statement II:\s*([\s\S]*)$/i);
@@ -244,6 +291,10 @@ export function QuestionStudioModal({
       setContextText('');
       setStatement1('');
       setStatement2('');
+      setCol1Name('Column-I');
+      setCol2Name('Column-II');
+      setCol1Items(['', '', '', '']);
+      setCol2Items(['', '', '', '']);
       setRawQuestionText('');
       setImageUrl('');
       setOptions(['', '', '', '']);
@@ -273,7 +324,7 @@ export function QuestionStudioModal({
   if (!isOpen) return null;
 
   const handleInsertSnippet = (snippet: string) => {
-    if (template === 'statement' || template === 'assertion_reason') {
+    if (template === 'statement' || template === 'assertion_reason' || template === 'match_column') {
       setContextText(prev => prev + ' $' + snippet + '$ ');
     } else {
       setRawQuestionText(prev => prev + ' $' + snippet + '$ ');
@@ -287,6 +338,13 @@ export function QuestionStudioModal({
         'Both (A) and (R) are true, but (R) is NOT the correct explanation of (A).',
         '(A) is true, but (R) is false.',
         '(A) is false, but (R) is true.'
+      ]);
+    } else if (template === 'match_column') {
+      setOptions([
+        'A → P, B → Q, C → R, D → S',
+        'A → Q, B → P, C → S, D → R',
+        'A → R, B → S, C → P, D → Q',
+        'A → S, B → R, C → Q, D → P'
       ]);
     } else {
       setOptions([
@@ -317,7 +375,7 @@ export function QuestionStudioModal({
   const handleSaveForm = async () => {
     const finalText = computedQuestionText.trim();
     if (!finalText) {
-      setErrorMsg('Please enter question text or statements.');
+      setErrorMsg('Please enter question text or table items.');
       return;
     }
 
@@ -370,7 +428,7 @@ export function QuestionStudioModal({
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
-      <div className="w-full max-w-[1400px] h-[92vh] max-h-[920px] bg-[#0e0f12] border border-zinc-800/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-zinc-100">
+      <div className="w-full max-w-[1440px] h-[92vh] max-h-[940px] bg-[#0e0f12] border border-zinc-800/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-zinc-100">
         
         {/* ================= TOP COMPACT HEADER ================= */}
         <div className="h-14 px-5 border-b border-zinc-800/80 bg-[#14151a] flex items-center justify-between shrink-0">
@@ -440,21 +498,22 @@ export function QuestionStudioModal({
             {/* 1. QUESTION TEMPLATE SELECTOR */}
             <div className="flex items-center justify-between p-1 bg-[#14151a] border border-zinc-800 rounded-xl">
               <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider px-3 flex items-center gap-1.5">
-                <Layers size={13} className="text-amber-400" /> Structure:
+                <Layers size={13} className="text-amber-400" /> Format:
               </span>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 overflow-x-auto">
                 {[
                   { id: 'standard', label: 'Standard MCQ' },
                   { id: 'statement', label: 'Statement I & II' },
                   { id: 'assertion_reason', label: 'Assertion & Reason' },
+                  { id: 'match_column', label: 'Match Columns (Matrix)' },
                 ].map(t => (
                   <button
                     key={t.id}
                     type="button"
                     onClick={() => setTemplate(t.id as QuestionTemplate)}
-                    className={'px-3 py-1 rounded-lg text-xs font-semibold transition ' + (
+                    className={'px-3 py-1 rounded-lg text-xs font-semibold transition shrink-0 ' + (
                       template === t.id
-                        ? 'bg-zinc-800 text-amber-300 font-bold border border-amber-500/30'
+                        ? 'bg-zinc-800 text-amber-300 font-bold border border-amber-500/30 shadow-sm'
                         : 'text-zinc-400 hover:text-white'
                     )}
                   >
@@ -469,16 +528,18 @@ export function QuestionStudioModal({
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
                   <BookOpen size={13} className="text-amber-400" />
-                  {template === 'statement' ? 'Context & Statements' : template === 'assertion_reason' ? 'Assertion & Reason' : 'Question Statement'}
+                  {template === 'match_column' ? 'Match the Columns Matrix' : template === 'statement' ? 'Context & Statements' : template === 'assertion_reason' ? 'Assertion & Reason' : 'Question Statement'}
                 </label>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => {
-                      if (template === 'statement' || template === 'assertion_reason') {
+                      if (template === 'statement' || template === 'assertion_reason' || template === 'match_column') {
                         setContextText(autoFormatMathTextClient(contextText));
                         setStatement1(autoFormatMathTextClient(statement1));
                         setStatement2(autoFormatMathTextClient(statement2));
+                        setCol1Items(prev => prev.map(o => autoFormatMathTextClient(o)));
+                        setCol2Items(prev => prev.map(o => autoFormatMathTextClient(o)));
                       } else {
                         setRawQuestionText(autoFormatMathTextClient(rawQuestionText));
                       }
@@ -514,6 +575,7 @@ export function QuestionStudioModal({
                 </div>
               )}
 
+              {/* TEMPLATE: STANDARD MCQ */}
               {template === 'standard' && (
                 <textarea
                   value={rawQuestionText}
@@ -524,6 +586,7 @@ export function QuestionStudioModal({
                 />
               )}
 
+              {/* TEMPLATE: STATEMENT I & II */}
               {template === 'statement' && (
                 <div className="space-y-2.5">
                   <div>
@@ -559,6 +622,7 @@ export function QuestionStudioModal({
                 </div>
               )}
 
+              {/* TEMPLATE: ASSERTION & REASON */}
               {template === 'assertion_reason' && (
                 <div className="space-y-2.5">
                   <div>
@@ -590,6 +654,89 @@ export function QuestionStudioModal({
                       placeholder="Type the Reason statement..."
                       className="w-full bg-[#1b1c22] border border-blue-500/30 rounded-lg px-3 py-2 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-blue-400"
                     />
+                  </div>
+                </div>
+              )}
+
+              {/* TEMPLATE: MATCH THE COLUMNS (MATRIX MATCH) */}
+              {template === 'match_column' && (
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-[10px] font-semibold text-zinc-400 block mb-1">Instructions / Setup (e.g. Match Column-I with Column-II):</span>
+                    <textarea
+                      value={contextText}
+                      onChange={(e) => setContextText(e.target.value)}
+                      rows={2}
+                      placeholder="e.g. Match the physical situations described in Column-I with their properties in Column-II:"
+                      className="w-full bg-[#1b1c22] border border-zinc-800 rounded-lg p-2.5 text-xs text-white font-mono leading-relaxed placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-y"
+                    />
+                  </div>
+
+                  {/* Dual Column Inputs */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                    {/* Column I */}
+                    <div className="space-y-2 bg-[#171820] border border-zinc-800 rounded-xl p-3">
+                      <div className="flex items-center gap-2">
+                        <Columns size={12} className="text-amber-400" />
+                        <input
+                          type="text"
+                          value={col1Name}
+                          onChange={(e) => setCol1Name(e.target.value)}
+                          placeholder="Column-I"
+                          className="bg-transparent border-b border-zinc-700 text-xs font-bold text-amber-400 focus:outline-none focus:border-amber-400 py-0.5 w-28"
+                        />
+                      </div>
+                      {['A', 'B', 'C', 'D'].map((lbl, i) => (
+                        <div key={lbl} className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-zinc-800 text-amber-300 font-bold text-[10px] flex items-center justify-center shrink-0">
+                            {lbl}
+                          </span>
+                          <input
+                            type="text"
+                            value={col1Items[i]}
+                            onChange={(e) => {
+                              const updated = [...col1Items];
+                              updated[i] = e.target.value;
+                              setCol1Items(updated);
+                            }}
+                            placeholder={'Item (' + lbl + ') description...'}
+                            className="flex-1 bg-[#121318] border border-zinc-800 rounded-md px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Column II */}
+                    <div className="space-y-2 bg-[#171820] border border-zinc-800 rounded-xl p-3">
+                      <div className="flex items-center gap-2">
+                        <Columns size={12} className="text-blue-400" />
+                        <input
+                          type="text"
+                          value={col2Name}
+                          onChange={(e) => setCol2Name(e.target.value)}
+                          placeholder="Column-II"
+                          className="bg-transparent border-b border-zinc-700 text-xs font-bold text-blue-400 focus:outline-none focus:border-blue-400 py-0.5 w-28"
+                        />
+                      </div>
+                      {['P', 'Q', 'R', 'S'].map((lbl, i) => (
+                        <div key={lbl} className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-zinc-800 text-blue-300 font-bold text-[10px] flex items-center justify-center shrink-0">
+                            {lbl}
+                          </span>
+                          <input
+                            type="text"
+                            value={col2Items[i]}
+                            onChange={(e) => {
+                              const updated = [...col2Items];
+                              updated[i] = e.target.value;
+                              setCol2Items(updated);
+                            }}
+                            placeholder={'Item (' + lbl + ') description...'}
+                            className="flex-1 bg-[#121318] border border-zinc-800 rounded-md px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-blue-400"
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -652,7 +799,7 @@ export function QuestionStudioModal({
                   Answer Options &amp; Correct Key
                 </label>
                 
-                {(template === 'statement' || template === 'assertion_reason') && (
+                {(template === 'statement' || template === 'assertion_reason' || template === 'match_column') && (
                   <button
                     type="button"
                     onClick={handlePreFillStatementOptions}
@@ -696,7 +843,7 @@ export function QuestionStudioModal({
                           type="text"
                           value={options[idx]}
                           onChange={(e) => handleOptionChange(idx, e.target.value)}
-                          placeholder={'Option ' + label + ' text...'}
+                          placeholder={'Option ' + label + ' text (e.g. A → P, B → Q, C → R, D → S)...'}
                           className="flex-1 bg-transparent border-none text-xs text-white font-mono placeholder-zinc-600 focus:outline-none"
                         />
 
