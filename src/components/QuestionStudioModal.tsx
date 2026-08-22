@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X, Check, Image, AlertCircle, Save, Sparkles,
   ChevronDown, HelpCircle, CheckCircle2, Eye, Plus, Trash2
@@ -479,8 +480,8 @@ export function QuestionStudioModal({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in font-sans text-zinc-100">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md font-sans text-zinc-100">
       <div className="bg-[#14151f] border border-zinc-700/80 rounded-2xl w-full max-w-7xl h-[94vh] flex flex-col shadow-2xl overflow-hidden ring-1 ring-white/10">
         
         {/* TOP BAR: Header, Subject, Meta & Close */}
@@ -1240,6 +1241,7 @@ export function QuestionStudioModal({
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
