@@ -28,6 +28,7 @@ export function TestSeries() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedTest, setSelectedTest] = useState<any | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'upcoming' | 'expired' | 'draft'>('all');
 
   // Create Form state
   const [title, setTitle] = useState('');
@@ -268,6 +269,16 @@ export function TestSeries() {
     });
   };
 
+  const liveCount = tests.filter(t => getTestStatus(t) === 'live').length;
+  const upcomingCount = tests.filter(t => getTestStatus(t) === 'upcoming').length;
+  const expiredCount = tests.filter(t => getTestStatus(t) === 'expired').length;
+  const draftCount = tests.filter(t => getTestStatus(t) === 'draft').length;
+
+  const filteredTests = tests.filter(t => {
+    if (statusFilter === 'all') return true;
+    return getTestStatus(t) === statusFilter;
+  });
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-fade-in text-zinc-100 font-sans">
       
@@ -301,6 +312,82 @@ export function TestSeries() {
         </div>
       </div>
 
+      {/* State Filter Tabs Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+            statusFilter === 'all'
+              ? 'bg-amber-400 text-neutral-950 shadow-md'
+              : 'bg-zinc-900 text-zinc-400 hover:text-white border border-white/10'
+          }`}
+        >
+          <span>All Papers</span>
+          <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === 'all' ? 'bg-neutral-950/20 text-neutral-950 font-black' : 'bg-white/10 text-zinc-300'}`}>
+            {tests.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setStatusFilter('live')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+            statusFilter === 'live'
+              ? 'bg-emerald-500 text-white shadow-md'
+              : 'bg-zinc-900 text-zinc-400 hover:text-white border border-white/10'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
+          <span>🔴 Live Now</span>
+          <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === 'live' ? 'bg-white/20 text-white font-black' : 'bg-emerald-500/20 text-emerald-400'}`}>
+            {liveCount}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setStatusFilter('upcoming')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+            statusFilter === 'upcoming'
+              ? 'bg-blue-500 text-white shadow-md'
+              : 'bg-zinc-900 text-zinc-400 hover:text-white border border-white/10'
+          }`}
+        >
+          <span>⏳ Upcoming</span>
+          <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === 'upcoming' ? 'bg-white/20 text-white font-black' : 'bg-blue-500/20 text-blue-400'}`}>
+            {upcomingCount}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setStatusFilter('expired')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+            statusFilter === 'expired'
+              ? 'bg-zinc-700 text-white shadow-md'
+              : 'bg-zinc-900 text-zinc-400 hover:text-white border border-white/10'
+          }`}
+        >
+          <span>🏁 Concluded / Past</span>
+          <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === 'expired' ? 'bg-white/20 text-white font-black' : 'bg-zinc-800 text-zinc-400'}`}>
+            {expiredCount}
+          </span>
+        </button>
+
+        {draftCount > 0 && (
+          <button
+            onClick={() => setStatusFilter('draft')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+              statusFilter === 'draft'
+                ? 'bg-zinc-600 text-white shadow-md'
+                : 'bg-zinc-900 text-zinc-400 hover:text-white border border-white/10'
+            }`}
+          >
+            <span>⚪ Drafts</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === 'draft' ? 'bg-white/20 text-white font-black' : 'bg-zinc-800 text-zinc-400'}`}>
+              {draftCount}
+            </span>
+          </button>
+        )}
+      </div>
+
       {/* Main Tests Table */}
       {loading ? (
         <div className="p-16 text-center text-zinc-500 space-y-3 bg-[#121215] border border-white/10 rounded-2xl">
@@ -312,6 +399,16 @@ export function TestSeries() {
           <BookOpen size={40} className="mx-auto text-zinc-600" />
           <p className="text-sm font-bold text-white">No Test Series Created Yet</p>
           <p className="text-xs text-zinc-500">Click &quot;Create Test Paper&quot; above to schedule your first test.</p>
+        </div>
+      ) : filteredTests.length === 0 ? (
+        <div className="p-16 text-center text-zinc-500 space-y-3 bg-[#121215] border border-white/10 rounded-2xl">
+          <p className="text-sm font-bold text-white">No tests match the selected filter &apos;{statusFilter}&apos;</p>
+          <button
+            onClick={() => setStatusFilter('all')}
+            className="px-3 py-1.5 bg-amber-400/20 text-amber-400 border border-amber-400/30 rounded-lg text-xs font-bold"
+          >
+            Show All Tests
+          </button>
         </div>
       ) : (
         <div className="bg-[#121215] border border-white/10 rounded-2xl overflow-hidden shadow-sm">
@@ -331,7 +428,7 @@ export function TestSeries() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/80">
-                {tests.map((t) => {
+                {filteredTests.map((t) => {
                   const status = getTestStatus(t);
                   const isReleased = !!(t.response_released_at || t.result_released_at || t.status === 'completed');
                   return (

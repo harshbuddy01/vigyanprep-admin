@@ -12,7 +12,6 @@ import { Results } from './pages/Results';
 import { Members } from './pages/Members';
 import { Settings } from './pages/Settings';
 import { Performance } from './pages/Performance';
-import { Calendar } from './pages/Calendar';
 import { QuestionChallenges } from './pages/QuestionChallenges';
 import { LiveInvigilation } from './pages/LiveInvigilation';
 import { PaperBuilder } from './pages/PaperBuilder';
@@ -37,7 +36,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/test-series" element={<TestSeries />} />
           <Route path="/pricing" element={<PricingPlans />} />
-          <Route path="/test-series/calendar" element={<Calendar />} />
+          <Route path="/test-series/calendar" element={<Navigate to="/test-series" replace />} />
           <Route path="/tests" element={<Navigate to="/test-series" replace />} />
           <Route path="/preview/:testId" element={<PreviewExam />} />
 

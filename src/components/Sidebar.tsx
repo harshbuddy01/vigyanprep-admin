@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, FileQuestion, BookOpen, Users, Receipt,
-  Trophy, LogOut, Calendar, BarChart2, Shield, Settings, Activity, AlertCircle, FileText, Tag, Sun, Moon,
+  Trophy, LogOut, BarChart2, Shield, Settings, Activity, AlertCircle, FileText, Tag, Sun, Moon,
   PanelLeftClose, PanelLeftOpen, Hammer
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
@@ -22,7 +22,6 @@ const navGroups = [
       { to: '/test-series', icon: BookOpen, label: 'Test Series' },
       { to: '/paper-builder?type=test_series', icon: Hammer, label: '⚡ Paper Builder (Live Mock)' },
       { to: '/pricing', icon: Tag, label: 'Pricing & Plans' },
-      { to: '/test-series/calendar', icon: Calendar, label: 'Schedule Calendar' },
       { to: '/live-invigilation', icon: Activity, label: 'Live Invigilation' },
       { to: '/question-reports', icon: AlertCircle, label: 'Question Reports' },
     ]
