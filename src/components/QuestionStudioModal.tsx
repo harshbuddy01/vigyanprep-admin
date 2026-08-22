@@ -2,9 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Check, Image, AlertCircle, Save, Sparkles,
-  ChevronDown, HelpCircle, CheckCircle2, Eye, Plus, Trash2
+  ChevronDown, HelpCircle, CheckCircle2, Eye, Plus, Trash2,
+  Code2, Upload, Link2, RefreshCw, Layers
 } from 'lucide-react';
 import { MathRenderer } from './MathRenderer';
+import { useAuthStore } from '../stores/authStore';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
 export interface QuestionData {
   id?: string;
@@ -36,28 +40,140 @@ interface QuestionStudioModalProps {
 const SECTIONS = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
 
 const QUICK_MATH_SYMBOLS = [
-  { label: '√x', tex: '\sqrt{x}' },
-  { label: 'a/b', tex: '\frac{a}{b}' },
+  { label: '√x', tex: '\\sqrt{x}' },
+  { label: 'a/b', tex: '\\frac{a}{b}' },
   { label: 'x²', tex: 'x^{2}' },
   { label: 'x₁', tex: 'x_{1}' },
   { label: '10⁻⁵', tex: '10^{-5}' },
-  { label: '∫', tex: '\int ' },
-  { label: 'v⃗', tex: '\vec{v}' },
-  { label: '→', tex: '\rightarrow' },
-  { label: '⇌', tex: '\rightleftharpoons' },
-  { label: 'Δ', tex: '\Delta' },
-  { label: 'θ', tex: '\theta' },
-  { label: 'π', tex: '\pi' },
-  { label: '±', tex: '\pm' },
-  { label: '∞', tex: '\infty' },
-  { label: '∑', tex: '\sum_{i=1}^{n}' },
+  { label: '∫', tex: '\\int ' },
+  { label: 'v⃗', tex: '\\vec{v}' },
+  { label: '→', tex: '\\rightarrow' },
+  { label: '⇌', tex: '\\rightleftharpoons' },
+  { label: 'Δ', tex: '\\Delta' },
+  { label: 'θ', tex: '\\theta' },
+  { label: 'π', tex: '\\pi' },
+  { label: '±', tex: '\\pm' },
+  { label: '∞', tex: '\\infty' },
+  { label: '∑', tex: '\\sum_{i=1}^{n}' },
 ];
 
+const TIKZ_PRESETS: Record<string, { name: string; code: string }> = {
+  incline: {
+    name: 'Wedge & Incline Block Mechanics',
+    code: `\\begin{tikzpicture}[scale=1.1, >=stealth]
+  % Ground
+  \\draw[thick] (-0.5, 0) -- (6.5, 0);
+  \\fill[pattern=north east lines, pattern color=gray!60] (-0.5, -0.2) rectangle (6.5, 0);
+
+  % Incline Wedge
+  \\draw[ultra thick, fill=amber!15] (0,0) -- (5,0) -- (5, 2.886) -- cycle;
+  \\node at (2.8, 0.6) {\\bfseries Wedge ($M$)};
+  \\draw (0.8, 0) arc (0:30:0.8);
+  \\node at (1.2, 0.25) {$30^\\circ$};
+
+  % Block on incline
+  \\begin{scope}[shift={(2.0, 1.155)}, rotate=30]
+    \\draw[thick, fill=blue!20] (0,0) rectangle (1.8, 0.9);
+    \\node at (0.9, 0.45) {\\bfseries $m$};
+    \\draw[->, ultra thick, red] (1.8, 0.45) -- (3.0, 0.45) node[right] {$\\vec{F}$};
+  \\end{scope}
+\\end{tikzpicture}`
+  },
+  spring_pulley: {
+    name: 'Pulley & Spring Oscillator',
+    code: `\\begin{tikzpicture}[scale=1.0, >=stealth]
+  % Ceiling
+  \\fill[pattern=north east lines, pattern color=gray] (-1, 3.5) rectangle (3, 3.8);
+  \\draw[thick] (-1, 3.5) -- (3, 3.5);
+
+  % Pulley
+  \\draw[thick, fill=gray!30] (1, 2.7) circle (0.4);
+  \\draw[thick] (1, 3.5) -- (1, 2.7);
+
+  % Spring
+  \\draw[thick, decoration={aspect=0.5, segment length=3mm, amplitude=3mm, coil}, decorate] (0.6, 2.7) -- (0.6, 1.2);
+  \\draw[thick, fill=emerald!20] (0.2, 0.5) rectangle (1.0, 1.2);
+  \\node at (0.6, 0.85) {$m_1$};
+
+  % Mass 2 on string
+  \\draw[thick] (1.4, 2.7) -- (1.4, 1.0);
+  \\draw[thick, fill=purple!20] (1.0, 0.3) rectangle (1.8, 1.0);
+  \\node at (1.4, 0.65) {$m_2$};
+\\end{tikzpicture}`
+  },
+  circuit: {
+    name: 'RLC / Resistor-Capacitor Circuit',
+    code: `\\begin{tikzpicture}[scale=1.0]
+  % Circuit loop
+  \\draw[thick] (0,0) -- (0,2) -- (1.5,2);
+  \\draw[thick, fill=amber!20] (1.5,1.7) rectangle (2.7,2.3) node[pos=0.5] {$R = 10\\,\\Omega$};
+  \\draw[thick] (2.7,2) -- (4,2) -- (4,0);
+  
+  % Capacitor
+  \\draw[thick] (4,0) -- (2.3,0);
+  \\draw[very thick] (2.3,-0.4) -- (2.3,0.4);
+  \\draw[very thick] (1.9,-0.4) -- (1.9,0.4);
+  \\node at (2.1, 0.7) {$C = 5\\,\\mu\\text{F}$};
+  \\draw[thick] (1.9,0) -- (0,0);
+
+  % Voltage Source
+  \\draw[thick, fill=white] (0,1) circle (0.35);
+  \\node at (0,1) {$\\sim$};
+  \\node[left] at (-0.4, 1) {$V(t) = V_0 \\sin(\\omega t)$};
+\\end{tikzpicture}`
+  },
+  benzene: {
+    name: 'Organic Chemistry: Nitrobenzene Reaction',
+    code: `\\begin{tikzpicture}[scale=1.1, thick]
+  % Benzene Ring
+  \\draw (0:1) -- (60:1) -- (120:1) -- (180:1) -- (240:1) -- (300:1) -- cycle;
+  \\draw (0,0) circle (0.65);
+  
+  % Nitro group
+  \\draw (60:1) -- (60:1.7) node[above right] {$\\text{NO}_2$};
+  % Methyl group
+  \\draw (240:1) -- (240:1.7) node[below left] {$\\text{CH}_3$};
+
+  % Reaction Arrow
+  \\draw[->, line width=1.5pt] (2.0, 0) -- (4.2, 0) node[midway, above] {$\\text{Sn} / \\text{HCl}$} node[midway, below] {$\\Delta$};
+
+  % Product Ring
+  \\begin{scope}[shift={(6.0, 0)}]
+    \\draw (0:1) -- (60:1) -- (120:1) -- (180:1) -- (240:1) -- (300:1) -- cycle;
+    \\draw (0,0) circle (0.65);
+    \\draw (60:1) -- (60:1.7) node[above right] {$\\text{NH}_2$};
+    \\draw (240:1) -- (240:1.7) node[below left] {$\\text{CH}_3$};
+  \\end{scope}
+\\end{tikzpicture}`
+  },
+  coordinate_graph: {
+    name: 'Coordinate Plane & Function Curve',
+    code: `\\begin{tikzpicture}[scale=0.9, >=stealth]
+  % Axes
+  \\draw[->, thick] (-3,0) -- (3.5,0) node[right] {$x$};
+  \\draw[->, thick] (0,-1) -- (0,3.5) node[above] {$y$};
+  \\node[below left] at (0,0) {$O$};
+
+  % Parabola
+  \\draw[domain=-2:2, smooth, variable=\\x, ultra thick, blue!80] plot ({\\x}, {\\x*\\x - 0.5});
+  \\node[above right, blue] at (1.8, 3.0) {$y = f(x)$};
+
+  % Tangent line
+  \\draw[thick, dashed, red!80] (-2, -1.5) -- (2, 2.5) node[right] {Tangent at $P(1, 0.5)$};
+  \\fill[red] (1, 0.5) circle (2pt) node[below right] {$P$};
+\\end{tikzpicture}`
+  }
+};
+
 type QuestionTemplate = 'standard' | 'multi_statement' | 'statement' | 'assertion_reason' | 'match_column';
+type DiagramSourceMode = 'tikz' | 'upload' | 'url';
 
 function formatImageUrl(url?: string): string {
   if (!url) return '';
   const trimmed = url.trim();
+  if (trimmed.startsWith('/uploads/')) {
+    return `${API_BASE.replace(/\/+$/, '')}${trimmed}`;
+  }
   const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
   if (driveMatch && driveMatch[1]) {
     return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
@@ -75,11 +191,11 @@ function autoFormatMathTextClient(raw: string): string {
   str = str.replace(/[₀₁₂₃₄₅₆₇₈₉₊₋]+/g, (m) => '_{' + [...m].map(c => subMap[c] || c).join('') + '}');
 
   str = str
-    .replace(/(?:\u221A|√)\s*\((.*?)\)/g, ' $\\sqrt{$1}$ ')
-    .replace(/(?:\u221A|√)\s*([a-zA-Z0-9]+)/g, ' $\\sqrt{$1}$ ')
+    .replace(/(?:\\u221A|√)\s*\((.*?)\)/g, ' $\\sqrt{$1}$ ')
+    .replace(/(?:\\u221A|√)\s*([a-zA-Z0-9]+)/g, ' $\\sqrt{$1}$ ')
     .replace(/\b(?:sqrt|root)\s*\((.*?)\)/gi, ' $\\sqrt{$1}$ ')
     .replace(/\b(?:sqrt|root)\s*([a-zA-Z0-9]+)\b/gi, ' $\\sqrt{$1}$ ')
-    .replace(/[√\u221A]/g, ' \\sqrt ');
+    .replace(/[√\\u221A]/g, ' \\sqrt ');
 
   const chemTokens = /\b(N2O|NO2|NO3|H2O|CO2|SO2|SO3|SO4|NH3|NH4|BH4|H3O|CH4|C2H6|C6H6|C6H12O6|H2SO4|HNO3|HCl|NaOH|KOH|KMnO4|O3|O2|N2|H2|Cl2|Br2|I2|F2)\b/g;
   str = str.replace(chemTokens, (_m, token) => {
@@ -119,6 +235,8 @@ export function QuestionStudioModal({
   defaultTestId,
   defaultSection = 'Physics'
 }: QuestionStudioModalProps) {
+  const token = useAuthStore((state) => state.token);
+
   // Persist subject across questions in localStorage
   const savedSection = typeof window !== 'undefined' ? localStorage.getItem('vigyan_last_section') : null;
   const initialSection = savedSection || defaultSection || 'Physics';
@@ -141,6 +259,13 @@ export function QuestionStudioModal({
   const [rawQuestionText, setRawQuestionText] = useState('');
   const [imageUrl, setImageUrl] = useState('');
 
+  // Built-in TikZ Diagram Studio State
+  const [diagramMode, setDiagramMode] = useState<DiagramSourceMode>('tikz');
+  const [tikzCode, setTikzCode] = useState(TIKZ_PRESETS.incline.code);
+  const [compilingTikz, setCompilingTikz] = useState(false);
+  const [tikzError, setTikzError] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   // Match the Column State
   const [col1Name, setCol1Name] = useState('Column-I');
   const [col2Name, setCol2Name] = useState('Column-II');
@@ -160,11 +285,97 @@ export function QuestionStudioModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const activeInputRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleSectionSelect = (s: string) => {
     setSection(s);
     if (typeof window !== 'undefined') {
       localStorage.setItem('vigyan_last_section', s);
+    }
+  };
+
+  // Compile TikZ Code to 300 DPI PNG via Backend Engine
+  const handleCompileTikz = async () => {
+    if (!tikzCode.trim()) {
+      setTikzError('Please provide TikZ / LaTeX code to compile.');
+      return;
+    }
+
+    setCompilingTikz(true);
+    setTikzError(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/diagrams/render-tikz`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ tikzCode, dpi: 300 })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to compile TikZ diagram');
+      }
+
+      // Auto attach to question image URL
+      setImageUrl(data.imageUrl);
+    } catch (err: any) {
+      setTikzError(err.message || 'LaTeX compilation failed');
+    } finally {
+      setCompilingTikz(false);
+    }
+  };
+
+  // 1-Click Clipboard Paste or File Upload for Screenshots
+  const handleFileUpload = (file: File) => {
+    if (!file || !file.type.startsWith('image/')) {
+      alert('Please upload a valid image file (PNG, JPG, SVG, WebP).');
+      return;
+    }
+
+    setUploadingImage(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64Data = e.target?.result as string;
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/diagrams/upload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: token ? `Bearer ${token}` : ''
+          },
+          body: JSON.stringify({ base64Data, filename: file.name })
+        });
+
+        const data = await res.json();
+        if (data.success && data.imageUrl) {
+          setImageUrl(data.imageUrl);
+        } else {
+          alert('Upload failed: ' + (data.error || 'Server error'));
+        }
+      } catch (err: any) {
+        alert('Upload error: ' + err.message);
+      } finally {
+        setUploadingImage(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Clipboard Paste handler (Ctrl + V anywhere inside upload box)
+  const handlePasteImage = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const blob = items[i].getAsFile();
+        if (blob) {
+          handleFileUpload(blob);
+          e.preventDefault();
+          break;
+        }
+      }
     }
   };
 
@@ -293,7 +504,7 @@ export function QuestionStudioModal({
 
         initialData.options.forEach((opt: string, i: number) => {
           if (i < 4) {
-            if (/^https?:\/\//i.test(opt.trim())) {
+            if (/^https?:\/\//i.test(opt.trim()) || /^\/uploads\//i.test(opt.trim())) {
               newOptImgs[i] = opt.trim();
               newShowOptImg[i] = true;
             } else {
@@ -494,7 +705,7 @@ export function QuestionStudioModal({
               <h2 className="text-sm font-extrabold text-white tracking-tight flex items-center gap-2">
                 Question Authoring Studio
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                  v2.0 Pro
+                  v2.0 Pro • Built-in TikZ
                 </span>
               </h2>
             </div>
@@ -905,26 +1116,174 @@ export function QuestionStudioModal({
               </div>
             )}
 
-            {/* DIAGRAM IMAGE URL */}
-            <div className="bg-[#1a1c28] border border-zinc-700/80 rounded-2xl p-4 space-y-2.5 shadow-md">
-              <label className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                <Image size={14} /> Main Question Diagram (Optional)
-              </label>
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="Paste Google Drive share link or direct Image URL..."
-                className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 font-mono"
-              />
-              {imageUrl && formatImageUrl(imageUrl) && (
-                <div className="p-3 bg-[#0f1017] rounded-xl border border-zinc-700 text-center">
-                  <img
-                    src={formatImageUrl(imageUrl)}
-                    alt="Diagram Preview"
-                    className="max-h-40 mx-auto object-contain rounded"
-                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+            {/* BUILT-IN DIAGRAM STUDIO: TikZ Generator + 1-Click Uploader + Google Drive URL */}
+            <div className="bg-[#1a1c28] border border-zinc-700/80 rounded-2xl p-4 space-y-3 shadow-md">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                  <Image size={15} /> Question Diagram Studio
+                </label>
+
+                {/* 3 Source Modes */}
+                <div className="flex bg-[#0f1017] p-1 rounded-xl border border-zinc-700/80 text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setDiagramMode('tikz')}
+                    className={`px-2.5 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer ${
+                      diagramMode === 'tikz'
+                        ? 'bg-amber-400 text-black font-black shadow'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Code2 size={13} /> TikZ / LaTeX
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDiagramMode('upload')}
+                    className={`px-2.5 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer ${
+                      diagramMode === 'upload'
+                        ? 'bg-amber-400 text-black font-black shadow'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Upload size={13} /> Upload / Paste
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDiagramMode('url')}
+                    className={`px-2.5 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer ${
+                      diagramMode === 'url'
+                        ? 'bg-amber-400 text-black font-black shadow'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Link2 size={13} /> Drive / Link
+                  </button>
+                </div>
+              </div>
+
+              {/* MODE 1: TIKZ / LATEX GENERATOR */}
+              {diagramMode === 'tikz' && (
+                <div className="space-y-2.5 bg-[#0f1017] p-3.5 rounded-xl border border-zinc-700/80">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-zinc-300 flex items-center gap-1">
+                      <Layers size={13} className="text-amber-400" /> Choose Science Template:
+                    </span>
+                    <select
+                      onChange={(e) => {
+                        const preset = TIKZ_PRESETS[e.target.value];
+                        if (preset) setTikzCode(preset.code);
+                      }}
+                      className="bg-[#1a1c28] border border-zinc-700 text-xs font-bold text-amber-300 rounded-lg px-2.5 py-1 focus:outline-none cursor-pointer"
+                    >
+                      <option value="incline">⚡ Physics: Incline Wedge & Block</option>
+                      <option value="spring_pulley">⚡ Physics: Pulley & Spring</option>
+                      <option value="circuit">⚡ Physics: RLC Circuit</option>
+                      <option value="benzene">⚡ Chemistry: Benzene Reaction</option>
+                      <option value="coordinate_graph">⚡ Math: Coordinate Curve</option>
+                    </select>
+                  </div>
+
+                  <textarea
+                    value={tikzCode}
+                    onChange={(e) => setTikzCode(e.target.value)}
+                    rows={6}
+                    placeholder="Paste TikZ code (\begin{tikzpicture}...\end{tikzpicture}) or full LaTeX standalone document..."
+                    className="w-full bg-[#14151f] border border-zinc-700 rounded-xl p-3 text-xs text-amber-100 font-mono leading-relaxed focus:outline-none focus:border-amber-400 shadow-inner"
                   />
+
+                  {tikzError && (
+                    <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-xs text-red-300 flex items-center gap-2">
+                      <AlertCircle size={14} className="shrink-0" />
+                      <span className="font-mono text-[11px] truncate">{tikzError}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[10px] text-zinc-400 font-mono">
+                      Compiles in 300 DPI transparent vector PNG (~4 KB)
+                    </span>
+                    <button
+                      type="button"
+                      disabled={compilingTikz}
+                      onClick={handleCompileTikz}
+                      className="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-black font-black rounded-xl text-xs flex items-center gap-2 shadow-md transition disabled:opacity-50 cursor-pointer"
+                    >
+                      {compilingTikz ? (
+                        <>
+                          <RefreshCw size={13} className="animate-spin" /> Compiling LaTeX...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={13} /> ⚡ Compile & Attach Diagram
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* MODE 2: DIRECT UPLOAD / CLIPBOARD PASTE (CTRL+V) */}
+              {diagramMode === 'upload' && (
+                <div
+                  onPaste={handlePasteImage}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-[#0f1017] border-2 border-dashed border-zinc-700 hover:border-amber-400/80 rounded-xl p-6 text-center cursor-pointer transition group"
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file);
+                    }}
+                  />
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-amber-400/15 text-amber-400 flex items-center justify-center group-hover:scale-110 transition">
+                      {uploadingImage ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} />}
+                    </div>
+                    <p className="text-xs font-extrabold text-white">
+                      {uploadingImage ? 'Uploading Image to Server...' : 'Click to Browse Image or Paste Screenshot (Ctrl + V / Cmd + V)'}
+                    </p>
+                    <p className="text-[11px] text-zinc-400">
+                      Supports PNG, JPG, WebP, SVG • Auto-optimized & stored on your server
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* MODE 3: GOOGLE DRIVE / EXTERNAL LINK */}
+              {diagramMode === 'url' && (
+                <div className="space-y-2 bg-[#0f1017] p-3 rounded-xl border border-zinc-700/80">
+                  <input
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="Paste Google Drive share link or direct Image URL..."
+                    className="w-full bg-[#14151f] border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 font-mono"
+                  />
+                  <p className="text-[10px] text-zinc-400">
+                    Paste any public Google Drive or Web link. We automatically convert it to a high-speed CDN image.
+                  </p>
+                </div>
+              )}
+
+              {/* Attached Image Status Pill */}
+              {imageUrl && (
+                <div className="flex items-center justify-between px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                  <div className="flex items-center gap-2 text-xs text-emerald-300 font-bold truncate">
+                    <CheckCircle2 size={15} className="shrink-0 text-emerald-400" />
+                    <span className="truncate">Attached Diagram: <strong className="font-mono text-white">{imageUrl}</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setImageUrl('')}
+                    className="p-1 hover:bg-red-500/20 text-zinc-400 hover:text-red-300 rounded-lg text-xs font-bold transition ml-2 cursor-pointer"
+                    title="Remove attached diagram"
+                  >
+                    Remove
+                  </button>
                 </div>
               )}
             </div>
@@ -1121,7 +1480,7 @@ export function QuestionStudioModal({
                   <img
                     src={formatImageUrl(imageUrl)}
                     alt="Diagram"
-                    className="max-h-52 mx-auto object-contain rounded-lg shadow"
+                    className="max-h-56 mx-auto object-contain rounded-lg shadow"
                     onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                   />
                 </div>
