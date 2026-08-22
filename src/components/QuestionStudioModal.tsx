@@ -121,7 +121,7 @@ function autoFormatMathTextClient(raw: string): string {
     .replace(/[\u21CC\u21C4]/g, ' $\\rightleftharpoons$ ');
 
   str = str.replace(/\${2,}/g, '$').replace(/\$\$/g, '$ $');
-  return str.replace(/\s+/g, ' ').trim();
+  return str.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 export function QuestionStudioModal({
@@ -219,6 +219,17 @@ export function QuestionStudioModal({
 
   const insertSnippet = (snippet: string) => {
     setQuestionText(prev => prev + ` $${snippet}$ `);
+  };
+
+  const insertText = (text: string) => {
+    setQuestionText(prev => prev + text);
+  };
+
+  const insertInlineDiagram = () => {
+    const url = prompt('Paste Diagram Image Link (Google Drive link or Direct image URL):');
+    if (url && url.trim()) {
+      setQuestionText(prev => prev + `\n\n[img:${url.trim()}]\n\n`);
+    }
   };
 
   const handleOptionChange = (idx: number, val: string) => {
@@ -419,9 +430,42 @@ export function QuestionStudioModal({
                 <span className="text-[10px] text-amber-400 font-mono">Use $...$ for inline math, $$...$$ for display</span>
               </div>
 
-              {/* Quick Math Snippet Bar */}
+              {/* Quick Math & Structure Snippet Bar */}
               <div className="flex flex-wrap items-center justify-between gap-1 p-2 bg-[#18181c] border border-zinc-800 rounded-t-xl overflow-x-auto">
                 <div className="flex flex-wrap gap-1 items-center">
+                  <button
+                    type="button"
+                    onClick={() => insertText('\n\n')}
+                    className="px-2 py-1 bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 border border-amber-500/40 rounded text-[10px] font-bold font-mono transition"
+                    title="Insert a paragraph gap / blank line"
+                  >
+                    ¶ Gap
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertText('\n\nStatement I: ')}
+                    className="px-2 py-1 bg-blue-950/40 hover:bg-blue-900/60 text-blue-300 border border-blue-500/40 rounded text-[10px] font-bold font-mono transition"
+                  >
+                    Statement I:
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertText('\n\nStatement II: ')}
+                    className="px-2 py-1 bg-blue-950/40 hover:bg-blue-900/60 text-blue-300 border border-blue-500/40 rounded text-[10px] font-bold font-mono transition"
+                  >
+                    Statement II:
+                  </button>
+                  <button
+                    type="button"
+                    onClick={insertInlineDiagram}
+                    className="px-2 py-1 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/40 rounded text-[10px] font-bold font-mono transition flex items-center gap-1"
+                    title="Insert a diagram in the middle of question text"
+                  >
+                    <ImageIcon size={10} /> + Diagram Here
+                  </button>
+
+                  <span className="text-zinc-600 mx-1">|</span>
+
                   {MATH_SNIPPETS.map(snip => (
                     <button
                       key={snip.label}
@@ -450,8 +494,8 @@ export function QuestionStudioModal({
               <textarea
                 value={questionText}
                 onChange={(e) => setQuestionText(e.target.value)}
-                rows={4}
-                placeholder="Type question statement here. Formulas: e.g. What is the value of $\int_{0}^{\pi} \sin(x) dx$?"
+                rows={5}
+                placeholder="Type question statement here. Press Enter for new lines / paragraphs. Use [img:DRIVE_URL] to place diagram in between paragraphs."
                 className="w-full bg-[#151518] border border-zinc-800 border-t-0 rounded-b-xl p-3 text-xs text-white font-mono leading-relaxed placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-y"
               />
             </div>
@@ -529,60 +573,44 @@ export function QuestionStudioModal({
                         value={options[idx] || ''}
                         onChange={(e) => handleOptionChange(idx, e.target.value)}
                         placeholder={`Option ${label} text (optional if image used)...`}
-                        className="flex-1 bg-transparent border-none text-xs text-white placeholder-zinc-600 focus:outline-none font-mono"
+                        className="flex-1 bg-[#151518] border border-zinc-700/80 rounded-lg px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-400 font-mono"
                       />
 
                       {/* Add Image Button for this Option */}
                       <button
                         type="button"
                         onClick={() => toggleOptionImageInput(idx)}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition shrink-0 ${
+                        className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition shrink-0 ${
                           hasImg
-                            ? 'bg-blue-500/20 text-blue-400 border-blue-500/40'
-                            : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-white'
+                            ? 'bg-amber-400/20 border-amber-400/40 text-amber-300'
+                            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'
                         }`}
                         title={`Attach diagram image to Option ${label}`}
                       >
-                        <Camera size={11} /> {hasImg ? 'Image Added' : '+ Add Image'}
+                        <Camera size={13} /> {hasImg ? 'Edit Img' : '+ Add Image'}
                       </button>
-
-                      {isCorrect && (
-                        <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider flex items-center gap-1 shrink-0">
-                          <CheckCircle2 size={13} /> Correct Key
-                        </span>
-                      )}
                     </div>
 
                     {/* Option Image Link Section */}
                     {isImgInputOpen && (
-                      <div className="pt-2 border-t border-zinc-800/80 flex items-center gap-2">
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase shrink-0 flex items-center gap-1">
-                          <Link2 size={11} /> Option {label} Image:
-                        </span>
+                      <div className="flex items-center gap-2 pl-10 pr-2 pt-1 border-t border-zinc-800/80">
+                        <Link2 size={13} className="text-zinc-500 shrink-0" />
                         <input
                           type="text"
                           value={optionImages[idx] || ''}
                           onChange={(e) => handleOptionImageChange(idx, e.target.value)}
-                          placeholder="https://... or Google Drive link for this option diagram"
-                          className="flex-1 bg-[#141418] border border-zinc-700/80 rounded-lg px-2.5 py-1.5 text-[11px] text-white placeholder-zinc-600 focus:outline-none focus:border-amber-400"
+                          placeholder="Option diagram URL (Google Drive / Direct link)..."
+                          className="flex-1 bg-[#151518] border border-zinc-800 rounded px-2.5 py-1 text-[11px] text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-amber-400"
                         />
                         {hasImg && (
-                          <div className="flex items-center gap-2">
-                            <img
-                              src={formatImageUrl(optionImages[idx])}
-                              alt={`Opt ${label}`}
-                              className="h-7 w-12 object-contain rounded bg-white/5 border border-zinc-700"
-                              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleOptionImageChange(idx, '')}
-                              className="p-1 text-red-400 hover:text-red-300"
-                              title="Remove option image"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleOptionImageChange(idx, '')}
+                            className="text-red-400 hover:text-red-300 p-1"
+                            title="Remove image"
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         )}
                       </div>
                     )}
@@ -592,16 +620,45 @@ export function QuestionStudioModal({
             </div>
 
             {/* Solution / Explanation */}
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">
-                Step-by-Step Solution Explanation (Optional)
-              </label>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-[10px] font-bold text-blue-400 uppercase tracking-wider">
+                  Step-by-Step Solution Explanation (Optional)
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setSolution(prev => prev + '\n\n')}
+                    className="px-2 py-0.5 bg-blue-950/50 hover:bg-blue-900/50 text-blue-300 border border-blue-800/40 rounded text-[10px] font-mono transition"
+                    title="Insert line break"
+                  >
+                    ¶ Line Break
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSolution(prev => prev + '\n\n**Step 1:** ')}
+                    className="px-2 py-0.5 bg-blue-950/50 hover:bg-blue-900/50 text-blue-300 border border-blue-800/40 rounded text-[10px] font-mono transition"
+                  >
+                    Step 1
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (solution) setSolution(autoFormatMathTextClient(solution));
+                    }}
+                    className="px-2 py-0.5 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 rounded text-[10px] font-bold font-mono transition"
+                    title="Auto-detect formulas in explanation"
+                  >
+                    ⚡ Format Math
+                  </button>
+                </div>
+              </div>
               <textarea
                 value={solution}
                 onChange={(e) => setSolution(e.target.value)}
-                rows={3}
-                placeholder="Explain the derivation / formula so students can learn from mistakes..."
-                className="w-full bg-[#18181c] border border-zinc-800 rounded-xl p-3 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-y"
+                rows={4}
+                placeholder="Explain the derivation / formula so students can learn from mistakes... Press Enter to create new steps/paragraphs."
+                className="w-full bg-[#18181c] border border-zinc-800 rounded-xl p-3 text-xs text-white font-mono leading-relaxed placeholder-zinc-600 focus:outline-none focus:border-amber-400 resize-y"
               />
             </div>
           </div>

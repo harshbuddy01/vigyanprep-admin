@@ -49,19 +49,19 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = ''
       );
     }
 
-    // First split by inline markdown images: ![alt](url) or [img:url] or {{url}}
-    const imageRegex = /(!\[.*?\]\(.*?\)|\[img:.*?\]|\{\{https?:\/\/.*?\}\})/gs;
+    // First split by inline markdown images: ![alt](url) or [img:url] or [image:url] or {{url}}
+    const imageRegex = /(!\[.*?\]\(.*?\)|\[(?:img|image):.*?\]|\{\{https?:\/\/.*?\}\})/gis;
     const blocks = rawString.split(imageRegex);
 
     return (
-      <span className={`inline-wrap ${className}`}>
+      <span className={`inline-wrap whitespace-pre-wrap leading-relaxed ${className}`}>
         {blocks.map((block: string, bIdx: number) => {
           if (!block) return null;
 
           // Check if block is an image markdown
-          const mdMatch = block.match(/^!\[(.*?)\]\((.*?)\)$/);
-          const imgTagMatch = block.match(/^\[img:(.*?)\]$/);
-          const curlyMatch = block.match(/^\{\{(https?:\/\/.*?)\}\}$/);
+          const mdMatch = block.match(/^!\[(.*?)\]\((.*?)\)$/i);
+          const imgTagMatch = block.match(/^\[(?:img|image):\s*(.*?)\]$/i);
+          const curlyMatch = block.match(/^\{\{(https?:\/\/.*?)\}\}$/i);
 
           const imgUrl = mdMatch ? mdMatch[2] : imgTagMatch ? imgTagMatch[1] : curlyMatch ? curlyMatch[1] : null;
           const altText = mdMatch ? mdMatch[1] : 'Diagram';
@@ -129,9 +129,25 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = ''
                         />
                       );
                     } catch {
-                      return <span key={index}>{part}</span>;
+                      return <span key={index} className="whitespace-pre-wrap">{part}</span>;
                     }
                   }
+
+                  // Handle newlines explicitly so statements and paragraphs break cleanly
+                  if (part.includes('\n')) {
+                    const lines = part.split('\n');
+                    return (
+                      <React.Fragment key={index}>
+                        {lines.map((lineText, lIdx) => (
+                          <React.Fragment key={lIdx}>
+                            {lineText}
+                            {lIdx < lines.length - 1 && <br />}
+                          </React.Fragment>
+                        ))}
+                      </React.Fragment>
+                    );
+                  }
+
                   return <span key={index}>{part}</span>;
                 }
               })}
@@ -142,6 +158,6 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = ''
     );
   } catch (err) {
     console.warn('MathRenderer safe fallback:', err);
-    return <span className={className}>{String(text || '')}</span>;
+    return <span className={`whitespace-pre-wrap ${className}`}>{String(text || '')}</span>;
   }
 };
