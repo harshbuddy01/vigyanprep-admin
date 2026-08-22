@@ -11,6 +11,16 @@ import type { QuestionData } from '../components/QuestionStudioModal';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
+function formatImageUrl(url?: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (driveMatch && driveMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+  }
+  return trimmed;
+}
+
 const SUBJECT_ICONS: Record<string, any> = {
   Physics: Atom,
   Chemistry: FlaskConical,
@@ -437,14 +447,15 @@ export function Questions() {
                   </div>
 
                   {/* Question Diagram (if any) */}
-                  {q.image_url && (
-                    <div className="p-2 bg-white/5 border border-white/10 rounded-xl max-w-xs">
+                  {q.image_url && formatImageUrl(q.image_url) && (
+                    <div className="p-2 bg-white/5 border border-white/10 rounded-xl max-w-sm">
                       <img
-                        src={q.image_url}
+                        src={formatImageUrl(q.image_url)}
                         alt="Question Diagram"
-                        className="max-h-36 object-contain rounded"
+                        className="max-h-48 object-contain rounded"
                         onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
+                          const parent = (e.target as HTMLElement).parentElement;
+                          if (parent) parent.style.display = 'none';
                         }}
                       />
                     </div>
