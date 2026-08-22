@@ -175,11 +175,15 @@ export function QuestionStudioModal({
         '| :--- | :--- |',
       ];
       for (let i = 0; i < 4; i++) {
-        const item1 = col1Items[i]?.trim() || '';
-        const item2 = col2Items[i]?.trim() || '';
-        tableLines.push('| **' + colLabels1[i] + '** ' + item1 + ' | **' + colLabels2[i] + '** ' + item2 + ' |');
+        const item1 = (col1Items[i] || '').replace(/^(\([A-D]\)|[A-D]\))\s*/i, '').trim();
+        const item2 = (col2Items[i] || '').replace(/^(\([P-S]\)|[P-S]\))\s*/i, '').trim();
+        if (item1 || item2) {
+          tableLines.push('| ' + colLabels1[i] + ' ' + item1 + ' | ' + colLabels2[i] + ' ' + item2 + ' |');
+        }
       }
-      parts.push(tableLines.join('\n'));
+      if (tableLines.length > 2) {
+        parts.push(tableLines.join('\n'));
+      }
       return parts.join('\n\n');
     }
     return rawQuestionText;

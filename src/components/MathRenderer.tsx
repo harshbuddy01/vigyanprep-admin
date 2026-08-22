@@ -17,16 +17,61 @@ function formatImageUrl(url: string): string {
   return trimmed;
 }
 
+// Render Table Cell with Badge formatting
+function renderTableCellContent(cell: string) {
+  const trimmed = cell.replace(/^\*\*|\*\*$/g, '').trim();
+  if (!trimmed) return null;
+
+  const matchCol1 = trimmed.match(/^(\([A-D]\)|[A-D]\))\s*([\s\S]*)$/i);
+  const matchCol2 = trimmed.match(/^(\([P-S]\)|[P-S]\))\s*([\s\S]*)$/i);
+
+  if (matchCol1) {
+    const badge = matchCol1[1].replace(/[^A-D]/gi, '').toUpperCase();
+    const rest = matchCol1[2].trim();
+    return (
+      <div className="flex items-start gap-2">
+        <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-bold font-mono text-[11px] shrink-0 border border-amber-500/30">
+          ({badge})
+        </span>
+        <div className="flex-1 leading-relaxed">
+          <MathRenderer text={rest} />
+        </div>
+      </div>
+    );
+  }
+
+  if (matchCol2) {
+    const badge = matchCol2[1].replace(/[^P-S]/gi, '').toUpperCase();
+    const rest = matchCol2[2].trim();
+    return (
+      <div className="flex items-start gap-2">
+        <span className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 font-bold font-mono text-[11px] shrink-0 border border-blue-500/30">
+          ({badge})
+        </span>
+        <div className="flex-1 leading-relaxed">
+          <MathRenderer text={rest} />
+        </div>
+      </div>
+    );
+  }
+
+  return <MathRenderer text={trimmed} />;
+}
+
 // Render Markdown Table (e.g. Matrix Match / List I & II)
 function renderTableBlock(tableText: string, keyPrefix: string | number) {
   const lines = tableText.trim().split('\n').filter(l => l.trim().startsWith('|'));
   if (lines.length < 2) return null;
 
   // Header line
-  const headerCells = lines[0].split('|').slice(1, -1).map(c => c.trim());
+  const headerCells = lines[0].split('|').slice(1, -1).map(c => c.trim().replace(/^\*\*|\*\*$/g, ''));
   // Skip separator line (e.g. |:---|:---|)
   const dataLines = lines.filter((l, idx) => idx > 0 && !/^\|[\s\-:\|]+\|$/.test(l.trim()));
-  const rows = dataLines.map(r => r.split('|').slice(1, -1).map(c => c.trim()));
+  const rows = dataLines
+    .map(r => r.split('|').slice(1, -1).map(c => c.trim()))
+    .filter(row => row.some(cell => cell.replace(/^(\(\w\)|\*\*|\s)+$/g, '').trim().length > 0));
+
+  if (rows.length === 0) return null;
 
   return (
     <div key={keyPrefix} className="my-3.5 overflow-x-auto rounded-xl border border-zinc-800 bg-[#13141a] shadow-lg">
@@ -45,7 +90,7 @@ function renderTableBlock(tableText: string, keyPrefix: string | number) {
             <tr key={rIdx} className={rIdx % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.02]'}>
               {row.map((cell, cIdx) => (
                 <td key={cIdx} className="py-2.5 px-4 text-zinc-200 leading-relaxed border-r border-zinc-800/50 last:border-r-0 font-medium">
-                  <MathRenderer text={cell} />
+                  {renderTableCellContent(cell)}
                 </td>
               ))}
             </tr>
@@ -137,8 +182,8 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = ''
             );
           }
 
-          // Split text block by math expressions
-          const parts = block.split(/(\$\$.*?\$\$|\$.*?\$)/gs);
+          // Split text block by math expressions and markdown bold
+          const parts = block.split(/(\$\$.*?\$\$|\$.*?\$|\*\*.*?\*\*)/gs);
 
           return (
             <React.Fragment key={bIdx}>
@@ -171,6 +216,13 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = ''
                   } catch {
                     return <code key={index} className="text-amber-400 font-mono">{part}</code>;
                   }
+                } else if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+                  const boldContent = part.slice(2, -2);
+                  return (
+                    <strong key={index} className="font-bold text-amber-200">
+                      <MathRenderer text={boldContent} />
+                    </strong>
+                  );
                 } else {
                   // Auto-detect math constructs even if dollar signs were omitted
                   if (/\\(frac|sqrt|vec|int|sum|alpha|beta|gamma|delta|theta|omega|pi|rho|lambda|sigma|mu|epsilon|infty|rightarrow|times|partial|mathrm|mathbf|gg|ll|left|right|pm|approx|neq|le|ge|cdot|binom|limits)/.test(part) || /\^{[^{}]*}|_\{[^{}]*\}/.test(part)) {
