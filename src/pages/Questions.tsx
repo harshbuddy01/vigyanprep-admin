@@ -12,7 +12,7 @@ import type { QuestionData } from '../components/QuestionStudioModal';
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
 function formatImageUrl(url?: string): string {
-  if (!url) return '';
+  if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
   if (trimmed.startsWith('/uploads/')) {
     const apiBase = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';

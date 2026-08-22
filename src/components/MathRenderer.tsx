@@ -7,7 +7,7 @@ interface MathRendererProps {
   className?: string;
 }
 
-function formatImageUrl(url: string): string {
+function formatImageUrl(url?: string): string {
   if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
   if (trimmed.startsWith('/uploads/')) {
@@ -16,7 +16,7 @@ function formatImageUrl(url: string): string {
   }
   const driveMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
   if (driveMatch && driveMatch[1]) {
-    return 'https://lh3.googleusercontent.com/d/' + driveMatch[1];
+    return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
   }
   return trimmed;
 }
