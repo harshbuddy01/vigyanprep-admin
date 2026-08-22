@@ -1476,7 +1476,7 @@ export function QuestionStudioModal({
 
               {/* Main Diagram */}
               {imageUrl && formatImageUrl(imageUrl) && (
-                <div className="my-3 p-3 bg-[#161722] rounded-2xl border border-zinc-700/80 text-center shadow-md">
+                <div className="my-3 p-3 bg-white rounded-2xl border border-zinc-200 text-center shadow-md">
                   <img
                     src={formatImageUrl(imageUrl)}
                     alt="Diagram"

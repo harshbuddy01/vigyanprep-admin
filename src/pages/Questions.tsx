@@ -455,7 +455,7 @@ export function Questions() {
 
                   {/* Question Diagram (if any) */}
                   {q.image_url && formatImageUrl(q.image_url) && (
-                    <div className="p-2 bg-white/5 border border-white/10 rounded-xl max-w-sm">
+                    <div className="my-2.5 p-2.5 bg-white border border-zinc-200 rounded-2xl max-w-md shadow-sm text-center">
                       <img
                         src={formatImageUrl(q.image_url)}
                         alt="Question Diagram"

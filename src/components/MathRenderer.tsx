@@ -196,7 +196,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = ''
           <img
             src={formattedUrl}
             alt="Option Diagram"
-            className="max-h-36 mx-auto object-contain rounded-lg border border-zinc-700/60 shadow-sm bg-white/5 p-1"
+            className="max-h-36 mx-auto object-contain rounded-lg border border-zinc-700/60 shadow-sm bg-white p-2.5 shadow-sm border border-zinc-200"
             onError={(e) => {
               (e.target as HTMLElement).style.display = 'none';
             }}
@@ -245,7 +245,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = ''
                 <img
                   src={formattedUrl}
                   alt={alt}
-                  className="max-h-72 mx-auto object-contain rounded-xl border border-amber-500/30 shadow-md bg-white/5 p-1.5"
+                  className="max-h-72 mx-auto object-contain rounded-xl border border-amber-500/30 shadow-md bg-white p-2.5 shadow-sm border border-zinc-200.5"
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = 'none';
                   }}
