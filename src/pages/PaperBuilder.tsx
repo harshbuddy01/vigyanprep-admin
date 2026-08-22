@@ -368,10 +368,31 @@ export function PaperBuilder() {
     setQuestions(prev => prev.map(q => (q.tempId || q.id) === id ? { ...q, imageUrl: directUrl, image_url: directUrl } : q));
   };
 
-  const handleDeleteQuestion = (id: string) => {
-    if (!window.confirm('Delete this question?')) return;
+  const handleDeleteQuestion = async (id: string) => {
+    if (!window.confirm('Delete this question? This cannot be undone.')) return;
     const deletedQ = questions.find(q => (q.tempId || q.id) === id);
     const deletedSection = deletedQ?.section || activeTab;
+    const realDbId = deletedQ?.id && !deletedQ.id.startsWith('temp_') && !deletedQ.id.startsWith('q_') ? deletedQ.id : null;
+
+    if (realDbId) {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/pyq/question/${realDbId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          console.error('Failed to delete question from DB:', errData);
+          setMessage({ type: 'error', text: errData.error || 'Failed to delete question from database' });
+          return;
+        }
+      } catch (err: any) {
+        console.error('Error deleting question from DB:', err);
+        setMessage({ type: 'error', text: 'Network error deleting question from server' });
+        return;
+      }
+    }
+
     setQuestions(prev => {
       const filtered = prev.filter(q => (q.tempId || q.id) !== id);
       let sectionCounter = 0;
@@ -383,6 +404,8 @@ export function PaperBuilder() {
         return q;
       });
     });
+
+    setMessage({ type: 'success', text: '✅ Question permanently deleted.' });
   };
 
   const handleAddQuestion = () => {
@@ -524,6 +547,7 @@ export function PaperBuilder() {
           'Authorization': token ? `Bearer ${token}` : ''
         },
         body: JSON.stringify({
+          testId: savedTestId || testId || null,
           title: examTitle,
           examType,
           year,
@@ -532,8 +556,9 @@ export function PaperBuilder() {
           windowStart: contentType === 'test_series' && windowStart ? new Date(windowStart).toISOString() : null,
           windowEnd: contentType === 'test_series' && windowEnd ? new Date(windowEnd).toISOString() : null,
           questions: questions.map(q => ({
+            id: q.id && !q.id.startsWith('temp_') && !q.id.startsWith('q_') ? q.id : undefined,
             section: q.section,
-            question_number: q.questionNumber,
+            question_number: q.questionNumber || q.question_number,
             question_text: q.text || q.question_text,
             type: q.type || 'MCQ',
             options: q.options,
