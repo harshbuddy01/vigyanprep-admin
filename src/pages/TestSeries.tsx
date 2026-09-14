@@ -223,6 +223,12 @@ export function TestSeries() {
   };
 
   const handleReleaseResults = async (test: any) => {
+    const status = getTestStatus(test);
+    if (status === 'upcoming' || status === 'live') {
+      alert(`❌ Action Blocked: You cannot release results while the exam is UPCOMING or LIVE.\n\nResults can only be released after the test window ends on ${formatDate(test.window_end)}.`);
+      return;
+    }
+
     if (!window.confirm(`Release results for "${test.title || test.name}"?\n\nThis will allow students to see their scorecards, solutions, and All-India Rankings.`)) return;
 
     try {
@@ -430,7 +436,7 @@ export function TestSeries() {
               <tbody className="divide-y divide-zinc-800/80">
                 {filteredTests.map((t) => {
                   const status = getTestStatus(t);
-                  const isReleased = !!(t.response_released_at || t.result_released_at || t.status === 'completed');
+                  const isReleased = !!(t.response_released_at || t.result_released_at);
                   return (
                     <tr key={t.id} className="hover:bg-zinc-800/30 transition">
                       <td className="px-5 py-4 font-bold text-white max-w-xs truncate">
@@ -452,7 +458,7 @@ export function TestSeries() {
                       </td>
                       <td className="px-4 py-4 text-center">
                         {t.preview_status === 'valid' ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                             <CheckCircle2 size={11} /> Validated
                           </span>
                         ) : (
@@ -477,7 +483,7 @@ export function TestSeries() {
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                             <CheckCircle2 size={11} /> Released
                           </span>
-                        ) : (status === 'expired' || status === 'live') ? (
+                        ) : status === 'expired' ? (
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => handleCalculateRankings(t)}
@@ -495,7 +501,9 @@ export function TestSeries() {
                             </button>
                           </div>
                         ) : (
-                          <span className="text-zinc-600 text-xs">—</span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-semibold text-zinc-500 bg-zinc-800/60 border border-zinc-700/50" title="Results can only be released after test window concludes">
+                            🔒 Locked (Window Active)
+                          </span>
                         )}
                       </td>
 

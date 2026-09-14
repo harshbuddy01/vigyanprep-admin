@@ -341,6 +341,20 @@ export function PreviewExam() {
 
             {/* Instruction Points */}
             <div className="space-y-4 text-xs text-slate-300 leading-relaxed max-h-[460px] overflow-y-auto pr-2">
+              {test?.description && (
+                <div className="p-4 bg-amber-400/10 border-2 border-amber-400/30 rounded-xl space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400 text-black">
+                      🎯 Specific Syllabus & Paper Blueprint
+                    </span>
+                    <span className="text-[11px] text-amber-300 font-bold">Configured by Admin</span>
+                  </div>
+                  <p className="text-xs font-semibold text-slate-100 leading-relaxed whitespace-pre-line">
+                    {test.description}
+                  </p>
+                </div>
+              )}
+
               <p>
                 1. The clock will be set at the server. The countdown timer in the top right corner of the screen will display the remaining time available for you to complete the examination. When the timer reaches zero, the examination will end by itself.
               </p>
