@@ -67,43 +67,65 @@ export function QuestionChallenges() {
     }
   }, [selectedTestId]);
 
+  const [processing, setProcessing] = useState(false);
+
   const handleAccept = async () => {
+    if (!acceptModal) return;
+    if (!newAnswer.trim()) {
+      alert('Please provide the new official answer key (e.g. B, A,C, or BONUS)');
+      return;
+    }
+    setProcessing(true);
     try {
       const res = await fetch(`${API_BASE}/api/challenges/accept/${acceptModal}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
-        body: JSON.stringify({ newAnswer })
+        body: JSON.stringify({ newAnswer: newAnswer.trim().toUpperCase() })
       });
-      if (res.ok) {
-        alert('Challenge accepted successfully!');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`Challenge accepted successfully!\n\nAnswer key updated to "${data.newAnswer || newAnswer}". Scores and percentiles recalculated for all students.`);
         setAcceptModal(null);
+        setNewAnswer('');
         loadChallenges(selectedTestId);
       } else {
-        alert('Failed to accept challenge');
+        alert(data.error || 'Failed to accept challenge');
       }
     } catch (err: any) {
       alert(err.message);
+    } finally {
+      setProcessing(false);
     }
   };
 
   const handleReject = async () => {
+    if (!rejectModal) return;
+    setProcessing(true);
     try {
       const res = await fetch(`${API_BASE}/api/challenges/reject/${rejectModal}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
-        body: JSON.stringify({ reply, proofUrl })
+        body: JSON.stringify({ reply, proofUrl, admin_reply: reply, admin_proof_url: proofUrl })
       });
-      if (res.ok) {
+      const data = await res.json();
+      if (res.ok && data.success) {
         alert('Challenge rejected.');
         setRejectModal(null);
+        setReply('');
+        setProofUrl('');
         loadChallenges(selectedTestId);
       } else {
-        alert('Failed to reject challenge');
+        alert(data.error || 'Failed to reject challenge');
       }
     } catch (err: any) {
       alert(err.message);
+    } finally {
+      setProcessing(false);
     }
   };
+
+  const selectedAcceptChallenge = challenges.find(c => c.id === acceptModal);
+  const selectedRejectChallenge = challenges.find(c => c.id === rejectModal);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-fade-in text-zinc-100 font-sans">
@@ -115,7 +137,7 @@ export function QuestionChallenges() {
               NTA Challenge System
             </span>
           </div>
-          <p className="text-xs text-zinc-400 mt-1">Review student-submitted answer key challenges and rectify keys</p>
+          <p className="text-xs text-zinc-400 mt-1">Review student-submitted answer key challenges, rectify keys, and automatically recalculate test scores</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -165,48 +187,85 @@ export function QuestionChallenges() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/80">
-              {challenges.map((c) => (
-                <tr key={c.id} className="hover:bg-zinc-800/30 transition">
-                  <td className="px-5 py-4 font-bold text-white">{c.studentName || c.students?.full_name || 'Student'}</td>
-                  <td className="px-5 py-4 text-zinc-400 font-mono text-[11px]">{c.rollNo || c.students?.email || '—'}</td>
-                  <td className="px-4 py-4 text-center font-bold text-amber-400">Q {c.questionNumber || c.question_number || c.question_id}</td>
-                  <td className="px-6 py-4 max-w-sm truncate text-zinc-300" title={c.reason || c.description}>
-                    {c.reason || c.description}
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    {(c.proofImage || c.proof_url) ? (
-                      <a href={c.proofImage || c.proof_url} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 font-bold flex items-center justify-center gap-1">
-                        <ImageIcon size={13} /> View
-                      </a>
-                    ) : (
-                      <span className="text-zinc-600">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
-                      c.status === 'Accepted' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                      c.status === 'Rejected' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                      'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
-                    }`}>
-                      {c.status === 'Pending' ? '🟡 Pending' : c.status === 'Accepted' ? '🟢 Accepted' : '🔴 Rejected'}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 text-right space-x-2">
-                    {c.status === 'Pending' ? (
-                      <>
-                        <button onClick={() => setAcceptModal(c.id)} className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-500 hover:text-black transition">
-                          Accept
-                        </button>
-                        <button onClick={() => setRejectModal(c.id)} className="px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 text-xs font-bold hover:bg-red-500 hover:text-white transition">
-                          Reject
-                        </button>
-                      </>
-                    ) : (
-                      <span className="text-zinc-600 text-xs">Resolved</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {challenges.map((c) => {
+                const statusLower = (c.status || '').toLowerCase();
+                const isPending = statusLower === 'pending';
+                const isAccepted = statusLower === 'accepted';
+                const isRejected = statusLower === 'rejected';
+
+                return (
+                  <tr key={c.id} className="hover:bg-zinc-800/30 transition">
+                    <td className="px-5 py-4 font-bold text-white">
+                      {c.studentName || c.student_name || c.students?.full_name || 'Student'}
+                    </td>
+                    <td className="px-5 py-4 text-zinc-400 font-mono text-[11px]">
+                      <div>{c.rollNo || c.roll_number || '—'}</div>
+                      <div className="text-[10px] text-zinc-500">{c.studentEmail || c.student_email || c.students?.email || ''}</div>
+                    </td>
+                    <td className="px-4 py-4 text-center font-bold text-amber-400">
+                      <div>Q {c.questionNumber || c.question_number || (c.question_id ? c.question_id.slice(0, 8) : '—')}</div>
+                      {c.current_correct_answer && (
+                        <div className="text-[10px] font-normal text-zinc-500">Key: {c.current_correct_answer}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 max-w-sm text-zinc-300" title={c.reason || c.description}>
+                      <div className="line-clamp-2">{c.reason || c.description}</div>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      {(c.proofImage || c.proofUrl || c.proof_image_url) ? (
+                        <a
+                          href={c.proofImage || c.proofUrl || c.proof_image_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-400 hover:text-blue-300 font-bold inline-flex items-center gap-1"
+                        >
+                          <ImageIcon size={13} /> View
+                        </a>
+                      ) : (
+                        <span className="text-zinc-600">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${
+                        isAccepted ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                        isRejected ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                        'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                      }`}>
+                        {isAccepted ? '🟢 Accepted' : isRejected ? '🔴 Rejected' : '🟡 Pending'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-right space-x-2">
+                      {isPending ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setAcceptModal(c.id);
+                              setNewAnswer(c.current_correct_answer || '');
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-500 hover:text-black transition"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => {
+                              setRejectModal(c.id);
+                              setReply('');
+                              setProofUrl('');
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 text-xs font-bold hover:bg-red-500 hover:text-white transition"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-zinc-500 text-xs font-semibold">
+                          {isAccepted ? `Key: ${c.new_answer || c.current_correct_answer || 'Updated'}` : 'Resolved'}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
               {challenges.length === 0 && (
                 <tr>
                   <td colSpan={7} className="p-10 text-center text-zinc-500">
@@ -227,19 +286,53 @@ export function QuestionChallenges() {
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <CheckCircle2 size={18} className="text-emerald-400" /> Accept Question Challenge
             </h2>
+            
+            {selectedAcceptChallenge && (
+              <div className="bg-[#18181c] border border-zinc-800 rounded-xl p-3 text-xs text-zinc-300 space-y-1.5">
+                <div className="flex justify-between font-bold text-white">
+                  <span className="text-amber-400">Question #{selectedAcceptChallenge.question_number || selectedAcceptChallenge.questionNumber || '—'}</span>
+                  <span>Current Key: <span className="text-emerald-400">{selectedAcceptChallenge.current_correct_answer || '—'}</span></span>
+                </div>
+                {selectedAcceptChallenge.question_text && (
+                  <p className="text-[11px] text-zinc-400 line-clamp-3 italic">
+                    "{selectedAcceptChallenge.question_text}"
+                  </p>
+                )}
+                <div className="text-[11px] text-zinc-400 pt-1 border-t border-zinc-800">
+                  <span className="font-semibold text-zinc-300">Student Claim:</span> {selectedAcceptChallenge.reason}
+                </div>
+              </div>
+            )}
+
             <div>
-              <label className="block text-xs font-bold text-zinc-400 mb-1">New Official Correct Answer</label>
+              <label className="block text-xs font-bold text-zinc-400 mb-1">New Official Correct Answer Key</label>
               <input
                 type="text"
                 value={newAnswer}
                 onChange={e => setNewAnswer(e.target.value)}
                 className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white uppercase font-bold focus:outline-none focus:border-amber-400"
-                placeholder="e.g. A, B, C, D or BONUS"
+                placeholder="e.g. B, A,C or BONUS"
               />
+              <p className="text-[10px] text-zinc-500 mt-1">
+                Tip: Enter <code className="text-amber-400">BONUS</code> if the question has an error and all candidates should be awarded full marks, or separate options with a comma (e.g. <code className="text-amber-400">A,C</code>).
+              </p>
             </div>
+
             <div className="flex gap-2 justify-end pt-2">
-              <button onClick={() => setAcceptModal(null)} className="px-4 py-2 bg-zinc-800 text-zinc-300 text-xs font-bold rounded-xl">Cancel</button>
-              <button onClick={handleAccept} className="px-5 py-2 bg-emerald-500 text-black text-xs font-extrabold rounded-xl shadow">Accept &amp; Update Key</button>
+              <button
+                disabled={processing}
+                onClick={() => setAcceptModal(null)}
+                className="px-4 py-2 bg-zinc-800 text-zinc-300 text-xs font-bold rounded-xl hover:bg-zinc-700 transition"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={processing}
+                onClick={handleAccept}
+                className="px-5 py-2 bg-emerald-500 text-black text-xs font-extrabold rounded-xl shadow hover:bg-emerald-400 transition disabled:opacity-50"
+              >
+                {processing ? 'Recalculating Scores...' : 'Accept & Recalculate Scores'}
+              </button>
             </div>
           </div>
         </div>
@@ -252,31 +345,51 @@ export function QuestionChallenges() {
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <XCircle size={18} className="text-red-400" /> Reject Question Challenge
             </h2>
+
+            {selectedRejectChallenge && (
+              <div className="bg-[#18181c] border border-zinc-800 rounded-xl p-3 text-xs text-zinc-300 space-y-1">
+                <span className="font-bold text-amber-400">Question #{selectedRejectChallenge.question_number || '—'}</span>
+                <p className="text-[11px] text-zinc-400">{selectedRejectChallenge.reason}</p>
+              </div>
+            )}
+
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-zinc-400 mb-1">Explanation / Rebuttal</label>
+                <label className="block text-xs font-bold text-zinc-400 mb-1">Explanation / Academic Rebuttal</label>
                 <textarea
                   value={reply}
                   onChange={e => setReply(e.target.value)}
                   rows={3}
                   className="w-full bg-[#18181c] border border-zinc-800 rounded-xl p-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-400"
-                  placeholder="Explain why the current key is mathematically / conceptually correct..."
+                  placeholder="Explain why the current key is scientifically / conceptually correct..."
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-zinc-400 mb-1">Proof URL (optional)</label>
+                <label className="block text-xs font-bold text-zinc-400 mb-1">Proof / Reference URL (optional)</label>
                 <input
                   type="text"
                   value={proofUrl}
                   onChange={e => setProofUrl(e.target.value)}
                   className="w-full bg-[#18181c] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-amber-400"
-                  placeholder="Link to textbook derivation or reference..."
+                  placeholder="Link to standard textbook reference or NCERT derivation..."
                 />
               </div>
             </div>
             <div className="flex gap-2 justify-end pt-2">
-              <button onClick={() => setRejectModal(null)} className="px-4 py-2 bg-zinc-800 text-zinc-300 text-xs font-bold rounded-xl">Cancel</button>
-              <button onClick={handleReject} className="px-5 py-2 bg-red-500 text-white text-xs font-extrabold rounded-xl shadow">Reject Challenge</button>
+              <button
+                disabled={processing}
+                onClick={() => setRejectModal(null)}
+                className="px-4 py-2 bg-zinc-800 text-zinc-300 text-xs font-bold rounded-xl hover:bg-zinc-700 transition"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={processing}
+                onClick={handleReject}
+                className="px-5 py-2 bg-red-500 text-white text-xs font-extrabold rounded-xl shadow hover:bg-red-400 transition disabled:opacity-50"
+              >
+                {processing ? 'Processing...' : 'Reject Challenge'}
+              </button>
             </div>
           </div>
         </div>
