@@ -61,47 +61,45 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center text-amber-400 font-mono text-xs gap-3">
-        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
-        <span>AGGREGATING PLATFORM METRICS...</span>
+      <div className="flex h-64 items-center justify-center text-zinc-400 font-mono text-xs gap-3">
+        <span className="w-2 h-2 rounded-full bg-zinc-400 animate-pulse" />
+        <span>Loading platform metrics…</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6 rounded-2xl bg-red-950/30 border border-red-500/20 text-red-300 text-xs flex items-center gap-3">
-        <AlertCircle size={18} className="text-red-400" />
+      <div className="p-5 rounded-xl bg-red-950/20 border border-red-500/20 text-red-400/90 text-xs flex items-center gap-3">
+        <AlertCircle size={16} />
         <span>Error loading metrics: {error}</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-7 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
       {/* Welcome Banner */}
-      <div className="relative rounded-2xl bg-gradient-to-r from-[#121622] via-[#10141e] to-[#0c0e15] border border-white/[0.08] p-6 sm:p-7 shadow-[0_15px_40px_rgba(0,0,0,0.4)] overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-amber-500/10 via-orange-500/5 to-transparent blur-3xl pointer-events-none rounded-full" />
-
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
+      <div className="rounded-xl bg-[#14171d] border border-white/[0.07] p-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-400 text-[11px] font-mono font-medium mb-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700/60 text-[11px] font-mono font-medium mb-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               <span>COMMAND CENTER ACTIVE</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-zinc-100 tracking-tight">
               Good evening, Harsh
             </h1>
-            <p className="text-xs sm:text-sm text-neutral-400 mt-1 max-w-xl">
+            <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-xl">
               Live candidate invigilation, LaTeX formula question banks, and automated NTA test cycles for IISER IAT & NISER NEST.
             </p>
           </div>
 
           {/* Quick CTA Actions */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               to="/paper-builder?type=test_series"
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-amber-500/20 transition transform hover:-translate-y-0.5"
+              className="px-3.5 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs flex items-center gap-1.5 transition shadow-sm"
             >
               <Hammer size={14} />
               <span>Paper Builder</span>
@@ -109,17 +107,17 @@ export function Dashboard() {
 
             <Link
               to="/questions"
-              className="px-3.5 py-2.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 border border-white/10 text-xs font-semibold text-neutral-200 hover:text-white transition flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700/80 text-xs font-medium transition flex items-center gap-1.5"
             >
-              <FileQuestion size={14} className="text-amber-400" />
+              <FileQuestion size={14} className="text-zinc-400" />
               <span>Question Bank</span>
             </Link>
 
             <Link
               to="/live-invigilation"
-              className="px-3.5 py-2.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 border border-white/10 text-xs font-semibold text-neutral-200 hover:text-white transition flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700/80 text-xs font-medium transition flex items-center gap-1.5"
             >
-              <Activity size={14} className="text-emerald-400" />
+              <Activity size={14} className="text-rose-400" />
               <span>Live Monitor</span>
             </Link>
           </div>
@@ -127,7 +125,7 @@ export function Dashboard() {
       </div>
 
       {/* 4 Core Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={Users}
           label="Enrolled Aspirants"
@@ -168,63 +166,63 @@ export function Dashboard() {
       {/* Analytics & Quick Launch Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Test Activity Trend Chart */}
-        <div className="lg:col-span-8 rounded-2xl bg-[#0f121a]/85 backdrop-blur-xl border border-white/[0.08] p-6 shadow-xl flex flex-col justify-between">
+        <div className="lg:col-span-8 rounded-xl bg-[#14171d] border border-white/[0.07] p-6 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <div className="text-xs font-mono uppercase tracking-wider text-neutral-400">Weekly Throughput</div>
-              <h2 className="text-lg font-bold text-white mt-0.5">Exam Attempts & Registration Velocity</h2>
+              <div className="text-xs font-mono uppercase tracking-wider text-zinc-500">Weekly Throughput</div>
+              <h2 className="text-base font-bold text-zinc-100 mt-0.5">Exam Attempts & Registration Velocity</h2>
             </div>
             <div className="flex items-center gap-2 text-xs font-mono">
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                <span className="w-2 h-2 rounded-full bg-amber-400" />
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700/60">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
                 <span>Attempts</span>
               </span>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                <span className="w-2 h-2 rounded-full bg-blue-400" />
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700/60">
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
                 <span>Signups</span>
               </span>
             </div>
           </div>
 
-          <div className="h-72 w-full">
+          <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={MOCK_ACTIVITY_TREND}>
                 <defs>
                   <linearGradient id="attemptsGlow" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0} />
+                    <stop offset="5%" stopColor="#818cf8" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#818cf8" stopOpacity={0.0} />
                   </linearGradient>
                   <linearGradient id="signupsGlow" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
+                    <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#94a3b8" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 11, fill: '#64748b' }} />
-                <YAxis stroke="#64748b" tick={{ fontSize: 11, fill: '#64748b' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                <XAxis dataKey="name" stroke="#52525b" tick={{ fontSize: 11, fill: '#71717a' }} />
+                <YAxis stroke="#52525b" tick={{ fontSize: 11, fill: '#71717a' }} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0c0e15',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '12px',
+                    backgroundColor: '#181a22',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '8px',
                     fontSize: '12px',
                     fontFamily: 'monospace',
-                    color: '#fff',
+                    color: '#e4e4e7',
                   }}
                 />
                 <Area
                   type="monotone"
                   dataKey="attempts"
-                  stroke="#f59e0b"
-                  strokeWidth={2.5}
+                  stroke="#818cf8"
+                  strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#attemptsGlow)"
                 />
                 <Area
                   type="monotone"
                   dataKey="registrations"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
+                  stroke="#94a3b8"
+                  strokeWidth={1.5}
                   fillOpacity={1}
                   fill="url(#signupsGlow)"
                 />
@@ -234,110 +232,110 @@ export function Dashboard() {
         </div>
 
         {/* Right: Quick Action Command Center */}
-        <div className="lg:col-span-4 rounded-2xl bg-[#0f121a]/85 backdrop-blur-xl border border-white/[0.08] p-6 shadow-xl flex flex-col justify-between">
+        <div className="lg:col-span-4 rounded-xl bg-[#14171d] border border-white/[0.07] p-6 flex flex-col justify-between">
           <div>
-            <div className="text-xs font-mono uppercase tracking-wider text-neutral-400 mb-1">Direct Operations</div>
-            <h2 className="text-lg font-bold text-white mb-4">Command Shortcuts</h2>
+            <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-1">Direct Operations</div>
+            <h2 className="text-base font-bold text-zinc-100 mb-4">Command Shortcuts</h2>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               <Link
                 to="/paper-builder?type=test_series"
-                className="p-3.5 rounded-xl bg-neutral-900/60 hover:bg-neutral-800/80 border border-white/5 hover:border-amber-500/30 transition flex items-center justify-between group"
+                className="p-3 rounded-lg bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/80 hover:border-zinc-700 transition flex items-center justify-between group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400 group-hover:scale-105 transition-transform">
-                    <Hammer size={16} />
+                  <div className="p-1.5 rounded-md bg-zinc-800 text-zinc-300 group-hover:scale-105 transition-transform">
+                    <Hammer size={15} />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-white">Paper Builder & AI Extractor</div>
-                    <div className="text-[11px] text-neutral-400">Groq AI OCR + LaTeX formula mapper</div>
+                    <div className="text-xs font-medium text-zinc-200">Paper Builder & AI Extractor</div>
+                    <div className="text-[11px] text-zinc-500">Groq AI OCR + LaTeX formula mapper</div>
                   </div>
                 </div>
-                <ChevronRight size={14} className="text-neutral-500 group-hover:text-amber-400 transition" />
+                <ChevronRight size={14} className="text-zinc-500 group-hover:text-zinc-300 transition" />
               </Link>
 
               <Link
                 to="/live-invigilation"
-                className="p-3.5 rounded-xl bg-neutral-900/60 hover:bg-neutral-800/80 border border-white/5 hover:border-emerald-500/30 transition flex items-center justify-between group"
+                className="p-3 rounded-lg bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/80 hover:border-zinc-700 transition flex items-center justify-between group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 group-hover:scale-105 transition-transform">
-                    <ShieldCheck size={16} />
+                  <div className="p-1.5 rounded-md bg-zinc-800 text-zinc-300 group-hover:scale-105 transition-transform">
+                    <ShieldCheck size={15} />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-white">Live CBT Proctoring</div>
-                    <div className="text-[11px] text-neutral-400">Real-time tab tracking & heartbeat</div>
+                    <div className="text-xs font-medium text-zinc-200">Live CBT Proctoring</div>
+                    <div className="text-[11px] text-zinc-500">Real-time tab tracking & heartbeat</div>
                   </div>
                 </div>
-                <ChevronRight size={14} className="text-neutral-500 group-hover:text-emerald-400 transition" />
+                <ChevronRight size={14} className="text-zinc-500 group-hover:text-zinc-300 transition" />
               </Link>
 
               <Link
                 to="/results"
-                className="p-3.5 rounded-xl bg-neutral-900/60 hover:bg-neutral-800/80 border border-white/5 hover:border-blue-500/30 transition flex items-center justify-between group"
+                className="p-3 rounded-lg bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/80 hover:border-zinc-700 transition flex items-center justify-between group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 group-hover:scale-105 transition-transform">
-                    <Trophy size={16} />
+                  <div className="p-1.5 rounded-md bg-zinc-800 text-zinc-300 group-hover:scale-105 transition-transform">
+                    <Trophy size={15} />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-white">Certified Scorecards</div>
-                    <div className="text-[11px] text-neutral-400">All-India percentile calculator</div>
+                    <div className="text-xs font-medium text-zinc-200">Certified Scorecards</div>
+                    <div className="text-[11px] text-zinc-500">All-India percentile calculator</div>
                   </div>
                 </div>
-                <ChevronRight size={14} className="text-neutral-500 group-hover:text-blue-400 transition" />
+                <ChevronRight size={14} className="text-zinc-500 group-hover:text-zinc-300 transition" />
               </Link>
 
               <Link
                 to="/pyq"
-                className="p-3.5 rounded-xl bg-neutral-900/60 hover:bg-neutral-800/80 border border-white/5 hover:border-purple-500/30 transition flex items-center justify-between group"
+                className="p-3 rounded-lg bg-zinc-900/60 hover:bg-zinc-800/80 border border-zinc-800/80 hover:border-zinc-700 transition flex items-center justify-between group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 group-hover:scale-105 transition-transform">
-                    <FileText size={16} />
+                  <div className="p-1.5 rounded-md bg-zinc-800 text-zinc-300 group-hover:scale-105 transition-transform">
+                    <FileText size={15} />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-white">Solved PYQ Archive</div>
-                    <div className="text-[11px] text-neutral-400">Free papers for IAT & NEST</div>
+                    <div className="text-xs font-medium text-zinc-200">Solved PYQ Archive</div>
+                    <div className="text-[11px] text-zinc-500">Free papers for IAT & NEST</div>
                   </div>
                 </div>
-                <ChevronRight size={14} className="text-neutral-500 group-hover:text-purple-400 transition" />
+                <ChevronRight size={14} className="text-zinc-500 group-hover:text-zinc-300 transition" />
               </Link>
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-white/5 text-[11px] text-neutral-400 flex items-center justify-between font-mono">
+          <div className="mt-4 pt-3 border-t border-white/[0.06] text-[11px] text-zinc-500 flex items-center justify-between font-mono">
             <span>Next Scheduled Mock:</span>
-            <span className="text-amber-400 font-semibold">IAT 2026 Shift-1 (Sunday)</span>
+            <span className="text-zinc-300 font-medium">IAT 2026 Shift-1 (Sunday)</span>
           </div>
         </div>
       </div>
 
       {/* System Infrastructure Health Strip */}
-      <div className="rounded-2xl bg-[#0c0e14]/90 border border-white/[0.08] p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 text-xs font-mono text-neutral-400">
+      <div className="rounded-xl bg-[#14171d] border border-white/[0.07] p-4 flex flex-wrap items-center justify-between gap-4 text-xs font-mono text-zinc-400">
         <div className="flex items-center gap-2">
-          <Server size={14} className="text-amber-400" />
-          <span className="text-white font-semibold">System Infrastructure:</span>
+          <Server size={14} className="text-zinc-400" />
+          <span className="text-zinc-200 font-semibold">System Infrastructure:</span>
         </div>
 
         <div className="flex flex-wrap items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             <span>Cloud Run API (Mumbai) • 200 OK</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             <span>Supabase RLS Protected</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             <span>Razorpay Live Payments</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             <span>KaTeX Client-Side Math Engine</span>
           </div>
         </div>

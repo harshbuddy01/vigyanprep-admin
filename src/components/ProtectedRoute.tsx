@@ -87,9 +87,9 @@ export function ProtectedRoute() {
 
   if (loading) {
     return (
-      <div className="flex h-screen bg-[#07080c] text-amber-400 items-center justify-center font-mono text-xs gap-3">
-        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
-        <span>AUTHENTICATING SECURE ADMIN WORKSPACE...</span>
+      <div className="flex h-screen bg-[#0d0f12] text-zinc-400 items-center justify-center font-mono text-xs gap-3">
+        <span className="w-2 h-2 rounded-full bg-zinc-400 animate-pulse" />
+        <span>Authenticating session…</span>
       </div>
     );
   }
@@ -101,26 +101,26 @@ export function ProtectedRoute() {
   const { section, title } = getPageTitle(location.pathname);
 
   return (
-    <div className="flex h-screen bg-[#07080c] text-slate-100 overflow-hidden font-sans">
+    <div className="flex h-screen bg-[#0d0f12] text-zinc-100 overflow-hidden font-sans">
       <Sidebar />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#090b10] bg-grid-pattern relative">
-        {/* Modern SaaS Header Bar */}
-        <header className="h-16 px-6 border-b border-white/[0.08] bg-[#0b0d13]/85 backdrop-blur-xl flex items-center justify-between shrink-0 z-20">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#0d0f12] relative">
+        {/* Header Bar */}
+        <header className="h-14 px-6 border-b border-white/[0.07] bg-[#0d0f12]/95 backdrop-blur-md flex items-center justify-between shrink-0 z-20">
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-xs font-mono">
-            <span className="text-neutral-500">VigyanPrep</span>
-            <span className="text-neutral-600">/</span>
-            <span className="text-neutral-400">{section}</span>
-            <span className="text-neutral-600">/</span>
-            <span className="text-amber-400 font-semibold">{title}</span>
+            <span className="text-zinc-500">VigyanPrep</span>
+            <span className="text-zinc-600">/</span>
+            <span className="text-zinc-400">{section}</span>
+            <span className="text-zinc-600">/</span>
+            <span className="text-zinc-200 font-semibold">{title}</span>
           </div>
 
           {/* Right Header Actions */}
           <div className="flex items-center gap-3">
             {/* Live API Health Badge */}
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[11px] font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400/90 text-[11px] font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/90" />
               <span>Cloud Run 24ms • Live</span>
             </div>
 
@@ -129,20 +129,20 @@ export function ProtectedRoute() {
               href="https://test.vigyanprep.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900/90 hover:bg-neutral-800 border border-white/10 text-xs text-neutral-300 hover:text-white transition shadow-sm"
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-white/[0.07] text-xs transition"
             >
               <span>Student CBT Portal</span>
-              <ExternalLink size={12} className="text-amber-400" />
+              <ExternalLink size={12} className="text-zinc-400" />
             </a>
 
             {/* Admin Badge */}
-            <div className="flex items-center gap-2 pl-2 border-l border-white/10">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 text-black font-bold text-xs flex items-center justify-center shadow-md shadow-amber-500/15">
+            <div className="flex items-center gap-2 pl-2 border-l border-white/[0.07]">
+              <div className="w-7 h-7 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-200 font-bold text-xs flex items-center justify-center">
                 HA
               </div>
               <div className="hidden lg:block text-left">
-                <div className="text-xs font-bold text-white leading-tight">Harsh Anand</div>
-                <div className="text-[10px] text-amber-400 font-mono">Super Admin</div>
+                <div className="text-xs font-medium text-zinc-200 leading-tight">Harsh Anand</div>
+                <div className="text-[10px] text-zinc-400 font-mono">Super Admin</div>
               </div>
             </div>
           </div>

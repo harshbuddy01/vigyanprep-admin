@@ -17,24 +17,24 @@ const navGroups = [
     ]
   },
   {
-    label: 'TEST SERIES (paid)',
+    label: 'Test Series (Paid)',
     links: [
       { to: '/test-series', icon: BookOpen, label: 'Test Series' },
       { to: '/paper-builder?type=test_series', icon: Hammer, label: 'Paper Builder', badge: 'PRO' },
       { to: '/pricing', icon: Tag, label: 'Pricing & Plans' },
-      { to: '/live-invigilation', icon: Activity, label: 'Live Invigilation', badge: 'LIVE', badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+      { to: '/live-invigilation', icon: Activity, label: 'Live Invigilation', badge: 'LIVE', badgeColor: 'bg-rose-500/10 text-rose-400/90 border-rose-500/20' },
       { to: '/question-reports', icon: AlertCircle, label: 'Question Reports' },
     ]
   },
   {
-    label: 'PYQ SECTION (free)',
+    label: 'PYQ Section (Free)',
     links: [
       { to: '/pyq', icon: FileText, label: 'PYQ Papers', badge: 'FREE' },
       { to: '/paper-builder?type=pyq', icon: Hammer, label: 'Upload Free PYQ' },
     ]
   },
   {
-    label: 'QUESTION BANK',
+    label: 'Question Bank',
     links: [
       { to: '/questions', icon: FileQuestion, label: 'All Questions' },
     ]
@@ -73,14 +73,14 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "bg-[#090b10] border-r border-white/[0.08] h-screen flex flex-col shrink-0 transition-all duration-300 relative z-30 select-none",
-        sidebarCollapsed ? "w-20" : "w-64"
+        "bg-[#0a0c0f] border-r border-white/[0.07] h-screen flex flex-col shrink-0 transition-all duration-200 relative z-30 select-none",
+        sidebarCollapsed ? "w-16" : "w-60"
       )}
     >
       {/* Brand Header */}
       <div
         className={cn(
-          "h-16 px-4 border-b border-white/[0.08] flex items-center justify-between shrink-0",
+          "h-14 px-3.5 border-b border-white/[0.07] flex items-center justify-between shrink-0",
           sidebarCollapsed && "flex-col justify-center gap-1.5 px-2 py-2"
         )}
       >
@@ -91,15 +91,15 @@ export function Sidebar() {
           className="flex items-center gap-2.5 group overflow-hidden"
           title="Open VigyanPrep Website"
         >
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-black font-extrabold text-sm shrink-0 shadow-md shadow-amber-500/20">
+          <div className="w-7 h-7 rounded-lg bg-zinc-100 text-zinc-950 font-black text-xs flex items-center justify-center shrink-0 shadow-sm">
             VP
           </div>
           {!sidebarCollapsed && (
             <div className="flex flex-col">
-              <span className="font-extrabold text-white text-sm tracking-tight leading-none">
-                Vigyan<span className="text-amber-400">.prep</span>
+              <span className="font-bold text-zinc-100 text-sm tracking-tight leading-none">
+                Vigyan<span className="text-zinc-400">.prep</span>
               </span>
-              <span className="text-[9px] font-mono font-semibold uppercase tracking-wider text-neutral-400 mt-0.5">
+              <span className="text-[9px] font-mono font-medium uppercase tracking-wider text-zinc-500 mt-0.5">
                 Admin Studio
               </span>
             </div>
@@ -110,30 +110,30 @@ export function Sidebar() {
         <div className="flex items-center gap-1">
           <button
             onClick={toggleSidebar}
-            className="p-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-white/10 text-neutral-400 hover:text-white transition"
+            className="p-1 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05] transition"
             title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
-            {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+            {sidebarCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
           </button>
 
           {!sidebarCollapsed && (
             <button
               onClick={toggleTheme}
-              className="p-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-white/10 text-amber-400 hover:text-amber-300 transition"
+              className="p-1 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05] transition"
               title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
             >
-              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
             </button>
           )}
         </div>
       </div>
 
       {/* Nav Groups */}
-      <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
+      <nav className="flex-1 px-2.5 py-3 space-y-4 overflow-y-auto">
         {navGroups.map((group) => (
-          <div key={group.label} className="space-y-1">
+          <div key={group.label} className="space-y-0.5">
             {!sidebarCollapsed && (
-              <p className="text-[10px] font-mono font-semibold text-neutral-400 uppercase tracking-wider px-3 mb-1.5 truncate">
+              <p className="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider px-2.5 mb-1 truncate">
                 {group.label}
               </p>
             )}
@@ -148,23 +148,23 @@ export function Sidebar() {
                     title={sidebarCollapsed ? link.label : undefined}
                     className={({ isActive }) =>
                       cn(
-                        'flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group relative',
-                        sidebarCollapsed && 'justify-center px-2 py-2.5',
+                        'flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all group relative',
+                        sidebarCollapsed && 'justify-center px-1.5 py-2',
                         isActive
-                          ? 'bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent text-amber-300 font-semibold border-l-2 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.08)]'
-                          : 'text-neutral-400 hover:text-white hover:bg-white/[0.04]'
+                          ? 'bg-white/[0.08] text-white font-semibold'
+                          : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]'
                       )
                     }
                   >
-                    <Icon size={16} className="shrink-0 transition-transform group-hover:scale-110" />
+                    <Icon size={15} className="shrink-0 transition-transform group-hover:scale-105" />
                     {!sidebarCollapsed && (
                       <div className="flex items-center justify-between flex-1 min-w-0">
                         <span className="truncate">{link.label}</span>
                         {'badge' in link && (
                           <span
                             className={cn(
-                              "text-[9px] font-mono px-1.5 py-0.2 rounded font-bold uppercase ml-2 border",
-                              link.badgeColor || "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                              "text-[9px] font-mono px-1.5 py-0.2 rounded font-semibold uppercase ml-2 border",
+                              link.badgeColor || "bg-zinc-800 text-zinc-400 border-zinc-700/60"
                             )}
                           >
                             {link.badge}
@@ -181,16 +181,16 @@ export function Sidebar() {
       </nav>
 
       {/* Admin User Card & Logout */}
-      <div className="p-3 border-t border-white/[0.08] bg-[#0c0e14]">
+      <div className="p-2.5 border-t border-white/[0.07] bg-[#0a0c0f]">
         {!sidebarCollapsed ? (
-          <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-neutral-900/60 border border-white/5">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 text-black font-bold text-xs flex items-center justify-center shrink-0">
+          <div className="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-zinc-900/60 border border-white/[0.05]">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-200 font-bold text-xs flex items-center justify-center shrink-0">
                 HA
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold text-white truncate">Harsh Anand</div>
-                <div className="text-[10px] text-amber-400/90 font-mono flex items-center gap-1">
+                <div className="text-xs font-medium text-zinc-200 truncate">Harsh Anand</div>
+                <div className="text-[10px] text-zinc-400 font-mono flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   <span>Super Admin</span>
                 </div>
@@ -200,18 +200,18 @@ export function Sidebar() {
             <button
               onClick={logout}
               title="Sign Out"
-              className="p-1.5 rounded-lg text-neutral-400 hover:text-red-400 hover:bg-red-500/10 transition"
+              className="p-1 rounded-md text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
             >
-              <LogOut size={16} />
+              <LogOut size={15} />
             </button>
           </div>
         ) : (
           <button
             onClick={logout}
             title="Sign Out"
-            className="w-full flex items-center justify-center p-2.5 rounded-xl text-neutral-400 hover:text-red-400 hover:bg-red-500/10 transition"
+            className="w-full flex items-center justify-center p-2 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
           >
-            <LogOut size={18} />
+            <LogOut size={16} />
           </button>
         )}
       </div>
