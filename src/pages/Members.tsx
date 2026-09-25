@@ -77,7 +77,7 @@ export function Members() {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 text-neutral-950 px-4 py-2 rounded-lg font-bold hover:opacity-90 transition"
+          className="flex items-center gap-2 bg-zinc-100 hover:bg-white text-zinc-950 px-3.5 py-2 rounded-lg font-semibold text-xs transition shadow-sm"
         >
           <UserPlus size={18} />
           Add Admin Member

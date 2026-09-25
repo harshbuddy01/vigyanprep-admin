@@ -415,19 +415,19 @@ export function PreviewExam() {
               <button
                 disabled={!agreed}
                 onClick={() => setPhase('exam')}
-                className="w-full py-3.5 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:opacity-95 text-neutral-950 font-black text-sm rounded-xl transition shadow-lg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-3 bg-zinc-100 hover:bg-white text-zinc-950 font-bold text-xs rounded-xl transition shadow-sm disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
               >
                 <span>I AM READY TO BEGIN (START CBT SIMULATOR)</span>
-                <ChevronRight size={18} />
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>
 
           {/* Right Column: Candidate Profile Card */}
           <div className="space-y-4">
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 text-center space-y-4 shadow-xl">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 text-neutral-950 flex items-center justify-center mx-auto font-black text-2xl shadow-lg border-2 border-white/20">
-                <User size={36} />
+            <div className="bg-[#14171d] border border-white/[0.08] rounded-2xl p-6 text-center space-y-4 shadow-xl">
+              <div className="w-16 h-16 rounded-full bg-zinc-800 text-zinc-200 border border-zinc-700 flex items-center justify-center mx-auto font-bold text-xl">
+                <User size={28} />
               </div>
               <div>
                 <h3 className="text-sm font-black text-white">Admin Previewer</h3>

@@ -939,7 +939,7 @@ export function PaperBuilder() {
                 <button
                   onClick={handleUploadAndParseVision}
                   disabled={isUploading || isVisionUploading}
-                  className="py-3 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-neutral-950 font-bold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-50 text-xs shadow-lg"
+                  className="py-2.5 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold rounded-xl flex items-center justify-center gap-2 transition disabled:opacity-50 text-xs shadow-sm"
                 >
                   {isVisionUploading ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
                   {isVisionUploading ? 'Vision AI Parsing Math & Symbols...' : `🤖 AI Vision Parse (100% Math Precision)`}
@@ -1015,7 +1015,7 @@ export function PaperBuilder() {
                 )}
                 <button
                   onClick={handleOpenStudioForNew}
-                  className="px-3.5 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-extrabold rounded-xl text-xs flex items-center gap-1.5 shadow-md transition"
+                  className="px-3.5 py-2 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition"
                 >
                   <Sparkles size={14} /> Studio Mode (+Live KaTeX)
                 </button>

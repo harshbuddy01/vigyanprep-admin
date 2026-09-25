@@ -1207,7 +1207,7 @@ export function QuestionStudioModal({
                       type="button"
                       disabled={compilingTikz}
                       onClick={handleCompileTikz}
-                      className="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-black font-black rounded-xl text-xs flex items-center gap-2 shadow-md transition disabled:opacity-50 cursor-pointer"
+                      className="px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold rounded-xl text-xs flex items-center gap-2 shadow-sm transition disabled:opacity-50 cursor-pointer"
                     >
                       {compilingTikz ? (
                         <>
@@ -1587,7 +1587,7 @@ export function QuestionStudioModal({
               type="button"
               disabled={saving}
               onClick={handleSave}
-              className="px-5 py-2 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-neutral-950 font-black rounded-xl text-xs shadow-lg flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
+              className="px-5 py-2 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold rounded-xl text-xs shadow-sm flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
             >
               {saving ? (
                 <>Saving...</>

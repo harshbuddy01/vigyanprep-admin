@@ -258,7 +258,7 @@ export function PyqUpload() {
             <button
               onClick={handleUploadAndParse}
               disabled={isUploading}
-              className="w-full py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-neutral-950 font-bold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-50"
+              className="w-full py-2.5 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold rounded-xl flex items-center justify-center gap-2 transition disabled:opacity-50 text-xs shadow-sm"
             >
               {isUploading ? <Sparkles className="animate-spin" /> : <BookOpen size={18} />}
               {isUploading ? 'Extracting & Parsing Questions...' : 'Auto-Parse PDF Questions'}
