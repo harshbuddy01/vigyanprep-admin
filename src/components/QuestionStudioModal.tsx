@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   X, Check, Image, AlertCircle, Save, Sparkles,
   ChevronDown, HelpCircle, CheckCircle2, Eye, Plus, Trash2,
-  Code2, Upload, Link2, RefreshCw, Layers
+  Code2, Upload, Link2, RefreshCw, Layers, Calculator
 } from 'lucide-react';
 import { MathRenderer } from './MathRenderer';
 import { useAuthStore } from '../stores/authStore';
@@ -165,7 +165,7 @@ const TIKZ_PRESETS: Record<string, { name: string; code: string }> = {
   }
 };
 
-type QuestionTemplate = 'standard' | 'multi_statement' | 'statement' | 'assertion_reason' | 'match_column';
+type QuestionTemplate = 'standard' | 'numerical' | 'multi_statement' | 'statement' | 'assertion_reason' | 'match_column';
 type DiagramSourceMode = 'tikz' | 'upload' | 'url';
 
 function formatImageUrl(url?: string): string {
@@ -251,6 +251,8 @@ export function QuestionStudioModal({
   const [marksNegative, setMarksNegative] = useState(1);
 
   const [template, setTemplate] = useState<QuestionTemplate>('standard');
+  const [numericalAnswer, setNumericalAnswer] = useState('');
+  const [previewTypedAnswer, setPreviewTypedAnswer] = useState('');
 
   const [contextText, setContextText] = useState('');
   const [statement1, setStatement1] = useState('');
@@ -453,8 +455,15 @@ export function QuestionStudioModal({
       const qText = initialData.question_text || (initialData as any).text || '';
       setRawQuestionText(qText);
 
-      // Detect table / Match the Columns
-      if (/\|[\s\-:\|]+\|/g.test(qText) && (/Column/i.test(qText) || /List/i.test(qText))) {
+      // Detect Numerical / Integer question type
+      if (initialData.type === 'Numerical' || (initialData as any).question_type === 'Numerical') {
+        setTemplate('numerical');
+        setQType('Numerical');
+        const numVal = String(initialData.correct_answer || '');
+        setNumericalAnswer(numVal);
+        setPreviewTypedAnswer(numVal);
+        setCorrectAnswer(numVal);
+      } else if (/\|[\s\-:\|]+\|/g.test(qText) && (/Column/i.test(qText) || /List/i.test(qText))) {
         setTemplate('match_column');
         const lines = qText.split('\n');
         const tableLines = lines.filter((l: string) => l.trim().startsWith('|'));
@@ -527,6 +536,8 @@ export function QuestionStudioModal({
       setMarksPositive(4);
       setMarksNegative(1);
       setTemplate('standard');
+      setNumericalAnswer('');
+      setPreviewTypedAnswer('');
       setContextText('');
       setStatement1('');
       setStatement2('');
@@ -633,6 +644,8 @@ export function QuestionStudioModal({
       return;
     }
 
+    const isNumerical = template === 'numerical' || qType === 'Numerical';
+
     const finalOptions = options.map((opt, i) => {
       if (showOptionImage[i] && optionImages[i]?.trim()) {
         return optionImages[i].trim();
@@ -640,11 +653,20 @@ export function QuestionStudioModal({
       return opt.trim();
     });
 
-    const hasFilledOptions = finalOptions.some(o => o.length > 0);
-    if (!hasFilledOptions && qType !== 'Numerical') {
-      setErrorMsg('Please provide at least one answer option.');
-      return;
+    if (isNumerical) {
+      if (!numericalAnswer.trim()) {
+        setErrorMsg('Please enter the correct numerical/integer answer.');
+        return;
+      }
+    } else {
+      const hasFilledOptions = finalOptions.some(o => o.length > 0);
+      if (!hasFilledOptions) {
+        setErrorMsg('Please provide at least one answer option.');
+        return;
+      }
     }
+
+    const finalCorrectAnswer = isNumerical ? numericalAnswer.trim() : correctAnswer;
 
     setErrorMsg(null);
     setSaving(true);
@@ -657,12 +679,12 @@ export function QuestionStudioModal({
         difficulty,
         exam_type: examType,
         topic: topic.trim(),
-        type: qType,
+        type: isNumerical ? 'Numerical' : qType,
         marks_positive: marksPositive,
         marks_negative: marksNegative,
         question_text: finalQText,
-        options: finalOptions,
-        correct_answer: correctAnswer,
+        options: isNumerical ? [] : finalOptions,
+        correct_answer: finalCorrectAnswer,
         image_url: imageUrl.trim() || undefined,
         solution_explanation: solution.trim() || undefined
       } as QuestionData, !!initialData?.id);
@@ -768,6 +790,7 @@ export function QuestionStudioModal({
               <div className="flex flex-wrap gap-1 bg-[#0f1017] border border-zinc-700/80 p-1 rounded-xl shadow-inner">
                 {[
                   { id: 'standard', label: 'Standard MCQ' },
+                  { id: 'numerical', label: '🔢 Numerical / Integer', badge: 'JEE Main' },
                   { id: 'multi_statement', label: 'Numbered (1,2,3)' },
                   { id: 'statement', label: 'Statement I & II' },
                   { id: 'assertion_reason', label: 'Assertion & Reason' },
@@ -776,14 +799,28 @@ export function QuestionStudioModal({
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setTemplate(t.id as any)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer ${
+                    onClick={() => {
+                      setTemplate(t.id as any);
+                      if (t.id === 'numerical') {
+                        setQType('Numerical');
+                      } else if (qType === 'Numerical') {
+                        setQType('MCQ');
+                      }
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer flex items-center gap-1.5 ${
                       template === t.id
                         ? 'bg-amber-400 text-black shadow-md'
                         : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
                     }`}
                   >
-                    {t.label}
+                    <span>{t.label}</span>
+                    {t.badge && (
+                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold uppercase ${
+                        template === t.id ? 'bg-black/20 text-black' : 'bg-amber-500/20 text-amber-300'
+                      }`}>
+                        {t.badge}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -1289,138 +1326,280 @@ export function QuestionStudioModal({
               )}
             </div>
 
-            {/* ANSWER OPTIONS & 1-CLICK PRE-FILL */}
-            <div className="space-y-3 bg-[#1a1c28] border border-zinc-700/80 rounded-2xl p-4 shadow-md">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                  <CheckCircle2 size={15} /> Answer Options & Correct Key
-                </label>
-                
-                {/* 1-Click Pre-Fill Button */}
-                {template === 'multi_statement' ? (
-                  <button
-                    type="button"
-                    onClick={handlePreFillMultiStatementOptions}
-                    className="px-2.5 py-1 bg-amber-400/20 hover:bg-amber-400 hover:text-black text-amber-300 border border-amber-400/40 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 cursor-pointer"
-                  >
-                    ⚡ Pre-Fill Standard 4 Options
-                  </button>
-                ) : template === 'statement' ? (
-                  <button
-                    type="button"
-                    onClick={handlePreFillStatementOptions}
-                    className="px-2.5 py-1 bg-amber-400/20 hover:bg-amber-400 hover:text-black text-amber-300 border border-amber-400/40 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 cursor-pointer"
-                  >
-                    ⚡ Pre-Fill Standard 4 Options
-                  </button>
-                ) : template === 'assertion_reason' ? (
-                  <button
-                    type="button"
-                    onClick={handlePreFillAssertionOptions}
-                    className="px-2.5 py-1 bg-amber-400/20 hover:bg-amber-400 hover:text-black text-amber-300 border border-amber-400/40 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 cursor-pointer"
-                  >
-                    ⚡ Pre-Fill Standard 4 Options
-                  </button>
-                ) : template === 'match_column' ? (
-                  <button
-                    type="button"
-                    onClick={handlePreFillMatchOptions}
-                    className="px-2.5 py-1 bg-blue-500/20 hover:bg-blue-500 hover:text-white text-blue-300 border border-blue-500/40 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 cursor-pointer"
-                  >
-                    ⚡ Pre-Fill Match Options
-                  </button>
-                ) : null}
-              </div>
+            {/* ANSWER OPTIONS & 1-CLICK PRE-FILL (or Numerical Setup if template === 'numerical') */}
+            {template === 'numerical' ? (
+              <div className="space-y-4 bg-[#1a1c28] border border-amber-500/40 rounded-2xl p-4 shadow-md ring-1 ring-amber-500/20">
+                <div className="flex items-center justify-between border-b border-zinc-700/80 pb-3">
+                  <label className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded bg-amber-400 text-black flex items-center justify-center font-mono text-[11px] font-black">
+                      123
+                    </span>
+                    JEE Main Numerical / Integer Answer Key
+                  </label>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-400/15 text-amber-300 border border-amber-400/30">
+                    NTA CBT Pattern
+                  </span>
+                </div>
 
-              <div className="space-y-2.5">
-                {['A', 'B', 'C', 'D'].map((optKey, idx) => {
-                  const isCorrect = correctAnswer === optKey;
-                  const isImgMode = showOptionImage[idx];
+                {/* Numerical Answer Input & Presets */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-zinc-300 uppercase tracking-wide block mb-1.5">
+                      Correct Numerical / Integer Value <span className="text-red-400">*</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={numericalAnswer}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setNumericalAnswer(val);
+                          setPreviewTypedAnswer(val);
+                          setCorrectAnswer(val);
+                        }}
+                        placeholder="e.g. 5, 24, -12, or 3.14"
+                        className="flex-1 bg-[#0f1017] border-2 border-amber-500/50 focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-base font-mono font-bold text-amber-300 placeholder:text-zinc-600 focus:outline-none shadow-inner"
+                      />
+                      {numericalAnswer && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNumericalAnswer('');
+                            setPreviewTypedAnswer('');
+                            setCorrectAnswer('');
+                          }}
+                          className="px-3 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-bold transition cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-                  return (
-                    <div
-                      key={optKey}
-                      className={`p-3 rounded-xl border transition ${
-                        isCorrect
-                          ? 'bg-emerald-500/15 border-emerald-500/50 shadow-md ring-1 ring-emerald-500/30'
-                          : 'bg-[#0f1017] border-zinc-700/80 hover:border-zinc-600'
-                      }`}
+                  {/* Single-Digit Integer Presets (0 to 9) */}
+                  <div>
+                    <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-1.5 flex items-center justify-between">
+                      <span>Quick Single-Digit Presets (JEE Integer Type):</span>
+                      <span className="text-zinc-500 font-normal">Click to set instantly</span>
+                    </div>
+                    <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
+                      {['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
+                        <button
+                          key={digit}
+                          type="button"
+                          onClick={() => {
+                            setNumericalAnswer(digit);
+                            setPreviewTypedAnswer(digit);
+                            setCorrectAnswer(digit);
+                          }}
+                          className={`py-2 rounded-lg font-mono font-black text-xs transition cursor-pointer border ${
+                            numericalAnswer === digit
+                              ? 'bg-amber-400 text-black border-amber-400 shadow-md scale-105'
+                              : 'bg-[#0f1017] hover:bg-zinc-800 text-zinc-200 border-zinc-700'
+                          }`}
+                        >
+                          {digit}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Quick Modifier Presets */}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = numericalAnswer.startsWith('-') ? numericalAnswer.slice(1) : '-' + numericalAnswer;
+                        setNumericalAnswer(next);
+                        setPreviewTypedAnswer(next);
+                        setCorrectAnswer(next);
+                      }}
+                      className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 rounded-lg text-xs font-mono font-bold transition cursor-pointer"
                     >
-                      <div className="flex items-center gap-2.5">
-                        {/* 1-Click Key Button */}
-                        <button
-                          type="button"
-                          onClick={() => setCorrectAnswer(optKey)}
-                          className={`w-7 h-7 rounded-full text-xs font-black shrink-0 flex items-center justify-center transition cursor-pointer ${
-                            isCorrect
-                              ? 'bg-emerald-400 text-black shadow-md'
-                              : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'
-                          }`}
-                          title={`Click to set Option ${optKey} as Correct Answer`}
-                        >
-                          {optKey}
-                        </button>
+                      ± Toggle Negative
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!numericalAnswer.includes('.')) {
+                          const next = (numericalAnswer || '0') + '.';
+                          setNumericalAnswer(next);
+                          setPreviewTypedAnswer(next);
+                          setCorrectAnswer(next);
+                        }
+                      }}
+                      className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 rounded-lg text-xs font-mono font-bold transition cursor-pointer"
+                    >
+                      . Add Decimal Point
+                    </button>
+                  </div>
 
-                        {/* Text / Image input */}
-                        {isImgMode ? (
-                          <input
-                            type="url"
-                            value={optionImages[idx]}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setOptionImages(prev => {
-                                const copy = [...prev];
-                                copy[idx] = val;
-                                return copy;
-                              });
-                            }}
-                            placeholder={`Option ${optKey} diagram URL...`}
-                            className="flex-1 bg-[#1a1c28] border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 font-mono"
-                          />
-                        ) : (
-                          <input
-                            type="text"
-                            data-field={`opt_${idx}`}
-                            value={options[idx]}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setOptions(prev => {
-                                const copy = [...prev];
-                                copy[idx] = val;
-                                return copy;
-                              });
-                            }}
-                            placeholder={`Option ${optKey} text (supports $LaTeX$)...`}
-                            className="flex-1 bg-[#1a1c28] border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 font-mono"
-                          />
-                        )}
-
-                        {/* Image toggle */}
-                        <button
-                          type="button"
-                          onClick={() => setShowOptionImage(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                          className={`p-1.5 rounded-lg border text-[10px] font-bold transition flex items-center gap-1 cursor-pointer ${
-                            isImgMode
-                              ? 'bg-amber-400/25 text-amber-300 border-amber-400/50'
-                              : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-zinc-200'
-                          }`}
-                          title="Toggle Image Mode"
-                        >
-                          <Image size={12} /> {isImgMode ? 'Text' : '+ Img'}
-                        </button>
-
-                        {/* Correct Key indicator */}
-                        {isCorrect && (
-                          <span className="px-2 py-0.5 rounded-md bg-emerald-400/25 text-emerald-300 text-[10px] font-black border border-emerald-400/40">
-                            KEY
-                          </span>
-                        )}
+                  {/* Marking Scheme for Numerical */}
+                  <div className="p-3 bg-[#0f1017] border border-zinc-700/80 rounded-xl space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-zinc-300 font-bold flex items-center gap-1.5">
+                        <HelpCircle size={14} className="text-amber-400" /> Marking Scheme:
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-zinc-400 text-[11px]">Incorrect:</span>
+                        <div className="flex bg-zinc-800 rounded-lg p-0.5 border border-zinc-700">
+                          <button
+                            type="button"
+                            onClick={() => setMarksNegative(0)}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${marksNegative === 0 ? 'bg-amber-400 text-black' : 'text-zinc-400'}`}
+                          >
+                            0 (No -ve)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMarksNegative(1)}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${marksNegative === 1 ? 'bg-amber-400 text-black' : 'text-zinc-400'}`}
+                          >
+                            -1 (JEE Main)
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
+                    <p className="text-zinc-400 leading-relaxed text-[11px]">
+                      • Students will enter responses using the on-screen virtual keypad or physical keyboard.<br />
+                      • Evaluated with exact numerical match and floating-point tolerance (0.01).
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3 bg-[#1a1c28] border border-zinc-700/80 rounded-2xl p-4 shadow-md">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                    <CheckCircle2 size={15} /> Answer Options & Correct Key
+                  </label>
+                  
+                  {/* 1-Click Pre-Fill Button */}
+                  {template === 'multi_statement' ? (
+                    <button
+                      type="button"
+                      onClick={handlePreFillMultiStatementOptions}
+                      className="px-2.5 py-1 bg-amber-400/20 hover:bg-amber-400 hover:text-black text-amber-300 border border-amber-400/40 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 cursor-pointer"
+                    >
+                      ⚡ Pre-Fill Standard 4 Options
+                    </button>
+                  ) : template === 'statement' ? (
+                    <button
+                      type="button"
+                      onClick={handlePreFillStatementOptions}
+                      className="px-2.5 py-1 bg-amber-400/20 hover:bg-amber-400 hover:text-black text-amber-300 border border-amber-400/40 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 cursor-pointer"
+                    >
+                      ⚡ Pre-Fill Standard 4 Options
+                    </button>
+                  ) : template === 'assertion_reason' ? (
+                    <button
+                      type="button"
+                      onClick={handlePreFillAssertionOptions}
+                      className="px-2.5 py-1 bg-amber-400/20 hover:bg-amber-400 hover:text-black text-amber-300 border border-amber-400/40 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 cursor-pointer"
+                    >
+                      ⚡ Pre-Fill Standard 4 Options
+                    </button>
+                  ) : template === 'match_column' ? (
+                    <button
+                      type="button"
+                      onClick={handlePreFillMatchOptions}
+                      className="px-2.5 py-1 bg-blue-500/20 hover:bg-blue-500 hover:text-white text-blue-300 border border-blue-500/40 rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 cursor-pointer"
+                    >
+                      ⚡ Pre-Fill Match Options
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="space-y-2.5">
+                  {['A', 'B', 'C', 'D'].map((optKey, idx) => {
+                    const isCorrect = correctAnswer === optKey;
+                    const isImgMode = showOptionImage[idx];
+
+                    return (
+                      <div
+                        key={optKey}
+                        className={`p-3 rounded-xl border transition ${
+                          isCorrect
+                            ? 'bg-emerald-500/15 border-emerald-500/50 shadow-md ring-1 ring-emerald-500/30'
+                            : 'bg-[#0f1017] border-zinc-700/80 hover:border-zinc-600'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {/* 1-Click Key Button */}
+                          <button
+                            type="button"
+                            onClick={() => setCorrectAnswer(optKey)}
+                            className={`w-7 h-7 rounded-full text-xs font-black shrink-0 flex items-center justify-center transition cursor-pointer ${
+                              isCorrect
+                                ? 'bg-emerald-400 text-black shadow-md'
+                                : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'
+                            }`}
+                            title={`Click to set Option ${optKey} as Correct Answer`}
+                          >
+                            {optKey}
+                          </button>
+
+                          {/* Text / Image input */}
+                          {isImgMode ? (
+                            <input
+                              type="url"
+                              value={optionImages[idx]}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setOptionImages(prev => {
+                                  const copy = [...prev];
+                                  copy[idx] = val;
+                                  return copy;
+                                });
+                              }}
+                              placeholder={`Option ${optKey} diagram URL...`}
+                              className="flex-1 bg-[#1a1c28] border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 font-mono"
+                            />
+                          ) : (
+                            <input
+                              type="text"
+                              data-field={`opt_${idx}`}
+                              value={options[idx]}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setOptions(prev => {
+                                  const copy = [...prev];
+                                  copy[idx] = val;
+                                  return copy;
+                                });
+                              }}
+                              placeholder={`Option ${optKey} text (supports $LaTeX$)...`}
+                              className="flex-1 bg-[#1a1c28] border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 font-mono"
+                            />
+                          )}
+
+                          {/* Image toggle */}
+                          <button
+                            type="button"
+                            onClick={() => setShowOptionImage(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                            className={`p-1.5 rounded-lg border text-[10px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                              isImgMode
+                                ? 'bg-amber-400/25 text-amber-300 border-amber-400/50'
+                                : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-zinc-200'
+                            }`}
+                            title="Toggle Image Mode"
+                          >
+                            <Image size={12} /> {isImgMode ? 'Text' : '+ Img'}
+                          </button>
+
+                          {/* Correct Key indicator */}
+                          {isCorrect && (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-400/25 text-emerald-300 text-[10px] font-black border border-emerald-400/40">
+                              KEY
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* SOLUTION & EXPLANATION (Optional) */}
             <div className="bg-[#1a1c28] border border-zinc-700/80 rounded-2xl p-4 space-y-2 shadow-md">
@@ -1487,57 +1666,130 @@ export function QuestionStudioModal({
                 </div>
               )}
 
-              {/* Rendered Options */}
-              <div className="space-y-2.5 pt-1">
-                <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider px-1">Options:</div>
-                {['A', 'B', 'C', 'D'].map((optKey, idx) => {
-                  const isCorrect = correctAnswer === optKey;
-                  const isImg = showOptionImage[idx];
-                  const optVal = isImg ? optionImages[idx] : options[idx];
+              {/* Rendered Options or Numerical CBT Simulator */}
+              {template === 'numerical' ? (
+                <div className="space-y-4 pt-1">
+                  <div className="flex items-center justify-between text-xs font-bold text-amber-400 uppercase tracking-wider px-1">
+                    <span className="flex items-center gap-1.5">
+                      <Calculator size={14} /> NTA Virtual Numeric Keypad
+                    </span>
+                    <span className="text-[10px] text-zinc-400 font-mono">Live CBT Preview</span>
+                  </div>
 
-                  return (
-                    <div
-                      key={optKey}
-                      className={`p-3.5 rounded-xl border flex items-center justify-between transition ${
-                        isCorrect
-                          ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-100 shadow-md ring-1 ring-emerald-500/20'
-                          : 'bg-[#161722] border-zinc-700/80 text-zinc-200'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <span className={`w-6 h-6 rounded-full text-xs font-black shrink-0 flex items-center justify-center ${
-                          isCorrect
-                            ? 'bg-emerald-400 text-black shadow'
-                            : 'bg-zinc-800 text-zinc-300'
-                        }`}>
-                          {optKey}
-                        </span>
-
-                        <div className="text-xs leading-relaxed flex-1 min-w-0 font-medium">
-                          {isImg && optVal ? (
-                            <img
-                              src={formatImageUrl(optVal)}
-                              alt={`Option ${optKey}`}
-                              className="max-h-24 object-contain rounded border border-zinc-700 bg-black/40 p-1"
-                              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                            />
-                          ) : optVal ? (
-                            <MathRenderer text={optVal} />
-                          ) : (
-                            <span className="text-zinc-500 italic">Option {optKey} content</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {isCorrect && (
-                        <span className="text-emerald-400 ml-2 shrink-0">
-                          <Check size={16} />
-                        </span>
+                  {/* Candidate Typed Display */}
+                  <div className="p-4 bg-[#161722] border-2 border-amber-500/50 rounded-2xl shadow-inner space-y-1">
+                    <div className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">Candidate Numerical Response:</div>
+                    <div className="flex items-center justify-between min-h-[36px]">
+                      <span className="font-mono text-2xl font-black text-amber-300 tracking-wider">
+                        {previewTypedAnswer || <span className="text-zinc-600 font-normal text-sm italic">Use virtual keypad or type on left...</span>}
+                      </span>
+                      {previewTypedAnswer && (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewTypedAnswer('')}
+                          className="text-[10px] text-zinc-400 hover:text-red-400 uppercase font-bold px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700 transition cursor-pointer"
+                        >
+                          Clear
+                        </button>
                       )}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+
+                  {/* Interactive Virtual Keypad Matrix */}
+                  <div className="p-3.5 bg-[#161722] border border-zinc-700/80 rounded-2xl shadow-md">
+                    <div className="grid grid-cols-3 gap-2 max-w-[260px] mx-auto">
+                      {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '-'].map((keyVal) => (
+                        <button
+                          key={keyVal}
+                          type="button"
+                          onClick={() => setPreviewTypedAnswer(prev => prev + keyVal)}
+                          className="py-3 rounded-xl bg-[#0f1017] hover:bg-amber-400 hover:text-black border border-zinc-700 text-white font-mono font-black text-base transition active:scale-95 shadow-sm cursor-pointer"
+                        >
+                          {keyVal}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 max-w-[260px] mx-auto mt-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewTypedAnswer(prev => prev.slice(0, -1))}
+                        className="py-2.5 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs transition cursor-pointer border border-zinc-700"
+                      >
+                        ⌫ Backspace
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewTypedAnswer('')}
+                        className="py-2.5 px-3 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs transition cursor-pointer border border-red-500/30"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Configured Answer Key Status */}
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between text-xs">
+                    <span className="text-zinc-300 font-semibold flex items-center gap-1.5">
+                      <CheckCircle2 size={14} className="text-emerald-400" /> Configured Correct Answer:
+                    </span>
+                    <span className="font-mono font-black text-emerald-400 text-sm bg-emerald-950/60 px-3 py-1 rounded-lg border border-emerald-500/40">
+                      {numericalAnswer || 'Not set yet'}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2.5 pt-1">
+                  <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider px-1">Options:</div>
+                  {['A', 'B', 'C', 'D'].map((optKey, idx) => {
+                    const isCorrect = correctAnswer === optKey;
+                    const isImg = showOptionImage[idx];
+                    const optVal = isImg ? optionImages[idx] : options[idx];
+
+                    return (
+                      <div
+                        key={optKey}
+                        className={`p-3.5 rounded-xl border flex items-center justify-between transition ${
+                          isCorrect
+                            ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-100 shadow-md ring-1 ring-emerald-500/20'
+                            : 'bg-[#161722] border-zinc-700/80 text-zinc-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <span className={`w-6 h-6 rounded-full text-xs font-black shrink-0 flex items-center justify-center ${
+                            isCorrect
+                              ? 'bg-emerald-400 text-black shadow'
+                              : 'bg-zinc-800 text-zinc-300'
+                          }`}>
+                            {optKey}
+                          </span>
+
+                          <div className="text-xs leading-relaxed flex-1 min-w-0 font-medium">
+                            {isImg && optVal ? (
+                              <img
+                                src={formatImageUrl(optVal)}
+                                alt={`Option ${optKey}`}
+                                className="max-h-24 object-contain rounded border border-zinc-700 bg-black/40 p-1"
+                                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                              />
+                            ) : optVal ? (
+                              <MathRenderer text={optVal} />
+                            ) : (
+                              <span className="text-zinc-500 italic">Option {optKey} content</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {isCorrect && (
+                          <span className="text-emerald-400 ml-2 shrink-0">
+                            <Check size={16} />
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Solution Preview */}
               {solution && (
@@ -1553,7 +1805,7 @@ export function QuestionStudioModal({
             {/* Student Preview Footer Metadata */}
             <div className="pt-3 border-t border-zinc-700/80 flex items-center justify-between text-[11px] text-zinc-400 font-mono">
               <span>Template: <strong className="text-zinc-200">{template}</strong></span>
-              <span>Key: <strong className="text-emerald-400">{correctAnswer}</strong></span>
+              <span>Key: <strong className="text-emerald-400">{template === 'numerical' ? (numericalAnswer || 'N/A') : correctAnswer}</strong></span>
               <span>Subject: <strong className="text-amber-400">{section}</strong></span>
             </div>
           </div>

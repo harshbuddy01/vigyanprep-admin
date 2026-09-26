@@ -408,6 +408,14 @@ export function Questions() {
                       )}
 
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        q.type === 'Numerical'
+                          ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40'
+                          : 'bg-zinc-800/80 text-zinc-300 border border-zinc-700/80'
+                      }`}>
+                        {q.type === 'Numerical' ? '🔢 Numerical (JEE Main)' : (q.type || 'MCQ')}
+                      </span>
+
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                         q.difficulty === 'Easy'
                           ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                           : q.difficulty === 'Hard'
@@ -468,35 +476,49 @@ export function Questions() {
                     </div>
                   )}
 
-                  {/* Options Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                    {opts.map((opt: string, oi: number) => {
-                      const label = ['A', 'B', 'C', 'D'][oi] || String(oi + 1);
-                      const isCorrect = correctKey === label;
-                      return (
-                        <div
-                          key={oi}
-                          className={`p-2.5 rounded-xl border text-xs flex items-start gap-2.5 ${
-                            isCorrect
-                              ? 'border-emerald-500/60 bg-emerald-950/30 text-emerald-200'
-                              : 'border-white/5 bg-[#18181b]/50 text-zinc-300'
-                          }`}
-                        >
-                          <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 ${
-                            isCorrect ? 'bg-emerald-500 text-black font-extrabold' : 'bg-zinc-800 text-zinc-400'
-                          }`}>
-                            {label}
-                          </span>
-                          <div className="flex-1 font-medium">
-                            <MathRenderer text={opt} />
+                  {/* Options Grid or Numerical Answer Card */}
+                  {q.type === 'Numerical' ? (
+                    <div className="p-3 rounded-xl border border-emerald-500/40 bg-emerald-950/20 text-xs flex items-center justify-between shadow-xs">
+                      <div className="flex items-center gap-2.5">
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-[11px] border border-emerald-500/30">
+                          Numerical Key
+                        </span>
+                        <span className="font-mono font-black text-emerald-300 text-base">{q.correct_answer || 'N/A'}</span>
+                      </div>
+                      <span className="text-[11px] text-zinc-400 font-mono flex items-center gap-1">
+                        <CheckCircle2 size={13} className="text-emerald-400" /> NTA Keypad Evaluated
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      {opts.map((opt: string, oi: number) => {
+                        const label = ['A', 'B', 'C', 'D'][oi] || String(oi + 1);
+                        const isCorrect = correctKey === label;
+                        return (
+                          <div
+                            key={oi}
+                            className={`p-2.5 rounded-xl border text-xs flex items-start gap-2.5 ${
+                              isCorrect
+                                ? 'border-emerald-500/60 bg-emerald-950/30 text-emerald-200'
+                                : 'border-white/5 bg-[#18181b]/50 text-zinc-300'
+                            }`}
+                          >
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5 ${
+                              isCorrect ? 'bg-emerald-500 text-black font-extrabold' : 'bg-zinc-800 text-zinc-400'
+                            }`}>
+                              {label}
+                            </span>
+                            <div className="flex-1 font-medium">
+                              <MathRenderer text={opt} />
+                            </div>
+                            {isCorrect && (
+                              <CheckCircle2 size={13} className="text-emerald-400 shrink-0 ml-auto" />
+                            )}
                           </div>
-                          {isCorrect && (
-                            <CheckCircle2 size={13} className="text-emerald-400 shrink-0 ml-auto" />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Solution Explanation Preview (if available) */}
                   {q.solution_explanation && (
