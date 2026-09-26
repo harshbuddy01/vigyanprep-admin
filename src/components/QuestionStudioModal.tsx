@@ -563,7 +563,7 @@ export function QuestionStudioModal({
   const insertMath = (tex: string) => {
     const el = activeInputRef.current;
     if (!el) {
-      if (template === 'standard') {
+      if (template === 'standard' || template === 'numerical') {
         setRawQuestionText(prev => prev + ' $' + tex + '$ ');
       } else if (template === 'multi_statement') {
         setFollowUpText(prev => prev + ' $' + tex + '$ ');
@@ -857,7 +857,7 @@ export function QuestionStudioModal({
                   <button
                     type="button"
                     onClick={() => {
-                      if (template === 'standard') setRawQuestionText(prev => autoFormatMathTextClient(prev));
+                      if (template === 'standard' || template === 'numerical') setRawQuestionText(prev => autoFormatMathTextClient(prev));
                       else if (template === 'multi_statement') {
                         setContextText(prev => autoFormatMathTextClient(prev));
                         setMultiStatements(prev => prev.map(st => autoFormatMathTextClient(st)));
@@ -880,12 +880,12 @@ export function QuestionStudioModal({
 
             {/* DYNAMIC TEMPLATE INPUTS */}
 
-            {/* TEMPLATE 1: STANDARD MCQ (Intro + Diagram + Follow-up) */}
-            {template === 'standard' && (
+            {/* TEMPLATE 1: STANDARD MCQ & NUMERICAL (Intro + Diagram + Follow-up) */}
+            {(template === 'standard' || template === 'numerical') && (
               <div className="space-y-3 bg-[#1a1c28] border border-zinc-700/80 rounded-2xl p-4 shadow-md">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-extrabold uppercase tracking-wider text-amber-400">
-                    Question Text / Introductory Statement
+                    {template === 'numerical' ? 'Numerical Question Problem Statement' : 'Question Text / Introductory Statement'}
                   </label>
                 </div>
                 <textarea
@@ -893,7 +893,9 @@ export function QuestionStudioModal({
                   ref={el => { if (el) activeInputRef.current = el; }}
                   value={rawQuestionText}
                   onChange={(e) => setRawQuestionText(e.target.value)}
-                  placeholder="Type or paste question statement... (supports $LaTeX$ math e.g. $\frac{1}{2}mv^2$ and numbered lists)"
+                  placeholder={template === 'numerical'
+                    ? "Type or paste numerical question problem statement... (supports $LaTeX$ math e.g. $\\frac{1}{2}mv^2$)"
+                    : "Type or paste question statement... (supports $LaTeX$ math e.g. $\\frac{1}{2}mv^2$ and numbered lists)"}
                   rows={4}
                   className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl p-3 text-xs text-white placeholder:text-zinc-500 font-mono leading-relaxed focus:outline-none focus:border-amber-400 transition"
                 />
@@ -908,7 +910,7 @@ export function QuestionStudioModal({
                     data-field="followup"
                     value={followUpText}
                     onChange={(e) => setFollowUpText(e.target.value)}
-                    placeholder="e.g. Determine the elongation in the spring x and acceleration a₁..."
+                    placeholder="e.g. Determine the value of N..."
                     className="w-full bg-[#0f1017] border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 font-mono"
                   />
                 </div>
