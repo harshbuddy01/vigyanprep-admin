@@ -233,3 +233,86 @@ export async function uploadBase64Png(base64Png: string, apiBase: string, token:
 
   return data.imageUrl;
 }
+
+/**
+ * Browser-side Cloud LaTeX Compiler (QuickLaTeX API)
+ * Directly compiles ChemFig, TikZ, and standard formulas to PNG in the browser
+ */
+export async function compileLatexViaQuickLatex(rawCode: string): Promise<string> {
+  let text = rawCode.trim();
+  const preambles: string[] = [];
+
+  const pkgRegex = /\\usepackage(?:\[.*?\])?\{([a-zA-Z0-9_,\s]+)\}/g;
+  let match;
+  while ((match = pkgRegex.exec(text)) !== null) {
+    const pkgs = match[1].split(',').map(p => p.trim());
+    for (const p of pkgs) {
+      if (p) preambles.push(`\\usepackage{${p}}`);
+    }
+  }
+
+  const tikzLibRegex = /\\usetikzlibrary\{([a-zA-Z0-9_,\s.]+)\}/g;
+  while ((match = tikzLibRegex.exec(text)) !== null) {
+    preambles.push(match[0]);
+  }
+
+  let formula = text;
+  if (formula.includes('\\begin{document}')) {
+    const docMatch = formula.match(/\\begin\{document\}([\s\S]*?)\\end\{document\}/);
+    if (docMatch) {
+      formula = docMatch[1].trim();
+    } else {
+      formula = formula.split('\\begin{document}')[1].trim();
+    }
+  }
+  formula = formula.replace(/\\end\{document\}/g, '').trim();
+
+  formula = formula.replace(/\\documentclass(?:\[.*?\])?\{.*?\}/g, '');
+  formula = formula.replace(/\\usepackage(?:\[.*?\])?\{.*?\}/g, '');
+  formula = formula.replace(/\\usetikzlibrary\{.*?\}/g, '');
+  formula = formula.trim();
+
+  const baseline = ['amsmath', 'amsfonts', 'amssymb', 'tikz'];
+  if (text.includes('chemfig') || text.includes('\\chemfig') || text.includes('\\lewis')) {
+    baseline.push('chemfig');
+  }
+  for (const b of baseline) {
+    if (!preambles.some(p => p.includes(`{${b}}`))) {
+      preambles.push(`\\usepackage{${b}}`);
+    }
+  }
+
+  const params = new URLSearchParams();
+  params.append('formula', formula);
+  params.append('fsize', '24px');
+  params.append('fcolor', '000000');
+  params.append('mode', '0');
+  params.append('out', '1');
+  params.append('remhost', 'quicklatex.com');
+  params.append('preamble', preambles.join('\n'));
+
+  const response = await fetch('https://quicklatex.com/latex3.f', {
+    method: 'POST',
+    body: params
+  });
+
+  if (!response.ok) {
+    throw new Error(`QuickLaTeX HTTP ${response.status}`);
+  }
+
+  const responseText = await response.text();
+  const lines = responseText.trim().split('\n');
+  const status = lines[0]?.trim();
+
+  if (status !== '0') {
+    const errorMsg = lines.slice(1).join(' ').trim() || 'LaTeX syntax error';
+    throw new Error(errorMsg);
+  }
+
+  const imageUrl = lines[1]?.split(' ')[0]?.trim();
+  if (!imageUrl || !imageUrl.startsWith('http')) {
+    throw new Error('QuickLaTeX returned an invalid image URL');
+  }
+
+  return imageUrl;
+}

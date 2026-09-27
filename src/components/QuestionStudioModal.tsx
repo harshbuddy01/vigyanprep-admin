@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { MathRenderer } from './MathRenderer';
 import { useAuthStore } from '../stores/authStore';
-import { PRESET_SVGS, detectPresetKey, rasterizeSvgToPng, uploadBase64Png } from '../utils/diagramRenderer';
+import { PRESET_SVGS, detectPresetKey, rasterizeSvgToPng, uploadBase64Png, compileLatexViaQuickLatex } from '../utils/diagramRenderer';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
@@ -309,9 +309,10 @@ export function QuestionStudioModal({
     setTikzError(null);
 
     try {
-      // 1. Instant Client-Side 300 DPI Vector Rasterization for Science Presets
+      // 1. Instant Client-Side 300 DPI Vector Rasterization for pristine Science Presets
+      const isPristinePreset = Object.values(TIKZ_PRESETS).some(p => p.code.trim() === tikzCode.trim());
       const presetKey = detectPresetKey(tikzCode);
-      if (presetKey && PRESET_SVGS[presetKey]) {
+      if (isPristinePreset && presetKey && PRESET_SVGS[presetKey]) {
         const svgString = PRESET_SVGS[presetKey];
         const pngBase64 = await rasterizeSvgToPng(svgString, 2);
         const uploadedUrl = await uploadBase64Png(pngBase64, API_BASE, token, `${presetKey}.png`);
@@ -320,23 +321,50 @@ export function QuestionStudioModal({
         return;
       }
 
-      // 2. Otherwise try backend pdflatex compiler
-      const res = await fetch(`${API_BASE}/api/admin/diagrams/render-tikz`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({ tikzCode, dpi: 300 })
-      });
+      // 2. Try Backend LaTeX / ChemFig / TikZ Compiler
+      let uploadedUrl: string | null = null;
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/diagrams/render-tikz`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: token ? `Bearer ${token}` : ''
+          },
+          body: JSON.stringify({ tikzCode, dpi: 300 })
+        });
+        const data = await res.json();
+        if (res.ok && data.success && data.imageUrl) {
+          uploadedUrl = data.imageUrl;
+        } else if (data.error && !data.error.includes('Server environment does not have')) {
+          // If it's a real LaTeX compilation error report from compiler, note it
+          console.warn('Backend compiler note:', data.error);
+        }
+      } catch (backendErr: any) {
+        console.warn('Backend diagram compile attempted:', backendErr?.message);
+      }
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to compile TikZ diagram');
+      // 3. Cloud LaTeX / ChemFig Compiler Fallback (Direct Browser-to-Cloud TeX engine)
+      if (!uploadedUrl) {
+        const quickLatexUrl = await compileLatexViaQuickLatex(tikzCode);
+        try {
+          // Download blob, convert to base64, and save to our own CDN storage
+          const imgBlob = await fetch(quickLatexUrl).then(r => r.blob());
+          const reader = new FileReader();
+          const base64Promise = new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(imgBlob);
+          });
+          const base64 = await base64Promise;
+          uploadedUrl = await uploadBase64Png(base64, API_BASE, token, 'chemistry_diagram.png');
+        } catch {
+          // If upload fails, use the direct QuickLaTeX image URL
+          uploadedUrl = quickLatexUrl;
+        }
       }
 
       // Auto attach to question image URL
-      setImageUrl(data.imageUrl);
+      setImageUrl(uploadedUrl);
     } catch (err: any) {
       setTikzError(err.message || 'LaTeX compilation failed');
     } finally {
