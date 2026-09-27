@@ -1232,9 +1232,23 @@ export function QuestionStudioModal({
                   />
 
                   {tikzError && (
-                    <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-xs text-red-300 flex items-center gap-2">
-                      <AlertCircle size={14} className="shrink-0" />
-                      <span className="font-mono text-[11px] truncate">{tikzError}</span>
+                    <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-xs text-red-200 space-y-1.5">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle size={15} className="shrink-0 text-red-400 mt-0.5" />
+                        <span className="font-sans leading-relaxed">{tikzError}</span>
+                      </div>
+                      <div className="pl-6 pt-0.5 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDiagramMode('upload');
+                            setTikzError(null);
+                          }}
+                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-black font-bold text-[11px] rounded-lg transition cursor-pointer"
+                        >
+                          Switch to Upload / Paste (Ctrl+V)
+                        </button>
+                      </div>
                     </div>
                   )}
 
