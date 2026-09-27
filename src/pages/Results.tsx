@@ -666,7 +666,7 @@ export function Results() {
                                       {label}
                                     </span>
                                     <div className="flex-1">
-                                      <MathRenderer text={opt} />
+                                      <MathRenderer text={opt} inlineOnly />
                                     </div>
                                     {isKey && <CheckCircle size={14} className="text-emerald-400 shrink-0" />}
                                     {isSelected && !isKey && <XCircle size={14} className="text-red-400 shrink-0" />}

@@ -1197,7 +1197,7 @@ export function PaperBuilder() {
                                   />
                                 ) : (
                                   <span className="text-xs text-slate-700 dark:text-neutral-200">
-                                    <MathRenderer text={optVal || `Option ${optKey}`} />
+                                    <MathRenderer text={optVal || `Option ${optKey}`} inlineOnly />
                                   </span>
                                 )}
                               </div>
@@ -1207,7 +1207,7 @@ export function PaperBuilder() {
                                 <div className="ml-8 p-2 rounded-lg bg-white/50 dark:bg-neutral-950 border border-slate-200 dark:border-white/10 text-xs flex items-center gap-2">
                                   <span className="text-[9px] font-extrabold text-amber-500 uppercase shrink-0">Live Math Preview:</span>
                                   <div className="text-slate-800 dark:text-neutral-100 overflow-x-auto">
-                                    <MathRenderer text={optVal} />
+                                    <MathRenderer text={optVal} inlineOnly />
                                   </div>
                                 </div>
                               )}
@@ -1297,7 +1297,7 @@ export function PaperBuilder() {
                           <span className={`w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center ${
                             isSelected ? 'bg-amber-400 text-neutral-950' : 'bg-neutral-800 text-neutral-400'
                           }`}>{optKey}</span>
-                          <span className="text-sm"><MathRenderer text={optText} /></span>
+                          <span className="text-sm"><MathRenderer text={optText} inlineOnly /></span>
                         </div>
                         {isCorrect && (
                           <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded font-semibold border border-emerald-500/30">

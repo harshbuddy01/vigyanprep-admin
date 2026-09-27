@@ -608,7 +608,7 @@ export function PreviewExam() {
                         {optKey}
                       </span>
                       <div className="flex-1 text-sm pt-0.5">
-                        <MathRenderer text={opt} />
+                        <MathRenderer text={opt} inlineOnly />
                       </div>
                       {showAnswerKeyOverlay && isCorrect && (
                         <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 uppercase tracking-wider shrink-0">

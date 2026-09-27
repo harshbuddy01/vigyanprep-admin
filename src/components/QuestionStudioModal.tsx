@@ -1775,7 +1775,7 @@ export function QuestionStudioModal({
                                 onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                               />
                             ) : optVal ? (
-                              <MathRenderer text={optVal} />
+                              <MathRenderer text={optVal} inlineOnly />
                             ) : (
                               <span className="text-zinc-500 italic">Option {optKey} content</span>
                             )}

@@ -509,7 +509,7 @@ export function Questions() {
                               {label}
                             </span>
                             <div className="flex-1 font-medium">
-                              <MathRenderer text={opt} />
+                              <MathRenderer text={opt} inlineOnly />
                             </div>
                             {isCorrect && (
                               <CheckCircle2 size={13} className="text-emerald-400 shrink-0 ml-auto" />
