@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { MathRenderer } from './MathRenderer';
 import { useAuthStore } from '../stores/authStore';
+import { PRESET_SVGS, detectPresetKey, rasterizeSvgToPng, uploadBase64Png } from '../utils/diagramRenderer';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
@@ -297,7 +298,7 @@ export function QuestionStudioModal({
     }
   };
 
-  // Compile TikZ Code to 300 DPI PNG via Backend Engine
+  // Compile TikZ Code to 300 DPI PNG via Client Vector Engine or Backend
   const handleCompileTikz = async () => {
     if (!tikzCode.trim()) {
       setTikzError('Please provide TikZ / LaTeX code to compile.');
@@ -308,6 +309,18 @@ export function QuestionStudioModal({
     setTikzError(null);
 
     try {
+      // 1. Instant Client-Side 300 DPI Vector Rasterization for Science Presets
+      const presetKey = detectPresetKey(tikzCode);
+      if (presetKey && PRESET_SVGS[presetKey]) {
+        const svgString = PRESET_SVGS[presetKey];
+        const pngBase64 = await rasterizeSvgToPng(svgString, 2);
+        const uploadedUrl = await uploadBase64Png(pngBase64, API_BASE, token, `${presetKey}.png`);
+        setImageUrl(uploadedUrl);
+        setCompilingTikz(false);
+        return;
+      }
+
+      // 2. Otherwise try backend pdflatex compiler
       const res = await fetch(`${API_BASE}/api/admin/diagrams/render-tikz`, {
         method: 'POST',
         headers: {
@@ -1222,6 +1235,28 @@ export function QuestionStudioModal({
                       <option value="coordinate_graph">⚡ Math: Coordinate Curve</option>
                     </select>
                   </div>
+
+                  {/* Live Visual Diagram Preview for Science Presets */}
+                  {(() => {
+                    const detectedKey = detectPresetKey(tikzCode);
+                    if (!detectedKey || !PRESET_SVGS[detectedKey]) return null;
+                    return (
+                      <div className="rounded-xl border border-amber-500/40 bg-white p-3 flex flex-col items-center shadow-lg my-1">
+                        <div className="w-full flex items-center justify-between pb-1.5 border-b border-zinc-200 text-[10px] font-bold text-zinc-700">
+                          <span className="flex items-center gap-1.5 text-amber-800 font-extrabold uppercase tracking-wide">
+                            <Sparkles size={13} className="text-amber-600" /> Live Vector Preview (300 DPI Ready)
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 font-mono text-[9px] font-black">
+                            ✓ Instant Attach Ready
+                          </span>
+                        </div>
+                        <div
+                          className="max-h-48 w-full flex items-center justify-center p-2 overflow-hidden"
+                          dangerouslySetInnerHTML={{ __html: PRESET_SVGS[detectedKey] }}
+                        />
+                      </div>
+                    );
+                  })()}
 
                   <textarea
                     value={tikzCode}
