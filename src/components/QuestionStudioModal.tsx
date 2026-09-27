@@ -1739,7 +1739,7 @@ export function QuestionStudioModal({
                   <img
                     src={formatImageUrl(imageUrl)}
                     alt="Diagram"
-                    className="max-h-56 mx-auto object-contain rounded-lg shadow"
+                    className="max-h-96 w-full mx-auto object-contain rounded-lg shadow"
                     onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                   />
                 </div>
