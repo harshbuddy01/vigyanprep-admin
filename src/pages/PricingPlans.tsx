@@ -4,7 +4,42 @@ import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
-const EXAM_OPTIONS = ['IAT', 'NEST', 'CMI'];
+const EXAM_OPTIONS = ['IAT', 'NEST', 'JEE', 'CMI'];
+
+export function getExamCoverageDetails(examType: string) {
+  switch (examType?.toUpperCase()) {
+    case 'JEE':
+      return {
+        subjects: ['Physics (25 Qs)', 'Chemistry (25 Qs)', 'Mathematics (25 Qs)'],
+        badge: '3 Subjects • 75 Qs • 300 Marks',
+        note: 'Physics, Chem & Math (+4/-1 MCQ, +4/0 Numerical). No Biology.'
+      };
+    case 'IAT':
+      return {
+        subjects: ['Physics (15 Qs)', 'Chemistry (15 Qs)', 'Mathematics (15 Qs)', 'Biology (15 Qs)'],
+        badge: '4 Subjects • 60 Qs • 240 Marks',
+        note: 'Complete PCMB coverage (+4/-1 marking scheme).'
+      };
+    case 'NEST':
+      return {
+        subjects: ['Physics (17 Qs)', 'Chemistry (17 Qs)', 'Mathematics (17 Qs)', 'Biology (17 Qs)'],
+        badge: '4 Subjects • Best 3 of 4 Evaluated (180 Marks)',
+        note: 'All 4 subjects attempted, highest 3 sections counted.'
+      };
+    case 'CMI':
+      return {
+        subjects: ['Mathematics (Objective + Proofs)'],
+        badge: 'Objective + Subjective Proofs',
+        note: 'Pure Mathematics & Advanced Logical Reasoning.'
+      };
+    default:
+      return {
+        subjects: ['All Test Series Subjects'],
+        badge: 'Official NTA Pattern',
+        note: 'Full CBT Test Series Access.'
+      };
+  }
+}
 
 interface SubscriptionPlan {
   id: string;
@@ -264,6 +299,21 @@ export function PricingPlans() {
                   <span className="text-xs text-slate-500 dark:text-neutral-400 font-mono">/ {p.duration_days} Days</span>
                 </div>
 
+                {/* Subject & Pattern Details */}
+                {(() => {
+                  const coverage = getExamCoverageDetails(p.exam_type);
+                  return (
+                    <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-neutral-900/60 border border-slate-200 dark:border-white/5 space-y-1">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-amber-900 dark:text-amber-300">
+                        <span>{coverage.badge}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-neutral-400 font-medium">
+                        {isBundle && p.bundle_includes ? `Covers all mock papers for ${p.bundle_includes.join(', ')}` : coverage.note}
+                      </p>
+                    </div>
+                  );
+                })()}
+
                 {/* Footer: access info + action buttons */}
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-xs text-slate-500 dark:text-neutral-400">
@@ -362,11 +412,33 @@ export function PricingPlans() {
               ) : (
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 dark:text-neutral-300 mb-1">Target Exam Category</label>
-                  <select value={examType} onChange={e => setExamType(e.target.value)} className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-white">
-                    <option value="IAT">IISER IAT Pass</option>
-                    <option value="NEST">NISER NEST Pass</option>
-                    <option value="CMI">CMI Entrance Pass</option>
+                  <select
+                    value={examType}
+                    onChange={e => {
+                      const newType = e.target.value;
+                      setExamType(newType);
+                      if (modalMode === 'create') {
+                        if (newType === 'JEE') setName('JEE Main All-India Test Series Pass');
+                        else if (newType === 'IAT') setName('IISER IAT 90-Day Series Pass');
+                        else if (newType === 'NEST') setName('NISER NEST All-India Series Pass');
+                        else if (newType === 'CMI') setName('CMI Entrance Test Series Pass');
+                      }
+                    }}
+                    className="w-full bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2 text-slate-900 dark:text-white"
+                  >
+                    <option value="IAT">IISER IAT Pass (PCMB - 240 Marks)</option>
+                    <option value="NEST">NISER NEST Pass (PCMB - 180 Marks)</option>
+                    <option value="JEE">JEE Main Pass (PCM - 300 Marks)</option>
+                    <option value="CMI">CMI Entrance Pass (Pure Math & Logic)</option>
                   </select>
+                  <div className="mt-2 p-2.5 rounded-lg bg-amber-50 dark:bg-neutral-900 border border-amber-200 dark:border-white/10 text-xs space-y-1">
+                    <p className="font-bold text-amber-900 dark:text-amber-300">
+                      {getExamCoverageDetails(examType).badge}
+                    </p>
+                    <p className="text-slate-600 dark:text-neutral-400">
+                      {getExamCoverageDetails(examType).note}
+                    </p>
+                  </div>
                 </div>
               )}
 
