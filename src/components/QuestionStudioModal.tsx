@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { MathRenderer } from './MathRenderer';
 import { useAuthStore } from '../stores/authStore';
-import { PRESET_SVGS, detectPresetKey, rasterizeSvgToPng, uploadBase64Png, compileLatexViaQuickLatex } from '../utils/diagramRenderer';
+import { PRESET_SVGS, rasterizeSvgToPng, uploadBase64Png } from '../utils/diagramRenderer';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
@@ -265,6 +265,7 @@ export function QuestionStudioModal({
 
   // Built-in TikZ Diagram Studio State
   const [diagramMode, setDiagramMode] = useState<DiagramSourceMode>('tikz');
+  const [selectedPreset, setSelectedPreset] = useState('incline');
   const [tikzCode, setTikzCode] = useState(TIKZ_PRESETS.incline.code);
   const [compilingTikz, setCompilingTikz] = useState(false);
   const [tikzError, setTikzError] = useState<string | null>(null);
@@ -300,9 +301,18 @@ export function QuestionStudioModal({
 
   // Compile TikZ Code to 300 DPI PNG via Client Vector Engine or Backend
   const handleCompileTikz = async () => {
-    if (!tikzCode.trim()) {
+    let cleanCode = (tikzCode || '').trim();
+    if (!cleanCode) {
       setTikzError('Please provide TikZ / LaTeX code to compile.');
       return;
+    }
+
+    // Auto-strip stray leading punctuation (e.g. ']\begin{tikzpicture}' or quotes)
+    cleanCode = cleanCode.replace(/^[\s\]\)\}\`\'\>\<\,\.\;]+/, '');
+
+    // Auto-close missing \end{tikzpicture}
+    if (cleanCode.includes('\\begin{tikzpicture}') && !cleanCode.includes('\\end{tikzpicture}')) {
+      cleanCode += '\n\\end{tikzpicture}';
     }
 
     setCompilingTikz(true);
@@ -310,63 +320,46 @@ export function QuestionStudioModal({
 
     try {
       // 1. Instant Client-Side 300 DPI Vector Rasterization for pristine Science Presets
-      const isPristinePreset = Object.values(TIKZ_PRESETS).some(p => p.code.trim() === tikzCode.trim());
-      const presetKey = detectPresetKey(tikzCode);
-      if (isPristinePreset && presetKey && PRESET_SVGS[presetKey]) {
-        const svgString = PRESET_SVGS[presetKey];
-        const pngBase64 = await rasterizeSvgToPng(svgString, 2);
-        const uploadedUrl = await uploadBase64Png(pngBase64, API_BASE, token, `${presetKey}.png`);
-        setImageUrl(uploadedUrl);
-        setCompilingTikz(false);
-        return;
-      }
-
-      // 2. Try Backend LaTeX / ChemFig / TikZ Compiler
-      let uploadedUrl: string | null = null;
-      try {
-        const res = await fetch(`${API_BASE}/api/admin/diagrams/render-tikz`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: token ? `Bearer ${token}` : ''
-          },
-          body: JSON.stringify({ tikzCode, dpi: 300 })
-        });
-        const data = await res.json();
-        if (res.ok && data.success && data.imageUrl) {
-          uploadedUrl = data.imageUrl;
-        } else if (data.error && !data.error.includes('Server environment does not have')) {
-          // If it's a real LaTeX compilation error report from compiler, note it
-          console.warn('Backend compiler note:', data.error);
-        }
-      } catch (backendErr: any) {
-        console.warn('Backend diagram compile attempted:', backendErr?.message);
-      }
-
-      // 3. Cloud LaTeX / ChemFig Compiler Fallback (Direct Browser-to-Cloud TeX engine)
-      if (!uploadedUrl) {
-        const quickLatexUrl = await compileLatexViaQuickLatex(tikzCode);
-        try {
-          // Download blob, convert to base64, and save to our own CDN storage
-          const imgBlob = await fetch(quickLatexUrl).then(r => r.blob());
-          const reader = new FileReader();
-          const base64Promise = new Promise<string>((resolve, reject) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(imgBlob);
-          });
-          const base64 = await base64Promise;
-          uploadedUrl = await uploadBase64Png(base64, API_BASE, token, 'chemistry_diagram.png');
-        } catch {
-          // If upload fails, use the direct QuickLaTeX image URL
-          uploadedUrl = quickLatexUrl;
+      const pristineMatch = Object.entries(TIKZ_PRESETS).find(
+        ([_, p]) => p.code.trim() === cleanCode.trim()
+      );
+      if (pristineMatch) {
+        const [presetKey] = pristineMatch;
+        if (PRESET_SVGS[presetKey]) {
+          const svgString = PRESET_SVGS[presetKey];
+          const pngBase64 = await rasterizeSvgToPng(svgString, 2);
+          const uploadedUrl = await uploadBase64Png(pngBase64, API_BASE, token, `${presetKey}.png`);
+          setImageUrl(uploadedUrl);
+          setCompilingTikz(false);
+          return;
         }
       }
 
-      // Auto attach to question image URL
-      setImageUrl(uploadedUrl);
+      // 2. Call Backend LaTeX / ChemFig / TikZ Compiler (runs on server with local pdflatex or server-side QuickLaTeX cloud fallback)
+      const res = await fetch(`${API_BASE}/api/admin/diagrams/render-tikz`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ tikzCode: cleanCode, dpi: 300 })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success && data.imageUrl) {
+        setImageUrl(data.imageUrl);
+      } else {
+        const backendMsg = data.error || 'Server diagram compiler returned an error.';
+        throw new Error(backendMsg);
+      }
     } catch (err: any) {
-      setTikzError(err.message || 'LaTeX compilation failed');
+      console.error('TikZ compilation failed:', err);
+      const isNetworkErr = err.message === 'Failed to fetch' || err.name === 'TypeError';
+      const userFriendlyMsg = isNetworkErr
+        ? 'Could not connect to diagram compiler. You can paste your diagram screenshot directly (Cmd+V / Ctrl+V) in the "Upload / Paste" tab.'
+        : `LaTeX compiler note: ${err.message}. If the snippet is incomplete or missing packages, use "Upload / Paste" to paste your diagram screenshot directly.`;
+      setTikzError(userFriendlyMsg);
     } finally {
       setCompilingTikz(false);
     }
@@ -1250,8 +1243,11 @@ export function QuestionStudioModal({
                       <Layers size={13} className="text-amber-400" /> Choose Science Template:
                     </span>
                     <select
+                      value={selectedPreset}
                       onChange={(e) => {
-                        const preset = TIKZ_PRESETS[e.target.value];
+                        const key = e.target.value;
+                        setSelectedPreset(key);
+                        const preset = TIKZ_PRESETS[key];
                         if (preset) setTikzCode(preset.code);
                       }}
                       className="bg-[#1a1c28] border border-zinc-700 text-xs font-bold text-amber-300 rounded-lg px-2.5 py-1 focus:outline-none cursor-pointer"
@@ -1266,8 +1262,12 @@ export function QuestionStudioModal({
 
                   {/* Live Visual Diagram Preview for Science Presets */}
                   {(() => {
-                    const detectedKey = detectPresetKey(tikzCode);
-                    if (!detectedKey || !PRESET_SVGS[detectedKey]) return null;
+                    const isPristinePreset = Object.entries(TIKZ_PRESETS).find(
+                      ([_, p]) => p.code.trim() === tikzCode.trim()
+                    );
+                    if (!isPristinePreset) return null;
+                    const presetKey = isPristinePreset[0];
+                    if (!PRESET_SVGS[presetKey]) return null;
                     return (
                       <div className="rounded-xl border border-amber-500/40 bg-white p-3 flex flex-col items-center shadow-lg my-1">
                         <div className="w-full flex items-center justify-between pb-1.5 border-b border-zinc-200 text-[10px] font-bold text-zinc-700">
@@ -1280,7 +1280,7 @@ export function QuestionStudioModal({
                         </div>
                         <div
                           className="max-h-48 w-full flex items-center justify-center p-2 overflow-hidden"
-                          dangerouslySetInnerHTML={{ __html: PRESET_SVGS[detectedKey] }}
+                          dangerouslySetInnerHTML={{ __html: PRESET_SVGS[presetKey] }}
                         />
                       </div>
                     );
@@ -1295,21 +1295,21 @@ export function QuestionStudioModal({
                   />
 
                   {tikzError && (
-                    <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-xs text-red-200 space-y-1.5">
+                    <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-500/40 text-xs text-red-200 space-y-2.5">
                       <div className="flex items-start gap-2">
-                        <AlertCircle size={15} className="shrink-0 text-red-400 mt-0.5" />
-                        <span className="font-sans leading-relaxed">{tikzError}</span>
+                        <AlertCircle size={16} className="shrink-0 text-red-400 mt-0.5" />
+                        <span className="font-sans leading-relaxed text-red-100">{tikzError}</span>
                       </div>
-                      <div className="pl-6 pt-0.5 flex items-center gap-2">
+                      <div className="pl-6 flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           onClick={() => {
                             setDiagramMode('upload');
                             setTikzError(null);
                           }}
-                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-black font-bold text-[11px] rounded-lg transition cursor-pointer"
+                          className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs rounded-lg transition cursor-pointer flex items-center gap-1.5 shadow"
                         >
-                          Switch to Upload / Paste (Ctrl+V)
+                          <Upload size={13} /> 📋 Switch to Paste Screenshot (Cmd+V / Ctrl+V)
                         </button>
                       </div>
                     </div>

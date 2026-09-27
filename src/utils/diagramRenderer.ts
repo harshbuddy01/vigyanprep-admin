@@ -148,16 +148,16 @@ export const PRESET_SVGS: Record<string, string> = {
 };
 
 /**
- * Detects which science preset matches the provided TikZ or text code
+ * Detects which science preset strictly matches the provided TikZ or text code
  */
 export function detectPresetKey(code: string): string | null {
   if (!code) return null;
   const lower = code.toLowerCase();
-  if (lower.includes('wedge') || lower.includes('incline') || lower.includes('rotate=30')) return 'incline';
-  if (lower.includes('pulley') || lower.includes('spring') || lower.includes('m_1') || lower.includes('m_2')) return 'spring_pulley';
-  if (lower.includes('circuit') || lower.includes('capacitor') || lower.includes('resistor') || lower.includes('v_0') || lower.includes('rlc')) return 'circuit';
-  if (lower.includes('benzene') || lower.includes('nitro') || lower.includes('sn / hcl') || lower.includes('sn/hcl') || lower.includes('no_2') || lower.includes('nh_2')) return 'benzene';
-  if (lower.includes('parabola') || lower.includes('tangent') || lower.includes('coordinate') || lower.includes('plot')) return 'coordinate_graph';
+  if (lower.includes('wedge ($m$)') || (lower.includes('wedge') && lower.includes('incline') && lower.includes('30^\\circ'))) return 'incline';
+  if (lower.includes('pulley') && lower.includes('spring') && (lower.includes('m_1') || lower.includes('m_2'))) return 'spring_pulley';
+  if ((lower.includes('circuit') || lower.includes('rlc')) && (lower.includes('capacitor') || lower.includes('resistor'))) return 'circuit';
+  if ((lower.includes('sn / hcl') || lower.includes('sn/hcl')) && (lower.includes('no_2') || lower.includes('nh_2'))) return 'benzene';
+  if (lower.includes('tangent at p') || (lower.includes('parabola') && lower.includes('tangent'))) return 'coordinate_graph';
   return null;
 }
 
@@ -232,87 +232,4 @@ export async function uploadBase64Png(base64Png: string, apiBase: string, token:
   }
 
   return data.imageUrl;
-}
-
-/**
- * Browser-side Cloud LaTeX Compiler (QuickLaTeX API)
- * Directly compiles ChemFig, TikZ, and standard formulas to PNG in the browser
- */
-export async function compileLatexViaQuickLatex(rawCode: string): Promise<string> {
-  let text = rawCode.trim();
-  const preambles: string[] = [];
-
-  const pkgRegex = /\\usepackage(?:\[.*?\])?\{([a-zA-Z0-9_,\s]+)\}/g;
-  let match;
-  while ((match = pkgRegex.exec(text)) !== null) {
-    const pkgs = match[1].split(',').map(p => p.trim());
-    for (const p of pkgs) {
-      if (p) preambles.push(`\\usepackage{${p}}`);
-    }
-  }
-
-  const tikzLibRegex = /\\usetikzlibrary\{([a-zA-Z0-9_,\s.]+)\}/g;
-  while ((match = tikzLibRegex.exec(text)) !== null) {
-    preambles.push(match[0]);
-  }
-
-  let formula = text;
-  if (formula.includes('\\begin{document}')) {
-    const docMatch = formula.match(/\\begin\{document\}([\s\S]*?)\\end\{document\}/);
-    if (docMatch) {
-      formula = docMatch[1].trim();
-    } else {
-      formula = formula.split('\\begin{document}')[1].trim();
-    }
-  }
-  formula = formula.replace(/\\end\{document\}/g, '').trim();
-
-  formula = formula.replace(/\\documentclass(?:\[.*?\])?\{.*?\}/g, '');
-  formula = formula.replace(/\\usepackage(?:\[.*?\])?\{.*?\}/g, '');
-  formula = formula.replace(/\\usetikzlibrary\{.*?\}/g, '');
-  formula = formula.trim();
-
-  const baseline = ['amsmath', 'amsfonts', 'amssymb', 'tikz'];
-  if (text.includes('chemfig') || text.includes('\\chemfig') || text.includes('\\lewis')) {
-    baseline.push('chemfig');
-  }
-  for (const b of baseline) {
-    if (!preambles.some(p => p.includes(`{${b}}`))) {
-      preambles.push(`\\usepackage{${b}}`);
-    }
-  }
-
-  const params = new URLSearchParams();
-  params.append('formula', formula);
-  params.append('fsize', '24px');
-  params.append('fcolor', '000000');
-  params.append('mode', '0');
-  params.append('out', '1');
-  params.append('remhost', 'quicklatex.com');
-  params.append('preamble', preambles.join('\n'));
-
-  const response = await fetch('https://quicklatex.com/latex3.f', {
-    method: 'POST',
-    body: params
-  });
-
-  if (!response.ok) {
-    throw new Error(`QuickLaTeX HTTP ${response.status}`);
-  }
-
-  const responseText = await response.text();
-  const lines = responseText.trim().split('\n');
-  const status = lines[0]?.trim();
-
-  if (status !== '0') {
-    const errorMsg = lines.slice(1).join(' ').trim() || 'LaTeX syntax error';
-    throw new Error(errorMsg);
-  }
-
-  const imageUrl = lines[1]?.split(' ')[0]?.trim();
-  if (!imageUrl || !imageUrl.startsWith('http')) {
-    throw new Error('QuickLaTeX returned an invalid image URL');
-  }
-
-  return imageUrl;
 }
