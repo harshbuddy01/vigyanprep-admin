@@ -645,6 +645,7 @@ export function TestSeries() {
                   >
                     <option value="IAT">IISER IAT</option>
                     <option value="NEST">NISER NEST</option>
+                    <option value="JEE">JEE Main</option>
                     <option value="CMI">CMI Entrance</option>
                     <option value="IISc">IISc Entrance</option>
                   </select>
@@ -749,6 +750,7 @@ export function TestSeries() {
                   >
                     <option value="IAT">IISER IAT</option>
                     <option value="NEST">NISER NEST</option>
+                    <option value="JEE">JEE Main</option>
                     <option value="CMI">CMI Entrance</option>
                     <option value="IISc">IISc Entrance</option>
                   </select>

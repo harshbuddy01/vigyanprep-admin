@@ -228,6 +228,7 @@ function formatImageUrl(url?: string): string {
               >
                 <option value="IAT">IISER IAT</option>
                 <option value="NEST">NISER NEST</option>
+                <option value="JEE">JEE Main</option>
                 <option value="ISI">ISI Entrance</option>
               </select>
             </div>

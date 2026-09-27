@@ -226,6 +226,7 @@ export function PyqUpload() {
               >
                 <option value="IAT">IISER IAT</option>
                 <option value="NEST">NISER NEST</option>
+                <option value="JEE">JEE Main</option>
                 <option value="CMI">CMI Entrance</option>
               </select>
             </div>
