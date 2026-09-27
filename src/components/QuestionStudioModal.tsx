@@ -22,8 +22,8 @@ export interface QuestionData {
   marks_positive?: number;
   marks_negative?: number;
   question_number?: number;
-  image_url?: string;
-  solution_explanation?: string;
+  image_url?: string | null;
+  solution_explanation?: string | null;
   difficulty?: 'Easy' | 'Medium' | 'Hard';
   topic?: string;
   exam_type?: string;
@@ -719,8 +719,8 @@ export function QuestionStudioModal({
         question_text: finalQText,
         options: isNumerical ? [] : finalOptions,
         correct_answer: finalCorrectAnswer,
-        image_url: imageUrl.trim() || undefined,
-        solution_explanation: solution.trim() || undefined
+        image_url: imageUrl.trim() ? imageUrl.trim() : null,
+        solution_explanation: solution.trim() ? solution.trim() : null
       } as QuestionData, !!initialData?.id);
 
       onClose();
