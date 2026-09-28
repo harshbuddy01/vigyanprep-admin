@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   FileUp, CheckCircle, AlertCircle, Sparkles, BookOpen, Trash2,
@@ -47,7 +47,25 @@ type ParsedQuestion = {
   status: string;
 };
 
-const SECTIONS = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
+export const EXAM_TYPE_SECTIONS: Record<string, string[]> = {
+  JEE: ['Physics', 'Chemistry', 'Mathematics'],
+  JEE_MAIN: ['Physics', 'Chemistry', 'Mathematics'],
+  ISI: ['Mathematics'],
+  CMI: ['Mathematics'],
+  NEET: ['Physics', 'Chemistry', 'Biology'],
+  IAT: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+  NEST: ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+  IISC: ['Physics', 'Chemistry', 'Mathematics'],
+};
+
+export function getAllowedSections(examType?: string, currentQuestions: { section?: string }[] = []): string[] {
+  const norm = (examType || 'IAT').toUpperCase().replace(/[^A-Z_]/g, '');
+  const base = EXAM_TYPE_SECTIONS[norm] || ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
+  // Also include any section that actually has questions present so existing questions are never hidden
+  const existingSections = Array.from(new Set(currentQuestions.map(q => q.section).filter(Boolean))) as string[];
+  return Array.from(new Set([...base, ...existingSections]));
+}
+
 const SECTION_ICONS: Record<string, any> = {
   Physics: Atom,
   Chemistry: FlaskConical,
@@ -86,10 +104,10 @@ function toLocalInputString(isoStr?: string): string {
  *   - Section B: Numerical/Integer Questions are placed after MCQs and numbered starting at 21 (or Math.max(21, mcqCount + 1)), e.g. 21..25.
  *   - Strips dummy options from Numerical questions.
  */
-export function autoOrderQuestions(qs: ParsedQuestion[], _examType?: string): ParsedQuestion[] {
-  const sections = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
-  const customSections = Array.from(new Set(qs.map(q => q.section || 'Physics'))).filter(s => !sections.includes(s));
-  const allSections = [...sections, ...customSections];
+export function autoOrderQuestions(qs: ParsedQuestion[], examType?: string): ParsedQuestion[] {
+  const allowed = getAllowedSections(examType, qs);
+  const customSections = Array.from(new Set(qs.map(q => q.section || allowed[0] || 'Physics'))).filter(s => !allowed.includes(s));
+  const allSections = [...allowed, ...customSections];
 
   const result: ParsedQuestion[] = [];
 
@@ -802,18 +820,32 @@ export function PaperBuilder() {
     }
   };
 
+  // --- Exam-Aware Allowed Sections ---
+  const allowedSections: string[] = useMemo(() => {
+    return getAllowedSections(examType, questions);
+  }, [examType, questions]);
+
+  useEffect(() => {
+    if (allowedSections.length > 0 && !allowedSections.includes(activeTab)) {
+      setActiveTab(allowedSections[0]);
+    }
+  }, [allowedSections, activeTab]);
+
   // --- Section Counts ---
-  const sectionCounts = SECTIONS.reduce((acc, s) => {
+  const sectionCounts = allowedSections.reduce<Record<string, number>>((acc, s) => {
     acc[s] = questions.filter(q => q.section === s).length;
     return acc;
-  }, {} as Record<string, number>);
+  }, {});
 
   const totalQuestions = questions.length;
 
   // --- Preview ---
   const previewQuestions = questions.sort((a, b) => {
-    const sectionOrder = SECTIONS.indexOf(a.section) - SECTIONS.indexOf(b.section);
-    if (sectionOrder !== 0) return sectionOrder;
+    const sA = allowedSections.indexOf(a.section);
+    const sB = allowedSections.indexOf(b.section);
+    const orderA = sA >= 0 ? sA : 999;
+    const orderB = sB >= 0 ? sB : 999;
+    if (orderA !== orderB) return orderA - orderB;
     return (a.questionNumber || 0) - (b.questionNumber || 0);
   });
   const currentPreviewQ = previewQuestions[previewIdx];
@@ -1103,9 +1135,9 @@ export function PaperBuilder() {
           {/* Section Tabs with Counts */}
           <div className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
-              {SECTIONS.map(sec => {
+              {allowedSections.map(sec => {
                 const count = sectionCounts[sec] || 0;
-                const SIcon = SECTION_ICONS[sec];
+                const SIcon = SECTION_ICONS[sec] || Atom;
                 const isActive = activeTab === sec;
                 return (
                   <button
@@ -1297,7 +1329,7 @@ export function PaperBuilder() {
                             onChange={(e) => handleSectionChange(qId, e.target.value)}
                             className="bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 text-xs rounded-lg px-2.5 py-1 text-slate-700 dark:text-neutral-300 focus:outline-none font-semibold"
                           >
-                            {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                            {allowedSections.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                           {/* Question Type Selector */}
                           <select
@@ -1751,7 +1783,7 @@ export function PaperBuilder() {
               </button>
               {/* Section jump buttons */}
               <div className="flex gap-1">
-                {SECTIONS.map(sec => {
+                {allowedSections.map(sec => {
                   const firstIdx = previewQuestions.findIndex(q => q.section === sec);
                   if (firstIdx < 0) return null;
                   const isCurrentSection = currentPreviewQ?.section === sec;
@@ -1798,11 +1830,11 @@ export function PaperBuilder() {
                 <div className="text-2xl font-bold text-slate-800 dark:text-white">{totalQuestions}</div>
                 <div className="text-[10px] font-bold text-slate-500 dark:text-neutral-400 uppercase">Total Questions</div>
               </div>
-              {SECTIONS.map(sec => {
-                const SIcon = SECTION_ICONS[sec];
+              {allowedSections.filter(sec => (sectionCounts[sec] || 0) > 0 || totalQuestions === 0).map(sec => {
+                const SIcon = SECTION_ICONS[sec] || Atom;
                 const count = sectionCounts[sec] || 0;
                 return (
-                  <div key={sec} className={`border rounded-xl p-4 text-center ${SECTION_COLORS[sec]}`}>
+                  <div key={sec} className={`border rounded-xl p-4 text-center ${SECTION_COLORS[sec] || 'text-blue-400 bg-blue-500/10 border-blue-500/30'}`}>
                     <SIcon size={18} className="mx-auto mb-1" />
                     <div className="text-xl font-bold">{count}</div>
                     <div className="text-[10px] font-bold uppercase">{sec}</div>
