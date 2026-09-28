@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search, X, Mail, MessageSquare, Send, CheckCircle2,
-  Sparkles, Clock, Copy, Plus, RefreshCw, AlertCircle, ExternalLink
+  Sparkles, Clock, Copy, Plus, RefreshCw, AlertCircle, ExternalLink,
+  UserCheck, Phone
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
@@ -21,6 +22,10 @@ export function Students() {
   const [demoPasses, setDemoPasses] = useState<any[]>([]);
   const [demoLoading, setDemoLoading] = useState(false);
   const [showCreateDemoModal, setShowCreateDemoModal] = useState(false);
+
+  // Pending Trial Approval State
+  const [approvingTrialId, setApprovingTrialId] = useState<string | null>(null);
+  const [rejectingTrialId, setRejectingTrialId] = useState<string | null>(null);
 
   // Create Demo Form State
   const [demoName, setDemoName] = useState('');
@@ -182,6 +187,60 @@ export function Students() {
     }
   };
 
+  const handleApproveTrial = async (trial: any) => {
+    if (!confirm(`Approve 24-Hour VIP Demo Pass for ${trial.name} (${trial.email})? A confirmation email with their temporary password will be sent automatically.`)) return;
+    setApprovingTrialId(trial.id);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/trial/approve/${trial.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`✓ Pass Approved Successfully!\n\nEmail confirmation sent to: ${trial.email}\nTemporary Password: ${data.password}\n\nWhatsApp invite copied to clipboard!`);
+        if (data.whatsappInvite) {
+          navigator.clipboard.writeText(data.whatsappInvite);
+          setCopiedInvite(true);
+          setTimeout(() => setCopiedInvite(false), 3000);
+        }
+        fetchDemoPasses();
+      } else {
+        alert(`Failed: ${data.error || 'Could not approve request'}`);
+      }
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setApprovingTrialId(null);
+    }
+  };
+
+  const handleRejectTrial = async (trial: any) => {
+    if (!confirm(`Dismiss trial request from ${trial.name} (${trial.email})?`)) return;
+    setRejectingTrialId(trial.id);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/trial/reject/${trial.id}`, {
+        method: 'POST',
+        headers: {
+          Authorization: token ? `Bearer ${token}` : ''
+        }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        fetchDemoPasses();
+      } else {
+        alert(`Failed: ${data.error || 'Could not dismiss request'}`);
+      }
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setRejectingTrialId(null);
+    }
+  };
+
   const copyWhatsAppTemplate = (trial: any) => {
     const invite = trial.whatsappInvite ||
 `*🏆 VigyanPrep VIP 24-Hour CBT Pass*
@@ -251,19 +310,22 @@ _Note: Includes full practice tests (IAT 01-03, JEE 01), authentic NTA CBT layou
     }
   };
 
-  const filteredStudents = students.filter(s =>
+  const filteredStudents = students.filter((s: any) =>
     (s.full_name || s.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (s.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (s.phone || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredDemoPasses = demoPasses.filter(t =>
+  const pendingTrials = demoPasses.filter((t: any) => t.status === 'pending');
+  const nonPendingDemoPasses = demoPasses.filter((t: any) => t.status !== 'pending');
+
+  const filteredDemoPasses = nonPendingDemoPasses.filter((t: any) =>
     (t.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (t.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (t.notes || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const activeDemoCount = demoPasses.filter(t => t.status === 'active').length;
+  const activeDemoCount = demoPasses.filter((t: any) => t.status === 'active').length;
 
   return (
     <div className="space-y-6">
@@ -285,6 +347,34 @@ _Note: Includes full practice tests (IAT 01-03, JEE 01), authentic NTA CBT layou
           <span>+ Generate 24h VIP Demo Pass</span>
         </button>
       </div>
+
+      {/* 🔔 Real-Time VIP Trial Requests Notification Bar */}
+      {pendingTrials.length > 0 && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-amber-500/20 border-2 border-amber-500/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl shadow-amber-500/10">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-400 text-black flex items-center justify-center font-black text-lg shadow-md shrink-0">
+              🔔
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-amber-200 flex items-center gap-2">
+                <span>{pendingTrials.length} Student Trial Request{pendingTrials.length > 1 ? 's' : ''} Awaiting Approval</span>
+                <span className="px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-mono font-black uppercase">
+                  Action Required
+                </span>
+              </h4>
+              <p className="text-xs text-neutral-300 mt-0.5 leading-relaxed">
+                Students requested a 24-hour VIP demo pass from the website. Click below to review their details and automatically send their login password via email.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setActiveTab('demos')}
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-black font-extrabold text-xs uppercase tracking-wider shrink-0 transition shadow-md cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
+          >
+            <span>Review &amp; Approve ({pendingTrials.length}) →</span>
+          </button>
+        </div>
+      )}
 
       {/* Tabs Switcher */}
       <div className="flex items-center gap-2 border-b border-white/10 pb-2">
@@ -312,6 +402,11 @@ _Note: Includes full practice tests (IAT 01-03, JEE 01), authentic NTA CBT layou
         >
           <Sparkles size={13} className="text-amber-400" />
           <span>VIP 24h Demo Passes</span>
+          {pendingTrials.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-mono font-black animate-pulse">
+              {pendingTrials.length} Pending
+            </span>
+          )}
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
             activeDemoCount > 0 ? 'bg-amber-400 text-black' : 'bg-white/10 text-neutral-400'
           }`}>
@@ -360,7 +455,7 @@ _Note: Includes full practice tests (IAT 01-03, JEE 01), authentic NTA CBT layou
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {filteredStudents.map((s) => (
+                  {filteredStudents.map((s: any) => (
                     <tr key={s.id || s.email} className="hover:bg-white/[0.03] transition">
                       <td className="px-6 py-3.5 font-medium text-white">{s.full_name || s.name || 'Student'}</td>
                       <td className="px-6 py-3.5 font-mono text-xs">{s.email}</td>
@@ -410,7 +505,115 @@ _Note: Includes full practice tests (IAT 01-03, JEE 01), authentic NTA CBT layou
           TAB 2: VIP 24-HOUR DEMO PASSES
          ══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'demos' && (
-        <div className="bg-neutral-800/50 border border-white/10 rounded-xl overflow-hidden shadow-lg space-y-0">
+        <div className="space-y-6">
+          {/* ⚡ PENDING TRIAL REQUESTS (NEEDS ADMIN APPROVAL) */}
+          {pendingTrials.length > 0 && (
+            <div className="bg-gradient-to-br from-amber-500/10 via-neutral-900 to-amber-500/5 border-2 border-amber-500/40 rounded-2xl p-5 space-y-4 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-500/20 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-amber-400 text-black flex items-center justify-center font-bold text-sm shadow-md">
+                    🔔
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-amber-200 text-sm flex items-center gap-2">
+                      <span>Pending Website Demo Requests</span>
+                      <span className="px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-mono font-black animate-pulse">
+                        {pendingTrials.length} Awaiting Activation
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-neutral-400">
+                      Students entered their email &amp; name on vigyanprep.com/tests. Click <strong>"Approve &amp; Email Pass"</strong> to start their 24h timer and automatically dispatch their login password via Brevo email.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-neutral-300">
+                  <thead className="bg-neutral-950/60 text-xs uppercase text-amber-300/80 border-b border-white/10">
+                    <tr>
+                      <th className="px-4 py-2.5">Student</th>
+                      <th className="px-4 py-2.5">Target Exam</th>
+                      <th className="px-4 py-2.5">Phone / Contact</th>
+                      <th className="px-4 py-2.5">Requested At</th>
+                      <th className="px-4 py-2.5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {pendingTrials.map((trial: any) => {
+                      const isApproving = approvingTrialId === trial.id;
+                      const isRejecting = rejectingTrialId === trial.id;
+                      return (
+                        <tr key={trial.id} className="hover:bg-white/[0.04] transition">
+                          <td className="px-4 py-3">
+                            <div className="font-bold text-white text-sm">{trial.name}</div>
+                            <div className="font-mono text-xs text-amber-300">{trial.email}</div>
+                          </td>
+
+                          <td className="px-4 py-3">
+                            <span className="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold">
+                              {(trial.bundleIncludes && trial.bundleIncludes.join(', ')) || 'IAT'}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3 text-xs text-neutral-400">
+                            {trial.phone ? (
+                              <a
+                                href={`https://wa.me/${trial.phone.replace(/[^0-9]/g, '')}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-emerald-400 hover:underline flex items-center gap-1"
+                              >
+                                <Phone size={12} />
+                                <span>{trial.phone}</span>
+                              </a>
+                            ) : (
+                              <span className="text-neutral-600 italic">None provided</span>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-3 text-xs text-neutral-400">
+                            {trial.createdAt ? new Date(trial.createdAt).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                          </td>
+
+                          <td className="px-4 py-3 text-right space-x-2">
+                            <button
+                              onClick={() => handleApproveTrial(trial)}
+                              disabled={isApproving || isRejecting}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:bg-neutral-700 text-black font-extrabold text-xs uppercase tracking-wider transition shadow-md cursor-pointer"
+                            >
+                              {isApproving ? (
+                                <>
+                                  <RefreshCw size={13} className="animate-spin" />
+                                  <span>Activating...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck size={13} />
+                                  <span>Approve &amp; Email Pass</span>
+                                </>
+                              )}
+                            </button>
+
+                            <button
+                              onClick={() => handleRejectTrial(trial)}
+                              disabled={isApproving || isRejecting}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white border border-white/10 text-xs transition cursor-pointer"
+                            >
+                              <span>Dismiss</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ACTIVE & HISTORICAL VIP DEMO PASSES */}
+          <div className="bg-neutral-800/50 border border-white/10 rounded-xl overflow-hidden shadow-lg space-y-0">
           <div className="p-4 border-b border-white/10 flex items-center justify-between gap-4">
             <div className="relative max-w-md flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
@@ -447,7 +650,7 @@ _Note: Includes full practice tests (IAT 01-03, JEE 01), authentic NTA CBT layou
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {filteredDemoPasses.map((trial) => {
+                  {filteredDemoPasses.map((trial: any) => {
                     const isActive = trial.status === 'active';
                     return (
                       <tr key={trial.id} className="hover:bg-white/[0.03] transition">
@@ -545,6 +748,7 @@ _Note: Includes full practice tests (IAT 01-03, JEE 01), authentic NTA CBT layou
               </table>
             </div>
           )}
+          </div>
         </div>
       )}
 
@@ -699,7 +903,7 @@ _Note: Includes full practice tests (IAT 01-03, JEE 01), authentic NTA CBT layou
                             onChange={() => {
                               if (isChecked) {
                                 if (demoExams.length > 1) {
-                                  setDemoExams(demoExams.filter(e => e !== exam.id));
+                                  setDemoExams(demoExams.filter((e: string) => e !== exam.id));
                                 }
                               } else {
                                 setDemoExams([...demoExams, exam.id]);
