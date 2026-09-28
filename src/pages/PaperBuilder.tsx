@@ -12,6 +12,7 @@ import { CropDiagramModal } from '../components/CropDiagramModal';
 import { QuestionStudioModal } from '../components/QuestionStudioModal';
 import type { QuestionData } from '../components/QuestionStudioModal';
 import { ImportFromBankModal } from '../components/ImportFromBankModal';
+import { ModernWindowScheduler } from '../components/ModernWindowScheduler';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
@@ -879,25 +880,17 @@ export function PaperBuilder() {
           </div>
 
           {contentType === 'test_series' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
-              <div>
-                <label className="block text-xs font-bold text-amber-500 mb-1.5">Live Exam Window Start (IST)</label>
-                <input
-                  type="datetime-local"
-                  value={windowStart}
-                  onChange={(e) => setWindowStart(e.target.value)}
-                  className="w-full bg-white dark:bg-neutral-800 border border-amber-500/30 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-amber-400 font-medium"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-amber-500 mb-1.5">Live Exam Window End (IST)</label>
-                <input
-                  type="datetime-local"
-                  value={windowEnd}
-                  onChange={(e) => setWindowEnd(e.target.value)}
-                  className="w-full bg-white dark:bg-neutral-800 border border-amber-500/30 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-amber-400 font-medium"
-                />
-              </div>
+            <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-2">
+              <label className="block text-xs font-bold text-amber-500 uppercase tracking-wider">
+                Live Exam Window Schedule (IST)
+              </label>
+              <ModernWindowScheduler
+                startDate={windowStart}
+                endDate={windowEnd}
+                durationMinutes={parseInt(duration, 10) || 180}
+                onStartDateChange={setWindowStart}
+                onEndDateChange={setWindowEnd}
+              />
             </div>
           )}
 

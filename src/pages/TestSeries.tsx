@@ -5,6 +5,7 @@ import {
   BarChart3, Send, Hammer, Edit3, BookOpen, Rocket, Trophy, Activity, ShieldCheck
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import { ModernWindowScheduler } from '../components/ModernWindowScheduler';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.vigyanprep.com';
 
@@ -616,7 +617,7 @@ export function TestSeries() {
       {/* CREATE MODAL */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-[#14171d] text-zinc-100 border border-white/[0.08] rounded-xl w-full max-w-lg shadow-2xl p-6 space-y-4">
+          <div className="bg-[#14171d] text-zinc-100 border border-white/[0.08] rounded-xl w-full max-w-xl shadow-2xl p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <h3 className="text-base font-semibold text-zinc-100">Create Test Series Paper</h3>
               <button onClick={() => setShowCreateModal(false)} className="text-zinc-400 hover:text-white"><X size={18} /></button>
@@ -661,28 +662,14 @@ export function TestSeries() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">Window Start (IST) *</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full bg-[#0d0f12] border border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">Window End (IST) *</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full bg-[#0d0f12] border border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-500"
-                  />
-                </div>
-              </div>
+              {/* Modern Date & Time Window Scheduler */}
+              <ModernWindowScheduler
+                startDate={startDate}
+                endDate={endDate}
+                durationMinutes={parseInt(duration, 10) || 180}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+              />
 
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1">Description / Instructions</label>
@@ -719,7 +706,7 @@ export function TestSeries() {
       {/* EDIT MODAL (Name, Timings, Dates) */}
       {showEditModal && selectedTest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-[#14171d] text-zinc-100 border border-white/[0.08] rounded-xl w-full max-w-lg shadow-2xl p-6 space-y-4">
+          <div className="bg-[#14171d] text-zinc-100 border border-white/[0.08] rounded-xl w-full max-w-xl shadow-2xl p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <div className="flex items-center gap-2">
                 <Edit3 size={15} className="text-zinc-400" />
@@ -766,28 +753,14 @@ export function TestSeries() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">Window Start (IST) *</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={editStartDate}
-                    onChange={(e) => setEditStartDate(e.target.value)}
-                    className="w-full bg-[#0d0f12] border border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">Window End (IST) *</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={editEndDate}
-                    onChange={(e) => setEditEndDate(e.target.value)}
-                    className="w-full bg-[#0d0f12] border border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-zinc-500"
-                  />
-                </div>
-              </div>
+              {/* Modern Date & Time Window Scheduler */}
+              <ModernWindowScheduler
+                startDate={editStartDate}
+                endDate={editEndDate}
+                durationMinutes={parseInt(editDuration, 10) || 180}
+                onStartDateChange={setEditStartDate}
+                onEndDateChange={setEditEndDate}
+              />
 
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1">Description / Instructions</label>
