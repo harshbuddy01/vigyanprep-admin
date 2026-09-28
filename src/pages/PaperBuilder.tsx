@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   FileUp, CheckCircle, AlertCircle, Sparkles, BookOpen, Trash2,
@@ -77,6 +77,78 @@ function toLocalInputString(isoStr?: string): string {
   } catch {
     return '';
   }
+}
+
+/**
+ * Auto-orders questions strictly adhering to the official JEE Main & STEM Pattern:
+ * - Within each section (Physics, Chemistry, Mathematics, Biology, etc.):
+ *   - Section A: Multiple Choice Questions (MCQs) are sequenced first and numbered 1..N (typically 1..20).
+ *   - Section B: Numerical/Integer Questions are placed after MCQs and numbered starting at 21 (or Math.max(21, mcqCount + 1)), e.g. 21..25.
+ *   - Strips dummy options from Numerical questions.
+ */
+export function autoOrderQuestions(qs: ParsedQuestion[], _examType?: string): ParsedQuestion[] {
+  const sections = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
+  const customSections = Array.from(new Set(qs.map(q => q.section || 'Physics'))).filter(s => !sections.includes(s));
+  const allSections = [...sections, ...customSections];
+
+  const result: ParsedQuestion[] = [];
+
+  for (const sec of allSections) {
+    const secQs = qs.filter(q => (q.section || 'Physics') === sec);
+    if (secQs.length === 0) continue;
+
+    const mcqs: ParsedQuestion[] = [];
+    const numericals: ParsedQuestion[] = [];
+
+    for (const q of secQs) {
+      const isNum = q.type === 'Numerical' || (q as any).question_type === 'Numerical';
+      if (isNum) {
+        numericals.push({
+          ...q,
+          type: 'Numerical',
+          options: [],
+        });
+      } else {
+        mcqs.push({
+          ...q,
+          type: q.type || 'MCQ',
+        });
+      }
+    }
+
+    // Preserve original sorting within MCQs and Numericals
+    mcqs.sort((a, b) => (a.questionNumber || (a as any).question_number || 0) - (b.questionNumber || (b as any).question_number || 0));
+    numericals.sort((a, b) => (a.questionNumber || (a as any).question_number || 0) - (b.questionNumber || (b as any).question_number || 0));
+
+    // Renumber MCQs sequentially from 1..mcqs.length
+    const renumberedMcqs = mcqs.map((q, idx) => {
+      const num = idx + 1;
+      return {
+        ...q,
+        questionNumber: num,
+        question_number: num,
+      };
+    });
+
+    // Renumber Numericals starting at 21 (or Math.max(21, mcqs.length + 1) if MCQs > 20)
+    const numericalStart = Math.max(21, renumberedMcqs.length + 1);
+    const renumberedNumericals = numericals.map((q, idx) => {
+      const num = numericalStart + idx;
+      return {
+        ...q,
+        questionNumber: num,
+        question_number: num,
+        type: 'Numerical' as const,
+        options: [],
+        correctAnswer: String(q.correctAnswer || (q as any).correct_answer || '0'),
+        correct_answer: String(q.correctAnswer || (q as any).correct_answer || '0'),
+      };
+    });
+
+    result.push(...renumberedMcqs, ...renumberedNumericals);
+  }
+
+  return result;
 }
 
 export function PaperBuilder() {
@@ -244,8 +316,9 @@ export function PaperBuilder() {
             status: q.status || 'approved'
           };
         });
-        setQuestions(loaded);
-        if (loaded.length > 0) setCurrentStep(1); // Jump to questions if paper has content
+        const ordered = autoOrderQuestions(loaded, examType);
+        setQuestions(ordered);
+        if (ordered.length > 0) setCurrentStep(1); // Jump to questions if paper has content
       }
     } catch (err) {
       console.error('Failed to load paper:', err);
@@ -274,24 +347,29 @@ export function PaperBuilder() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.details || data.error || 'Failed to parse PDF');
 
-      const processed: ParsedQuestion[] = (data.questions || []).map((q: any) => ({
-        ...q,
-        tempId: q.tempId || `q_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-        questionNumber: q.questionNumber || q.question_number || 1,
-        text: q.text || q.question_text || '',
-        options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D'],
-        correctAnswer: q.correctAnswer || q.correct_answer || 'A',
-        imageUrl: q.imageUrl || q.image_url || '',
-        status: 'draft_review'
-      }));
-      setQuestions(processed);
+      const processed: ParsedQuestion[] = (data.questions || []).map((q: any) => {
+        const isNumerical = q.type === 'Numerical' || q.question_type === 'Numerical';
+        return {
+          ...q,
+          tempId: q.tempId || `q_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          questionNumber: q.questionNumber || q.question_number || 1,
+          type: isNumerical ? 'Numerical' : (q.type || 'MCQ'),
+          text: q.text || q.question_text || '',
+          options: isNumerical ? [] : (Array.isArray(q.options) && q.options.length >= 2 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D']),
+          correctAnswer: q.correctAnswer || q.correct_answer || (isNumerical ? '0' : 'A'),
+          imageUrl: q.imageUrl || q.image_url || '',
+          status: 'draft_review'
+        };
+      });
+      const ordered = autoOrderQuestions(processed, examType);
+      setQuestions(ordered);
 
       // Show section count summary
       const counts = { Physics: 0, Chemistry: 0, Mathematics: 0, Biology: 0 };
-      processed.forEach(q => { if (counts[q.section as keyof typeof counts] !== undefined) counts[q.section as keyof typeof counts]++; });
+      ordered.forEach(q => { if (counts[q.section as keyof typeof counts] !== undefined) counts[q.section as keyof typeof counts]++; });
       setMessage({
         type: 'success',
-        text: `Extracted ${processed.length} questions — Physics: ${counts.Physics}, Chemistry: ${counts.Chemistry}, Math: ${counts.Mathematics}, Biology: ${counts.Biology}`
+        text: `Extracted ${ordered.length} questions — Physics: ${counts.Physics}, Chemistry: ${counts.Chemistry}, Math: ${counts.Mathematics}, Biology: ${counts.Biology}`
       });
 
       // Auto-advance to Step 2
@@ -318,23 +396,28 @@ export function PaperBuilder() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.details || data.error || 'Failed to parse PDF with Vision AI');
 
-      const processed: ParsedQuestion[] = (data.questions || []).map((q: any) => ({
-        ...q,
-        tempId: q.tempId || `q_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-        questionNumber: q.questionNumber || q.question_number || 1,
-        text: q.text || q.question_text || '',
-        options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D'],
-        correctAnswer: q.correctAnswer || q.correct_answer || 'A',
-        imageUrl: q.imageUrl || q.image_url || '',
-        status: 'draft_review'
-      }));
-      setQuestions(processed);
+      const processed: ParsedQuestion[] = (data.questions || []).map((q: any) => {
+        const isNumerical = q.type === 'Numerical' || q.question_type === 'Numerical';
+        return {
+          ...q,
+          tempId: q.tempId || `q_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          questionNumber: q.questionNumber || q.question_number || 1,
+          type: isNumerical ? 'Numerical' : (q.type || 'MCQ'),
+          text: q.text || q.question_text || '',
+          options: isNumerical ? [] : (Array.isArray(q.options) && q.options.length >= 2 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D']),
+          correctAnswer: q.correctAnswer || q.correct_answer || (isNumerical ? '0' : 'A'),
+          imageUrl: q.imageUrl || q.image_url || '',
+          status: 'draft_review'
+        };
+      });
+      const ordered = autoOrderQuestions(processed, examType);
+      setQuestions(ordered);
 
       const counts = { Physics: 0, Chemistry: 0, Mathematics: 0, Biology: 0 };
-      processed.forEach(q => { if (counts[q.section as keyof typeof counts] !== undefined) counts[q.section as keyof typeof counts]++; });
+      ordered.forEach(q => { if (counts[q.section as keyof typeof counts] !== undefined) counts[q.section as keyof typeof counts]++; });
       setMessage({
         type: 'success',
-        text: `🤖 Vision AI Extracted ${processed.length} questions with 100% Math Symbol Precision — Physics: ${counts.Physics}, Chemistry: ${counts.Chemistry}, Math: ${counts.Mathematics}, Biology: ${counts.Biology}`
+        text: `🤖 Vision AI Extracted ${ordered.length} questions with 100% Math Symbol Precision — Physics: ${counts.Physics}, Chemistry: ${counts.Chemistry}, Math: ${counts.Mathematics}, Biology: ${counts.Biology}`
       });
 
       setCurrentStep(1);
@@ -371,17 +454,20 @@ export function PaperBuilder() {
   };
 
   const handleTypeChange = (id: string, newType: 'MCQ' | 'MSQ' | 'Numerical') => {
-    setQuestions(prev => prev.map(q => {
-      if ((q.tempId || q.id) !== id) return q;
-      const isNum = newType === 'Numerical';
-      return {
-        ...q,
-        type: newType,
-        options: isNum ? [] : (q.options && q.options.length >= 2 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D']),
-        correctAnswer: isNum ? (q.correctAnswer && !isNaN(Number(q.correctAnswer)) ? q.correctAnswer : '0') : 'A',
-        correct_answer: isNum ? (q.correctAnswer && !isNaN(Number(q.correctAnswer)) ? q.correctAnswer : '0') : 'A'
-      };
-    }));
+    setQuestions(prev => {
+      const updated = prev.map(q => {
+        if ((q.tempId || q.id) !== id) return q;
+        const isNum = newType === 'Numerical';
+        return {
+          ...q,
+          type: newType,
+          options: isNum ? [] : (q.options && q.options.length >= 2 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D']),
+          correctAnswer: isNum ? (q.correctAnswer && !isNaN(Number(q.correctAnswer)) ? q.correctAnswer : '0') : 'A',
+          correct_answer: isNum ? (q.correctAnswer && !isNaN(Number(q.correctAnswer)) ? q.correctAnswer : '0') : 'A'
+        };
+      });
+      return autoOrderQuestions(updated, examType);
+    });
   };
 
   const handleDirectImageUpload = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -424,7 +510,6 @@ export function PaperBuilder() {
   const handleDeleteQuestion = async (id: string) => {
     if (!window.confirm('Delete this question? This cannot be undone.')) return;
     const deletedQ = questions.find(q => (q.tempId || q.id) === id);
-    const deletedSection = deletedQ?.section || activeTab;
     const realDbId = deletedQ?.id && !deletedQ.id.startsWith('temp_') && !deletedQ.id.startsWith('q_') ? deletedQ.id : null;
 
     if (realDbId) {
@@ -448,14 +533,7 @@ export function PaperBuilder() {
 
     setQuestions(prev => {
       const filtered = prev.filter(q => (q.tempId || q.id) !== id);
-      let sectionCounter = 0;
-      return filtered.map(q => {
-        if (q.section === deletedSection) {
-          sectionCounter++;
-          return { ...q, questionNumber: sectionCounter, question_number: sectionCounter };
-        }
-        return q;
-      });
+      return autoOrderQuestions(filtered, examType);
     });
 
     setMessage({ type: 'success', text: '✅ Question permanently deleted.' });
@@ -463,9 +541,13 @@ export function PaperBuilder() {
 
   const handleAddQuestion = (qType: 'MCQ' | 'Numerical' = 'MCQ') => {
     const sectionQs = getSectionQuestions(activeTab);
-    const nextNum = sectionQs.length > 0 ? Math.max(...sectionQs.map(q => q.questionNumber || 0)) + 1 : 1;
-    const newId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const mcqs = sectionQs.filter(q => q.type !== 'Numerical');
+    const nums = sectionQs.filter(q => q.type === 'Numerical');
     const isNum = qType === 'Numerical';
+    const nextNum = isNum
+      ? (nums.length > 0 ? Math.max(...nums.map(q => q.questionNumber || 0)) + 1 : Math.max(21, mcqs.length + 1))
+      : (mcqs.length > 0 ? Math.max(...mcqs.map(q => q.questionNumber || 0)) + 1 : 1);
+    const newId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const newQ: ParsedQuestion = {
       tempId: newId,
       questionNumber: nextNum,
@@ -477,7 +559,7 @@ export function PaperBuilder() {
       imageUrl: '',
       status: 'draft_review'
     };
-    setQuestions(prev => [...prev, newQ]);
+    setQuestions(prev => autoOrderQuestions([...prev, newQ], examType));
     setEditingQId(newId);
   };
 
@@ -596,6 +678,9 @@ export function PaperBuilder() {
     setIsSavingDraft(true);
     setMessage(null);
     try {
+      const ordered = autoOrderQuestions(questions, examType);
+      setQuestions(ordered);
+
       const response = await fetch(`${API_BASE}/api/admin/pyq/approve-publish`, {
         method: 'POST',
         headers: {
@@ -611,7 +696,7 @@ export function PaperBuilder() {
           contentType,
           windowStart: contentType === 'test_series' && windowStart ? new Date(windowStart).toISOString() : null,
           windowEnd: contentType === 'test_series' && windowEnd ? new Date(windowEnd).toISOString() : null,
-          questions: questions.map(q => {
+          questions: ordered.map(q => {
             const isNumerical = q.type === 'Numerical';
             return {
               id: q.id && !q.id.startsWith('temp_') && !q.id.startsWith('q_') ? q.id : undefined,
@@ -1062,6 +1147,23 @@ export function PaperBuilder() {
                 </button>
                 {totalQuestions > 0 && (
                   <button
+                    type="button"
+                    onClick={() => {
+                      const ordered = autoOrderQuestions(questions, examType);
+                      setQuestions(ordered);
+                      setMessage({
+                        type: 'success',
+                        text: '⚡ JEE Pattern Auto-Order Applied: MCQs renumbered (1–20), Numerical questions moved to Section B (21–25) across all subjects.'
+                      });
+                    }}
+                    className="px-3 py-2 bg-gradient-to-r from-amber-500/20 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 text-amber-800 dark:text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
+                    title="Auto-sort questions: Section A (MCQs 1-20) then Section B (Integer 21-25)"
+                  >
+                    <Sparkles size={14} className="text-amber-400" /> Auto-Order (1–20 MCQ • 21–25 Integer)
+                  </button>
+                )}
+                {totalQuestions > 0 && (
+                  <button
                     onClick={handleShuffleAllOptions}
                     className="px-3 py-2 bg-purple-50 dark:bg-purple-500/10 hover:bg-purple-100 dark:hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-500/30 rounded-xl text-xs font-bold flex items-center gap-1 transition"
                     title="Randomly shuffle options for ALL questions and redistribute answer keys (A, B, C, D)"
@@ -1116,18 +1218,80 @@ export function PaperBuilder() {
                 </div>
               </div>
             ) : (
-              getSectionQuestions(activeTab)
-                .sort((a, b) => (a.questionNumber || 0) - (b.questionNumber || 0))
-                .map(q => {
-                  const qId = q.tempId || q.id || '';
-                  const isEditing = editingQId === qId;
-                  return (
-                    <div key={qId} className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl p-5 space-y-4 shadow-sm hover:border-amber-300/50 dark:hover:border-amber-500/30 transition">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-2.5 flex-wrap">
-                          <span className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 flex items-center justify-center text-xs font-extrabold text-amber-700 dark:text-amber-400">
-                            {q.questionNumber}
+              (() => {
+                const secQuestions = getSectionQuestions(activeTab).sort((a, b) => {
+                  const aIsNum = a.type === 'Numerical';
+                  const bIsNum = b.type === 'Numerical';
+                  if (aIsNum !== bIsNum) return aIsNum ? 1 : -1;
+                  return (a.questionNumber || 0) - (b.questionNumber || 0);
+                });
+                const mcqs = secQuestions.filter(q => q.type !== 'Numerical');
+                const numericals = secQuestions.filter(q => q.type === 'Numerical');
+                const firstNumIdx = secQuestions.findIndex(q => q.type === 'Numerical');
+                const numericalStart = Math.max(21, mcqs.length + 1);
+
+                return (
+                  <div className="space-y-4">
+                    {/* Section A Banner if section contains both MCQs and Numericals */}
+                    {mcqs.length > 0 && numericals.length > 0 && (
+                      <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-6 h-6 rounded-md bg-blue-500/20 border border-blue-500/40 text-blue-400 font-black text-xs flex items-center justify-center">
+                            A
                           </span>
+                          <span className="text-xs font-bold text-blue-300 uppercase tracking-wide">
+                            Section A • Multiple Choice Questions (Q1–Q{mcqs.length}) • Single Choice (+4 | -1)
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-mono font-bold text-blue-400">{mcqs.length} MCQs</span>
+                      </div>
+                    )}
+
+                    {secQuestions.map((q, idx) => {
+                      const qId = q.tempId || q.id || '';
+                      const isEditing = editingQId === qId;
+                      const isFirstNumerical = idx === firstNumIdx;
+
+                      return (
+                        <React.Fragment key={qId}>
+                          {isFirstNumerical && (
+                            <div className="my-6 p-4 rounded-2xl bg-gradient-to-r from-purple-500/15 via-emerald-500/15 to-transparent border border-purple-500/30 flex items-center justify-between flex-wrap gap-2 shadow-sm">
+                              <div className="flex items-center gap-2.5">
+                                <span className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/40 text-purple-300 font-black text-xs flex items-center justify-center">
+                                  B
+                                </span>
+                                <div>
+                                  <h4 className="text-xs font-black uppercase tracking-wider text-purple-200">
+                                    Section B • Numerical / Integer Value Questions (Q{numericalStart}–Q{numericalStart + numericals.length - 1})
+                                  </h4>
+                                  <p className="text-[11px] text-neutral-400">
+                                    Candidate enters non-negative integer response via virtual keypad • Marks: +4 | 0 (No Negative Marking)
+                                  </p>
+                                </div>
+                              </div>
+                              <span className="text-[11px] font-bold font-mono px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                {numericals.length} Numerical Qs
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl p-5 space-y-4 shadow-sm hover:border-amber-300/50 dark:hover:border-amber-500/30 transition">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-2.5 flex-wrap">
+                                <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-extrabold border ${
+                                  q.type === 'Numerical'
+                                    ? 'bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-purple-400'
+                                    : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400'
+                                }`}>
+                                  {q.questionNumber}
+                                </span>
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                                  q.type === 'Numerical'
+                                    ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30'
+                                    : 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30'
+                                }`}>
+                                  {q.type === 'Numerical' ? 'Section B • Numerical' : 'Section A • MCQ'}
+                                </span>
                           <select
                             value={q.section}
                             onChange={(e) => handleSectionChange(qId, e.target.value)}
@@ -1416,9 +1580,13 @@ export function PaperBuilder() {
                         </div>
                       )}
                     </div>
-                  );
-                })
-            )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          );
+        })()
+      )}
 
             {/* Bottom Quick-Add Toolbar for current section */}
             {getSectionQuestions(activeTab).length > 0 && (
