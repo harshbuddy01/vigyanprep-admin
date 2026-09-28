@@ -31,6 +31,7 @@ export function Results() {
   
   // Data states
   const [attempts, setAttempts] = useState<any[]>([]);
+  const [totalTestQuestions, setTotalTestQuestions] = useState<number>(75);
   const [meritList, setMeritList] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -99,6 +100,9 @@ export function Results() {
       if (res.ok) {
         const data = await res.json();
         setAttempts(data.attempts || []);
+        if (data.total_questions) {
+          setTotalTestQuestions(data.total_questions);
+        }
       } else {
         setAttempts([]);
       }
@@ -439,7 +443,7 @@ export function Results() {
                       </td>
                       <td className="px-5 py-3 text-center">
                         <span className="font-extrabold text-amber-400">{a.attempted_count}</span>
-                        <span className="text-zinc-500 text-[10px]"> / 60 Qs</span>
+                        <span className="text-zinc-500 text-[10px]"> / {selectedTest?.total_questions || totalTestQuestions || (selectedTest?.exam_type === 'JEE' ? 75 : selectedTest?.exam_type === 'NEST' ? 80 : 60)} Qs</span>
                       </td>
                       <td className="px-5 py-3 text-center">
                         {a.warning_count > 0 ? (
