@@ -122,6 +122,7 @@ export function PaperBuilder() {
   // Global
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [paperStatus, setPaperStatus] = useState<string>('new'); // new | draft | ongoing | frozen
+  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
 
   // Parse URL search params
@@ -224,22 +225,25 @@ export function PaperBuilder() {
       });
       if (qRes.ok) {
         const qData = await qRes.json();
-        const loaded: ParsedQuestion[] = (qData.questions || []).map((q: any) => ({
-          id: q.id,
-          tempId: q.id,
-          questionNumber: q.question_number || 1,
-          question_number: q.question_number || 1,
-          section: q.section || 'Physics',
-          type: q.type || 'MCQ',
-          text: q.question_text || '',
-          question_text: q.question_text || '',
-          imageUrl: q.image_url || '',
-          image_url: q.image_url || '',
-          options: q.options || ['Option A', 'Option B', 'Option C', 'Option D'],
-          correctAnswer: q.correct_answer || 'A',
-          correct_answer: q.correct_answer || 'A',
-          status: q.status || 'approved'
-        }));
+        const loaded: ParsedQuestion[] = (qData.questions || []).map((q: any) => {
+          const isNumerical = q.type === 'Numerical' || q.question_type === 'Numerical';
+          return {
+            id: q.id,
+            tempId: q.id,
+            questionNumber: q.question_number || 1,
+            question_number: q.question_number || 1,
+            section: q.section || 'Physics',
+            type: isNumerical ? 'Numerical' : (q.type || 'MCQ'),
+            text: q.question_text || '',
+            question_text: q.question_text || '',
+            imageUrl: q.image_url || '',
+            image_url: q.image_url || '',
+            options: isNumerical ? [] : (Array.isArray(q.options) && q.options.length >= 2 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D']),
+            correctAnswer: String(q.correct_answer || (isNumerical ? '0' : 'A')),
+            correct_answer: String(q.correct_answer || (isNumerical ? '0' : 'A')),
+            status: q.status || 'approved'
+          };
+        });
         setQuestions(loaded);
         if (loaded.length > 0) setCurrentStep(1); // Jump to questions if paper has content
       }
@@ -366,10 +370,54 @@ export function PaperBuilder() {
     setQuestions(prev => prev.map(q => (q.tempId || q.id) === id ? { ...q, section } : q));
   };
 
+  const handleTypeChange = (id: string, newType: 'MCQ' | 'MSQ' | 'Numerical') => {
+    setQuestions(prev => prev.map(q => {
+      if ((q.tempId || q.id) !== id) return q;
+      const isNum = newType === 'Numerical';
+      return {
+        ...q,
+        type: newType,
+        options: isNum ? [] : (q.options && q.options.length >= 2 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D']),
+        correctAnswer: isNum ? (q.correctAnswer && !isNaN(Number(q.correctAnswer)) ? q.correctAnswer : '0') : 'A',
+        correct_answer: isNum ? (q.correctAnswer && !isNaN(Number(q.correctAnswer)) ? q.correctAnswer : '0') : 'A'
+      };
+    }));
+  };
+
+  const handleDirectImageUpload = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64 = reader.result as string;
+        const res = await fetch(`${API_BASE}/api/admin/diagrams/upload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+          },
+          body: JSON.stringify({ base64Data: base64, filename: file.name })
+        });
+        const data = await res.json();
+        if (data.success && data.imageUrl) {
+          handleImageChange(id, data.imageUrl);
+          setMessage({ type: 'success', text: '✅ Diagram uploaded and permanently saved to Cloud Storage!' });
+        } else {
+          throw new Error(data.error || 'Failed to upload image');
+        }
+      } catch (err: any) {
+        setMessage({ type: 'error', text: err.message || 'Image upload failed' });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleImageChange = (id: string, imageUrl: string) => {
     let directUrl = imageUrl.trim();
     const driveMatch = directUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || directUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
     if (driveMatch && driveMatch[1]) directUrl = `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+    setBrokenImages(prev => ({ ...prev, [id]: false }));
     setQuestions(prev => prev.map(q => (q.tempId || q.id) === id ? { ...q, imageUrl: directUrl, image_url: directUrl } : q));
   };
 
@@ -413,18 +461,19 @@ export function PaperBuilder() {
     setMessage({ type: 'success', text: '✅ Question permanently deleted.' });
   };
 
-  const handleAddQuestion = () => {
+  const handleAddQuestion = (qType: 'MCQ' | 'Numerical' = 'MCQ') => {
     const sectionQs = getSectionQuestions(activeTab);
     const nextNum = sectionQs.length > 0 ? Math.max(...sectionQs.map(q => q.questionNumber || 0)) + 1 : 1;
     const newId = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const isNum = qType === 'Numerical';
     const newQ: ParsedQuestion = {
       tempId: newId,
       questionNumber: nextNum,
       section: activeTab,
-      type: 'MCQ',
+      type: qType,
       text: '',
-      options: ['Option A', 'Option B', 'Option C', 'Option D'],
-      correctAnswer: 'A',
+      options: isNum ? [] : ['Option A', 'Option B', 'Option C', 'Option D'],
+      correctAnswer: isNum ? '0' : 'A',
       imageUrl: '',
       status: 'draft_review'
     };
@@ -438,15 +487,16 @@ export function PaperBuilder() {
   };
 
   const handleOpenStudioForEdit = (q: ParsedQuestion) => {
+    const isNumerical = q.type === 'Numerical' || (q as any).question_type === 'Numerical';
     setStudioQuestion({
       id: q.id || q.tempId,
       test_id: savedTestId || testId || undefined,
       section: q.section || activeTab,
       question_number: q.questionNumber || q.question_number || 1,
       question_text: q.text || q.question_text || '',
-      type: (q.type as any) || 'MCQ',
-      options: q.options || ['Option A', 'Option B', 'Option C', 'Option D'],
-      correct_answer: q.correctAnswer || q.correct_answer || 'A',
+      type: isNumerical ? 'Numerical' : ((q.type as any) || 'MCQ'),
+      options: isNumerical ? [] : (q.options || ['Option A', 'Option B', 'Option C', 'Option D']),
+      correct_answer: q.correctAnswer || q.correct_answer || (isNumerical ? '0' : 'A'),
       image_url: q.imageUrl || q.image_url || '',
       solution_explanation: (q as any).solution_explanation || ''
     });
@@ -500,6 +550,7 @@ export function PaperBuilder() {
 
   // --- Option Shuffling & Randomization Handlers ---
   const shuffleQuestionOptions = (q: ParsedQuestion): ParsedQuestion => {
+    if (q.type === 'Numerical') return q; // Never shuffle numerical questions
     const currentKey = q.correctAnswer || q.correct_answer || 'A';
     const keys = ['A', 'B', 'C', 'D'];
     const correctIdx = keys.indexOf(currentKey);
@@ -560,16 +611,19 @@ export function PaperBuilder() {
           contentType,
           windowStart: contentType === 'test_series' && windowStart ? new Date(windowStart).toISOString() : null,
           windowEnd: contentType === 'test_series' && windowEnd ? new Date(windowEnd).toISOString() : null,
-          questions: questions.map(q => ({
-            id: q.id && !q.id.startsWith('temp_') && !q.id.startsWith('q_') ? q.id : undefined,
-            section: q.section,
-            question_number: q.questionNumber || q.question_number,
-            question_text: q.text || q.question_text,
-            type: q.type || 'MCQ',
-            options: q.options,
-            correct_answer: q.correctAnswer || q.correct_answer || 'A',
-            image_url: q.imageUrl || q.image_url || null,
-          }))
+          questions: questions.map(q => {
+            const isNumerical = q.type === 'Numerical';
+            return {
+              id: q.id && !q.id.startsWith('temp_') && !q.id.startsWith('q_') ? q.id : undefined,
+              section: q.section,
+              question_number: q.questionNumber || q.question_number,
+              question_text: q.text || q.question_text,
+              type: q.type || 'MCQ',
+              options: isNumerical ? [] : (q.options && q.options.length >= 2 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D']),
+              correct_answer: String(q.correctAnswer || q.correct_answer || (isNumerical ? '0' : 'A')),
+              image_url: q.imageUrl || q.image_url || null,
+            };
+          })
         })
       });
       const data = await response.json();
@@ -988,8 +1042,24 @@ export function PaperBuilder() {
                   </button>
                 );
               })}
-              <div className="ml-auto flex items-center gap-2">
+              <div className="ml-auto flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-slate-400 dark:text-neutral-500">Total: <strong className="text-slate-700 dark:text-white">{totalQuestions}</strong></span>
+                <button
+                  type="button"
+                  onClick={() => handleAddQuestion('MCQ')}
+                  className="px-3 py-2 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold rounded-xl text-xs flex items-center gap-1 transition shadow-sm"
+                  title="Add new Single-Choice MCQ in this section"
+                >
+                  <Plus size={14} /> MCQ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddQuestion('Numerical')}
+                  className="px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold rounded-xl text-xs flex items-center gap-1 transition"
+                  title="Add new Numerical / Integer question (JEE style) in this section"
+                >
+                  <Plus size={14} /> 🔢 Numerical
+                </button>
                 {totalQuestions > 0 && (
                   <button
                     onClick={handleShuffleAllOptions}
@@ -1011,7 +1081,7 @@ export function PaperBuilder() {
                   onClick={handleOpenStudioForNew}
                   className="px-3.5 py-2 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition"
                 >
-                  <Sparkles size={14} /> Studio Mode (+Live KaTeX)
+                  <Sparkles size={14} /> Studio Mode
                 </button>
               </div>
             </div>
@@ -1020,14 +1090,30 @@ export function PaperBuilder() {
           {/* Question Cards */}
           <div className="space-y-4">
             {getSectionQuestions(activeTab).length === 0 ? (
-              <div className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl p-12 text-center">
+              <div className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl p-12 text-center space-y-3">
                 <p className="text-sm text-slate-500 dark:text-neutral-400">No {activeTab} questions yet.</p>
-                <button
-                  onClick={handleAddQuestion}
-                  className="mt-3 px-4 py-2 bg-amber-400 text-neutral-950 font-bold rounded-xl text-xs flex items-center gap-1 mx-auto transition hover:bg-amber-500"
-                >
-                  <Plus size={14} /> Add First {activeTab} Question
-                </button>
+                <div className="flex items-center justify-center gap-2.5 flex-wrap pt-1">
+                  <button
+                    onClick={() => handleAddQuestion('MCQ')}
+                    className="px-4 py-2 bg-amber-400 text-neutral-950 font-bold rounded-xl text-xs flex items-center gap-1.5 transition hover:bg-amber-500"
+                  >
+                    <Plus size={14} /> Add First MCQ
+                  </button>
+                  <button
+                    onClick={() => handleAddQuestion('Numerical')}
+                    className="px-4 py-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold rounded-xl text-xs flex items-center gap-1.5 transition hover:bg-emerald-500/30"
+                  >
+                    <Plus size={14} /> Add First 🔢 Numerical Question
+                  </button>
+                  {savedTestId && (
+                    <button
+                      onClick={() => setBankImportOpen(true)}
+                      className="px-4 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/30 font-bold rounded-xl text-xs flex items-center gap-1.5 transition hover:bg-blue-500/20"
+                    >
+                      <BookOpen size={14} /> Import from Bank
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               getSectionQuestions(activeTab)
@@ -1037,27 +1123,42 @@ export function PaperBuilder() {
                   const isEditing = editingQId === qId;
                   return (
                     <div key={qId} className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-white/10 rounded-2xl p-5 space-y-4 shadow-sm hover:border-amber-300/50 dark:hover:border-amber-500/30 transition">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2.5 flex-wrap">
                           <span className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 flex items-center justify-center text-xs font-extrabold text-amber-700 dark:text-amber-400">
                             {q.questionNumber}
                           </span>
                           <select
                             value={q.section}
                             onChange={(e) => handleSectionChange(qId, e.target.value)}
-                            className="bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 text-xs rounded-lg px-2 py-1 text-slate-700 dark:text-neutral-300 focus:outline-none"
+                            className="bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 text-xs rounded-lg px-2.5 py-1 text-slate-700 dark:text-neutral-300 focus:outline-none font-semibold"
                           >
                             {SECTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
+                          {/* Question Type Selector */}
+                          <select
+                            value={q.type || 'MCQ'}
+                            onChange={(e) => handleTypeChange(qId, e.target.value as any)}
+                            className={`border text-xs rounded-lg px-2.5 py-1 font-extrabold focus:outline-none transition ${
+                              q.type === 'Numerical'
+                                ? 'bg-amber-400/20 text-amber-600 dark:text-amber-300 border-amber-400/50'
+                                : 'bg-slate-50 dark:bg-neutral-800 text-slate-700 dark:text-neutral-300 border-slate-200 dark:border-white/10'
+                            }`}
+                          >
+                            <option value="MCQ">MCQ (Single Choice)</option>
+                            <option value="Numerical">🔢 Numerical / Integer</option>
+                          </select>
                         </div>
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleShuffleSingleQuestionOptions(qId)}
-                            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-100 flex items-center gap-1"
-                            title="Shuffle options for this question and update correct answer key"
-                          >
-                            <Shuffle size={13} /> Shuffle
-                          </button>
+                          {q.type !== 'Numerical' && (
+                            <button
+                              onClick={() => handleShuffleSingleQuestionOptions(qId)}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-100 flex items-center gap-1"
+                              title="Shuffle options for this question and update correct answer key"
+                            >
+                              <Shuffle size={13} /> Shuffle
+                            </button>
+                          )}
                           <button
                             onClick={() => handleOpenStudioForEdit(q)}
                             className="px-2.5 py-1.5 rounded-lg text-xs font-bold border transition bg-amber-400/10 border-amber-400/30 text-amber-400 hover:bg-amber-400 hover:text-black flex items-center gap-1"
@@ -1125,31 +1226,69 @@ export function PaperBuilder() {
                         </div>
                       )}
 
-                      {/* Question Diagram Image Preview in List Card */}
+                      {/* Question Diagram Image Preview in List Card with Broken Detection */}
                       {(q.imageUrl || q.image_url) && (
-                        <div className="my-2 p-2 bg-slate-100 dark:bg-black/30 border border-slate-200 dark:border-white/10 rounded-xl max-w-sm">
-                          <img
-                            src={formatImageUrl(q.imageUrl || q.image_url || '')}
-                            alt="Question Diagram"
-                            className="max-h-48 mx-auto object-contain rounded-lg shadow-xs"
-                            onError={(e) => {
-                              (e.target as HTMLElement).style.display = 'none';
-                            }}
-                          />
+                        <div className="my-2">
+                          {brokenImages[qId] ? (
+                            <div className="p-3.5 bg-amber-50 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30 rounded-xl flex items-center justify-between text-xs gap-3">
+                              <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-medium">
+                                <AlertCircle size={16} className="text-amber-500 shrink-0" />
+                                <span>Diagram image failed to load from server ({formatImageUrl(q.imageUrl || q.image_url || '').split('/').pop()})</span>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <label className="px-2.5 py-1 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold rounded-lg text-xs cursor-pointer flex items-center gap-1 transition">
+                                  <Upload size={12} /> Replace
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handleDirectImageUpload(qId, e)}
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenStudioForEdit(q)}
+                                  className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-white font-semibold rounded-lg text-xs transition"
+                                >
+                                  Open Studio
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-2 bg-slate-100 dark:bg-black/30 border border-slate-200 dark:border-white/10 rounded-xl max-w-sm">
+                              <img
+                                src={formatImageUrl(q.imageUrl || q.image_url || '')}
+                                alt="Question Diagram"
+                                className="max-h-48 mx-auto object-contain rounded-lg shadow-xs"
+                                onError={() => {
+                                  setBrokenImages(prev => ({ ...prev, [qId]: true }));
+                                }}
+                              />
+                            </div>
+                          )}
                         </div>
                       )}
 
-                      {/* Image URL & Crop Diagram Button */}
+                      {/* Image URL & Crop/Upload Diagram Buttons */}
                       {isEditing && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Image size={14} className="text-amber-500 shrink-0" />
                           <input
                             type="url"
                             value={q.imageUrl || q.image_url || ''}
                             onChange={(e) => handleImageChange(qId, e.target.value)}
-                            className="flex-1 bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-white focus:outline-none focus:border-amber-400"
-                            placeholder="Optional: diagram URL (auto-extracted or paste link)"
+                            className="flex-1 min-w-[200px] bg-slate-50 dark:bg-neutral-800 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-white focus:outline-none focus:border-amber-400"
+                            placeholder="Diagram URL (GCS, Google Drive, or paste link)"
                           />
+                          <label className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition shrink-0">
+                            <Upload size={13} /> Upload Image
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleDirectImageUpload(qId, e)}
+                            />
+                          </label>
                           <button
                             type="button"
                             onClick={() => setCropTargetQId(qId)}
@@ -1161,57 +1300,165 @@ export function PaperBuilder() {
                         </div>
                       )}
 
-                      {/* Options */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {['A', 'B', 'C', 'D'].map((optKey, idx) => {
-                          const isCorrect = (q.correctAnswer || q.correct_answer) === optKey;
-                          const optVal = q.options[idx] || '';
-                          return (
-                            <div key={optKey}
-                              className={`p-3 rounded-xl border flex flex-col gap-2 transition ${
-                                isCorrect ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/30' : 'bg-slate-50 dark:bg-neutral-800 border-slate-200 dark:border-white/10'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5">
-                                <button
-                                  onClick={() => handleAnswerChange(qId, optKey)}
-                                  className={`w-6 h-6 rounded-full font-bold text-[10px] shrink-0 flex items-center justify-center transition ${
-                                    isCorrect ? 'bg-emerald-400 text-white' : 'bg-slate-200 dark:bg-neutral-700 text-slate-500 dark:text-neutral-400 hover:bg-amber-200 dark:hover:bg-amber-500/30'
-                                  }`}
-                                >
-                                  {isCorrect ? <Check size={12} /> : optKey}
-                                </button>
-                                {isEditing ? (
-                                  <input
-                                    type="text"
-                                    value={optVal}
-                                    onChange={(e) => handleOptionChange(qId, idx, e.target.value)}
-                                    className="flex-1 bg-transparent text-xs text-slate-800 dark:text-white focus:outline-none border-b border-dashed border-slate-300 dark:border-white/20 pb-0.5 font-mono"
-                                    placeholder={`Option ${optKey} text or LaTeX (e.g. 1 - (1 - \\frac{\\rho g d}{B})^{1/3})...`}
-                                  />
-                                ) : (
-                                  <span className="text-xs text-slate-700 dark:text-neutral-200">
-                                    <MathRenderer text={optVal || `Option ${optKey}`} inlineOnly />
-                                  </span>
+                      {/* Numerical Answer OR MCQ Options */}
+                      {(q.type === 'Numerical' || (q as any).question_type === 'Numerical') ? (
+                        <div className="p-4 rounded-xl border border-amber-400/40 bg-amber-50/60 dark:bg-amber-500/10 space-y-3">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-1 rounded-lg bg-amber-400 text-neutral-950 font-black text-xs">
+                                🔢 Numerical / Integer Answer
+                              </span>
+                              <span className="text-xs text-slate-600 dark:text-neutral-400 font-medium">
+                                (No options A/B/C/D — student types digits directly)
+                              </span>
+                            </div>
+                            <span className="text-xs text-slate-500 dark:text-neutral-400 font-mono">
+                              JEE Main Numerical Key
+                            </span>
+                          </div>
+
+                          {isEditing ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <label className="text-xs font-bold text-slate-700 dark:text-neutral-200">
+                                  Correct Numerical Value:
+                                </label>
+                                <input
+                                  type="text"
+                                  value={q.correctAnswer || q.correct_answer || ''}
+                                  onChange={(e) => handleAnswerChange(qId, e.target.value)}
+                                  placeholder="e.g. 8 or 2.5 or -4"
+                                  className="w-44 bg-white dark:bg-neutral-950 border border-amber-400/60 rounded-lg px-3 py-1.5 text-sm font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-amber-400"
+                                />
+                                {/* Quick Digit Buttons */}
+                                <div className="flex items-center gap-1 overflow-x-auto">
+                                  {['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'].map(d => (
+                                    <button
+                                      key={d}
+                                      type="button"
+                                      onClick={() => handleAnswerChange(qId, d)}
+                                      className="w-7 h-7 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-white/10 hover:border-amber-400 rounded text-xs font-mono font-bold text-slate-700 dark:text-neutral-300 hover:text-amber-500 transition"
+                                    >
+                                      {d}
+                                    </button>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAnswerChange(qId, '')}
+                                    className="px-2 py-1 bg-red-50 dark:bg-red-500/10 text-red-500 rounded text-xs font-bold border border-red-200 dark:border-red-500/20"
+                                  >
+                                    Clear
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs font-semibold text-slate-500 dark:text-neutral-400">Correct Value:</span>
+                                <span className="font-mono font-black text-xl text-emerald-600 dark:text-emerald-300 px-3 py-1 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
+                                  {q.correctAnswer || q.correct_answer || 'Not Set'}
+                                </span>
+                              </div>
+                              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                                <Check size={14} /> CBT Virtual Keypad Evaluated
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {['A', 'B', 'C', 'D'].map((optKey, idx) => {
+                            const isCorrect = (q.correctAnswer || q.correct_answer) === optKey;
+                            const optVal = q.options[idx] || '';
+                            return (
+                              <div key={optKey}
+                                className={`p-3 rounded-xl border flex flex-col gap-2 transition ${
+                                  isCorrect ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/30' : 'bg-slate-50 dark:bg-neutral-800 border-slate-200 dark:border-white/10'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <button
+                                    onClick={() => handleAnswerChange(qId, optKey)}
+                                    className={`w-6 h-6 rounded-full font-bold text-[10px] shrink-0 flex items-center justify-center transition ${
+                                      isCorrect ? 'bg-emerald-400 text-white' : 'bg-slate-200 dark:bg-neutral-700 text-slate-500 dark:text-neutral-400 hover:bg-amber-200 dark:hover:bg-amber-500/30'
+                                    }`}
+                                  >
+                                    {isCorrect ? <Check size={12} /> : optKey}
+                                  </button>
+                                  {isEditing ? (
+                                    <input
+                                      type="text"
+                                      value={optVal}
+                                      onChange={(e) => handleOptionChange(qId, idx, e.target.value)}
+                                      className="flex-1 bg-transparent text-xs text-slate-800 dark:text-white focus:outline-none border-b border-dashed border-slate-300 dark:border-white/20 pb-0.5 font-mono"
+                                      placeholder={`Option ${optKey} text or LaTeX (e.g. 1 - (1 - \\frac{\\rho g d}{B})^{1/3})...`}
+                                    />
+                                  ) : (
+                                    <span className="text-xs text-slate-700 dark:text-neutral-200">
+                                      <MathRenderer text={optVal || `Option ${optKey}`} inlineOnly />
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Real-time Live KaTeX Preview Box when editing */}
+                                {isEditing && optVal && (
+                                  <div className="ml-8 p-2 rounded-lg bg-white/50 dark:bg-neutral-950 border border-slate-200 dark:border-white/10 text-xs flex items-center gap-2">
+                                    <span className="text-[9px] font-extrabold text-amber-500 uppercase shrink-0">Live Math Preview:</span>
+                                    <div className="text-slate-800 dark:text-neutral-100 overflow-x-auto">
+                                      <MathRenderer text={optVal} inlineOnly />
+                                    </div>
+                                  </div>
                                 )}
                               </div>
-
-                              {/* Real-time Live KaTeX Preview Box when editing */}
-                              {isEditing && optVal && (
-                                <div className="ml-8 p-2 rounded-lg bg-white/50 dark:bg-neutral-950 border border-slate-200 dark:border-white/10 text-xs flex items-center gap-2">
-                                  <span className="text-[9px] font-extrabold text-amber-500 uppercase shrink-0">Live Math Preview:</span>
-                                  <div className="text-slate-800 dark:text-neutral-100 overflow-x-auto">
-                                    <MathRenderer text={optVal} inlineOnly />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })
+            )}
+
+            {/* Bottom Quick-Add Toolbar for current section */}
+            {getSectionQuestions(activeTab).length > 0 && (
+              <div className="p-4 bg-slate-50 dark:bg-neutral-900/60 border border-dashed border-slate-300 dark:border-white/10 rounded-2xl flex items-center justify-between flex-wrap gap-3">
+                <span className="text-xs text-slate-500 dark:text-neutral-400">
+                  Add another question to <strong>{activeTab}</strong>:
+                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestion('MCQ')}
+                    className="px-3.5 py-2 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold rounded-xl text-xs flex items-center gap-1.5 transition shadow-sm"
+                  >
+                    <Plus size={14} /> Add MCQ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddQuestion('Numerical')}
+                    className="px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold rounded-xl text-xs flex items-center gap-1.5 transition"
+                  >
+                    <Plus size={14} /> Add 🔢 Numerical
+                  </button>
+                  {savedTestId && (
+                    <button
+                      type="button"
+                      onClick={() => setBankImportOpen(true)}
+                      className="px-3.5 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold rounded-xl text-xs flex items-center gap-1.5 transition"
+                    >
+                      <BookOpen size={14} /> Import from Bank
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleOpenStudioForNew}
+                    className="px-3.5 py-2 bg-zinc-100 hover:bg-white text-zinc-950 font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition"
+                  >
+                    <Sparkles size={14} /> Studio Mode
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
@@ -1275,33 +1522,54 @@ export function PaperBuilder() {
                   </div>
                 )}
 
-                <div className="space-y-2.5">
-                  {['A', 'B', 'C', 'D'].map((optKey, idx) => {
-                    const optText = currentPreviewQ.options?.[idx] || `Option ${optKey}`;
-                    const isSelected = selectedAnswers[previewIdx] === optKey;
-                    const isCorrect = (currentPreviewQ.correctAnswer || currentPreviewQ.correct_answer) === optKey;
-                    return (
-                      <button key={optKey}
-                        onClick={() => setSelectedAnswers(prev => ({ ...prev, [previewIdx]: optKey }))}
-                        className={`w-full text-left p-4 rounded-xl border flex items-center justify-between transition ${
-                          isSelected ? 'bg-amber-400/10 border-amber-400 text-white' : 'bg-neutral-950 border-white/10 text-neutral-300 hover:border-white/20'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className={`w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center ${
-                            isSelected ? 'bg-amber-400 text-neutral-950' : 'bg-neutral-800 text-neutral-400'
-                          }`}>{optKey}</span>
-                          <span className="text-sm"><MathRenderer text={optText} inlineOnly /></span>
-                        </div>
-                        {isCorrect && (
-                          <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded font-semibold border border-emerald-500/30">
-                            ✓ Correct
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                {(currentPreviewQ.type === 'Numerical' || (currentPreviewQ as any).question_type === 'Numerical') ? (
+                  <div className="space-y-4 p-5 bg-neutral-950 rounded-2xl border border-white/10">
+                    <div className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center justify-between">
+                      <span className="flex items-center gap-2">🔢 Candidate Numerical Response (CBT Virtual Keypad)</span>
+                      <span className="text-[11px] text-neutral-400">JEE Integer Evaluated</span>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <input
+                        type="text"
+                        value={selectedAnswers[previewIdx] || ''}
+                        onChange={(e) => setSelectedAnswers(prev => ({ ...prev, [previewIdx]: e.target.value }))}
+                        placeholder="Type numerical answer..."
+                        className="w-48 bg-neutral-900 border border-white/20 rounded-xl px-4 py-2.5 text-base font-mono font-bold text-white focus:outline-none focus:border-amber-400"
+                      />
+                      <span className="text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-lg font-bold border border-emerald-500/30 flex items-center gap-1.5">
+                        <Check size={14} /> Correct Answer Key: {currentPreviewQ.correctAnswer || currentPreviewQ.correct_answer}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {['A', 'B', 'C', 'D'].map((optKey, idx) => {
+                      const optText = currentPreviewQ.options?.[idx] || `Option ${optKey}`;
+                      const isSelected = selectedAnswers[previewIdx] === optKey;
+                      const isCorrect = (currentPreviewQ.correctAnswer || currentPreviewQ.correct_answer) === optKey;
+                      return (
+                        <button key={optKey}
+                          onClick={() => setSelectedAnswers(prev => ({ ...prev, [previewIdx]: optKey }))}
+                          className={`w-full text-left p-4 rounded-xl border flex items-center justify-between transition ${
+                            isSelected ? 'bg-amber-400/10 border-amber-400 text-white' : 'bg-neutral-950 border-white/10 text-neutral-300 hover:border-white/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className={`w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center ${
+                              isSelected ? 'bg-amber-400 text-neutral-950' : 'bg-neutral-800 text-neutral-400'
+                            }`}>{optKey}</span>
+                            <span className="text-sm"><MathRenderer text={optText} inlineOnly /></span>
+                          </div>
+                          {isCorrect && (
+                            <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded font-semibold border border-emerald-500/30">
+                              ✓ Correct
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="p-12 text-center text-neutral-400">No questions to preview.</div>

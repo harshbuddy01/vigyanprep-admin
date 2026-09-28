@@ -27,6 +27,7 @@ export function ImportFromBankModal({
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [activeSection, setActiveSection] = useState('All');
+  const [activeType, setActiveType] = useState('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -60,7 +61,7 @@ export function ImportFromBankModal({
       setSelectedIds([]);
       setErrorMsg(null);
     }
-  }, [isOpen, activeSection, selectedDifficulty]);
+  }, [isOpen, activeSection, activeType, selectedDifficulty]);
 
   const fetchBankQuestions = async () => {
     setLoading(true);
@@ -69,6 +70,7 @@ export function ImportFromBankModal({
         page: '1',
         limit: '100',
         section: activeSection === 'All' ? '' : activeSection,
+        type: activeType === 'All' ? '' : activeType,
         difficulty: selectedDifficulty === 'All' ? '' : selectedDifficulty,
         search: searchTerm.trim()
       });
@@ -215,6 +217,28 @@ export function ImportFromBankModal({
             </label>
           </div>
 
+          {/* Question Type Filter Pills */}
+          <div className="flex items-center gap-2 pt-1 border-t border-white/5 overflow-x-auto">
+            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider shrink-0 mr-1">Type:</span>
+            {[
+              { id: 'All', label: 'All Question Types' },
+              { id: 'MCQ', label: 'MCQ (Single Choice)' },
+              { id: 'Numerical', label: '🔢 Numerical / Integer Type' }
+            ].map(t => (
+              <button
+                key={t.id}
+                onClick={() => setActiveType(t.id)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition shrink-0 ${
+                  activeType === t.id
+                    ? 'bg-amber-400 text-black font-extrabold shadow-sm'
+                    : 'bg-zinc-800/90 text-zinc-300 hover:text-white border border-white/5'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
             <div className="sm:col-span-8 relative">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
@@ -273,7 +297,7 @@ export function ImportFromBankModal({
               <p className="text-xs text-zinc-400">
                 {hideAlreadyAdded && alreadyAddedCount > 0
                   ? `All ${alreadyAddedCount} questions in this category are already added to your test. Uncheck "Hide questions already in paper" to view them.`
-                  : 'Try searching other subjects or add new questions to Master Question Bank.'}
+                  : 'Try changing type filter or search other subjects.'}
               </p>
             </div>
           ) : (
@@ -282,6 +306,7 @@ export function ImportFromBankModal({
               const existingMatch = getExistingMatch(q);
               const isAlreadyInPaper = !!existingMatch;
               const qText = q.question_text || q.text || '';
+              const isNumerical = q.type === 'Numerical' || q.question_type === 'Numerical';
 
               return (
                 <div
@@ -305,11 +330,18 @@ export function ImportFromBankModal({
                     {isAlreadyInPaper ? <Lock size={12} /> : isSelected && <Check size={14} />}
                   </div>
 
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 space-y-2.5">
                     <div className="flex items-center gap-2 flex-wrap justify-between">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-white/10 text-amber-300">
                           {q.section}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                          isNumerical
+                            ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40'
+                            : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
+                        }`}>
+                          {isNumerical ? '🔢 Numerical / Integer' : (q.type || 'MCQ')}
                         </span>
                         {q.topic && (
                           <span className="px-2 py-0.5 rounded text-[10px] bg-white/5 text-zinc-400">
@@ -331,6 +363,50 @@ export function ImportFromBankModal({
                     <div className="text-xs text-zinc-200 leading-relaxed">
                       <MathRenderer text={qText} />
                     </div>
+
+                    {/* Numerical Answer Badge OR MCQ Options Preview */}
+                    {isNumerical ? (
+                      <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-[10px] uppercase tracking-wider">
+                            Correct Integer Key:
+                          </span>
+                          <span className="font-mono font-black text-emerald-300 text-base">
+                            {q.correct_answer || q.correct_numeric_answer || 'N/A'}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-zinc-400 font-mono">
+                          JEE Numerical (Virtual Keypad)
+                        </span>
+                      </div>
+                    ) : (
+                      Array.isArray(q.options) && q.options.length >= 2 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs">
+                          {q.options.slice(0, 4).map((opt: string, oi: number) => {
+                            const optLabel = ['A', 'B', 'C', 'D'][oi] || String(oi + 1);
+                            const isCorrect = (q.correct_answer || 'A') === optLabel;
+                            return (
+                              <div
+                                key={oi}
+                                className={`px-2.5 py-1.5 rounded-lg border flex items-center gap-2 text-xs truncate ${
+                                  isCorrect
+                                    ? 'border-emerald-500/60 bg-emerald-950/30 text-emerald-200 font-medium'
+                                    : 'border-white/5 bg-zinc-900/60 text-zinc-400'
+                                }`}
+                              >
+                                <span className={`w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center shrink-0 ${
+                                  isCorrect ? 'bg-emerald-500 text-black font-extrabold' : 'bg-zinc-800 text-zinc-400'
+                                }`}>{optLabel}</span>
+                                <span className="truncate">{opt}</span>
+                                {isCorrect && (
+                                  <CheckCircle2 size={12} className="text-emerald-400 ml-auto shrink-0" />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
               );

@@ -50,6 +50,7 @@ export function Questions() {
 
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('All');
+  const [selectedType, setSelectedType] = useState('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [selectedExamType, setSelectedExamType] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
@@ -85,6 +86,7 @@ export function Questions() {
         page: String(page),
         limit: '24',
         section: activeSection === 'All' ? '' : activeSection,
+        type: selectedType === 'All' ? '' : selectedType,
         difficulty: selectedDifficulty === 'All' ? '' : selectedDifficulty,
         exam_type: selectedExamType === 'All' ? '' : selectedExamType,
         search: searchTerm.trim()
@@ -113,7 +115,7 @@ export function Questions() {
 
   useEffect(() => {
     fetchQuestions();
-  }, [activeSection, selectedDifficulty, selectedExamType, page]);
+  }, [activeSection, selectedType, selectedDifficulty, selectedExamType, page]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -298,9 +300,9 @@ export function Questions() {
 
         {/* Search & Secondary Filter Dropdowns */}
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-          <form onSubmit={handleSearchSubmit} className="sm:col-span-6 relative">
+          <form onSubmit={handleSearchSubmit} className="sm:col-span-5 relative">
             <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
-              <Search size={15} />
+              <Search size={16} />
             </span>
             <input
               type="text"
@@ -319,6 +321,21 @@ export function Questions() {
 
           <div className="sm:col-span-3">
             <select
+              value={selectedType}
+              onChange={(e) => {
+                setSelectedType(e.target.value);
+                setPage(1);
+              }}
+              className="w-full bg-[#18181b] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white font-bold focus:outline-none focus:border-amber-400"
+            >
+              <option value="All">All Types (MCQ & Numerical)</option>
+              <option value="MCQ">MCQ (Single Choice)</option>
+              <option value="Numerical">🔢 Numerical / Integer</option>
+            </select>
+          </div>
+
+          <div className="sm:col-span-2">
+            <select
               value={selectedDifficulty}
               onChange={(e) => {
                 setSelectedDifficulty(e.target.value);
@@ -333,7 +350,7 @@ export function Questions() {
             </select>
           </div>
 
-          <div className="sm:col-span-3">
+          <div className="sm:col-span-2">
             <select
               value={selectedExamType}
               onChange={(e) => {
@@ -408,11 +425,11 @@ export function Questions() {
                       )}
 
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        q.type === 'Numerical'
+                        (q.type === 'Numerical' || q.question_type === 'Numerical')
                           ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40'
                           : 'bg-zinc-800/80 text-zinc-300 border border-zinc-700/80'
                       }`}>
-                        {q.type === 'Numerical' ? '🔢 Numerical (JEE Main)' : (q.type || 'MCQ')}
+                        {(q.type === 'Numerical' || q.question_type === 'Numerical') ? '🔢 Numerical (JEE Main)' : (q.type || 'MCQ')}
                       </span>
 
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -477,7 +494,7 @@ export function Questions() {
                   )}
 
                   {/* Options Grid or Numerical Answer Card */}
-                  {q.type === 'Numerical' ? (
+                  {(q.type === 'Numerical' || q.question_type === 'Numerical') ? (
                     <div className="p-3 rounded-xl border border-emerald-500/40 bg-emerald-950/20 text-xs flex items-center justify-between shadow-xs">
                       <div className="flex items-center gap-2.5">
                         <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-[11px] border border-emerald-500/30">
