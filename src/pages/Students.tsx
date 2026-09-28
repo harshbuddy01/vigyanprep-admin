@@ -25,7 +25,7 @@ export function Students() {
   // Create Demo Form State
   const [demoName, setDemoName] = useState('');
   const [demoEmail, setDemoEmail] = useState('');
-  const [demoExam, setDemoExam] = useState<'IAT' | 'NEST' | 'JEE' | 'ALL'>('IAT');
+  const [demoExams, setDemoExams] = useState<string[]>(['IAT']);
   const [demoPassword, setDemoPassword] = useState('');
   const [demoNotes, setDemoNotes] = useState('');
   const [creatingDemo, setCreatingDemo] = useState(false);
@@ -84,7 +84,7 @@ export function Students() {
   const openCreateDemoModal = () => {
     setDemoName('');
     setDemoEmail('');
-    setDemoExam('IAT');
+    setDemoExams(['IAT']);
     setDemoPassword(`VP-${Math.floor(100000 + Math.random() * 900000)}`);
     setDemoNotes('');
     setCreateDemoError(null);
@@ -97,6 +97,10 @@ export function Students() {
     e.preventDefault();
     if (!demoEmail.trim()) {
       setCreateDemoError('Student email is required');
+      return;
+    }
+    if (demoExams.length === 0) {
+      setCreateDemoError('Please select at least one target exam');
       return;
     }
     setCreatingDemo(true);
@@ -112,7 +116,8 @@ export function Students() {
         body: JSON.stringify({
           name: demoName.trim(),
           email: demoEmail.trim(),
-          targetExam: demoExam,
+          targetExam: demoExams.join(', '),
+          bundleIncludes: demoExams,
           customPassword: demoPassword.trim(),
           notes: demoNotes.trim()
         })
@@ -658,34 +663,67 @@ _Note: Includes full practice tests (IAT 01-03, JEE 01), authentic NTA CBT layou
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-1">
-                      Target Exam
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-neutral-300 uppercase tracking-wider">
+                      Target Exams (Select One or More)
                     </label>
-                    <select
-                      value={demoExam}
-                      onChange={(e) => setDemoExam(e.target.value as any)}
-                      className="w-full bg-neutral-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-400 text-xs"
+                    <button
+                      type="button"
+                      onClick={() => setDemoExams(['IAT', 'NEST', 'JEE', 'ISI_CMI'])}
+                      className="text-[10px] text-amber-400 hover:underline cursor-pointer"
                     >
-                      <option value="IAT">IISER IAT</option>
-                      <option value="NEST">NISER NEST</option>
-                      <option value="JEE">JEE Main</option>
-                      <option value="ALL">All Series (VIP Bundle)</option>
-                    </select>
+                      Select All 4 Exams
+                    </button>
                   </div>
+                  <div className="grid grid-cols-2 gap-2 bg-neutral-950 p-2.5 rounded-lg border border-white/10">
+                    {[
+                      { id: 'IAT', label: 'IISER IAT' },
+                      { id: 'NEST', label: 'NISER NEST' },
+                      { id: 'JEE', label: 'JEE Main' },
+                      { id: 'ISI_CMI', label: 'ISI / CMI' },
+                    ].map(exam => {
+                      const isChecked = demoExams.includes(exam.id);
+                      return (
+                        <label
+                          key={exam.id}
+                          className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition select-none ${
+                            isChecked
+                              ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 font-bold'
+                              : 'bg-neutral-900 border-white/5 text-neutral-400 hover:border-white/20'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                if (demoExams.length > 1) {
+                                  setDemoExams(demoExams.filter(e => e !== exam.id));
+                                }
+                              } else {
+                                setDemoExams([...demoExams, exam.id]);
+                              }
+                            }}
+                            className="accent-amber-400 rounded cursor-pointer"
+                          />
+                          <span className="text-xs">{exam.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-1">
-                      Password
-                    </label>
-                    <input
-                      type="text"
-                      value={demoPassword}
-                      onChange={(e) => setDemoPassword(e.target.value)}
-                      className="w-full bg-neutral-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-400 text-xs font-mono"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-1">
+                    Temporary Password
+                  </label>
+                  <input
+                    type="text"
+                    value={demoPassword}
+                    onChange={(e) => setDemoPassword(e.target.value)}
+                    className="w-full bg-neutral-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-400 text-xs font-mono"
+                  />
                 </div>
 
                 <div>
