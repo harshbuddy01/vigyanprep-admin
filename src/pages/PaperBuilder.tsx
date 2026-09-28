@@ -1297,7 +1297,7 @@ export function PaperBuilder() {
                                     Section B • Numerical / Integer Value Questions (Q{numericalStart}–Q{numericalStart + numericals.length - 1})
                                   </h4>
                                   <p className="text-[11px] text-neutral-400">
-                                    Candidate enters non-negative integer response via virtual keypad • Marks: +4 | 0 (No Negative Marking)
+                                    Candidate enters numerical response via virtual keypad • Marks: +4 | -1 (Standard NTA Marking)
                                   </p>
                                 </div>
                               </div>
